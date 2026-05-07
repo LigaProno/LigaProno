@@ -3,7 +3,7 @@ import { SignUp } from "@clerk/nextjs";
 export default function SignUpPage() {
   return (
     <main
-      className="min-h-screen flex items-center justify-center p-4"
+      className="min-h-screen flex items-center justify-center p-4 page-transition"
       style={{ backgroundColor: "#0F172A" }}
     >
       <SignUp

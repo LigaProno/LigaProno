@@ -25,6 +25,123 @@ body {
   font-family: var(--font-novarese), serif;
 }
 
+/* ── Cursor ─────────────────────────────────────────────────────────── */
+button,
+[role="button"],
+label[for] {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* ── Page transition ─────────────────────────────────────────────────── */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-transition {
+  animation: pageEnter 0.22s ease-out both;
+}
+
+/* ── Sidebar nav active indicator ───────────────────────────────────── */
+@keyframes navPulse {
+  0%   { opacity: 0.7; }
+  50%  { opacity: 1; }
+  100% { opacity: 0.7; }
+}
+
+
+/* ── Clerk component overrides ───────────────────────────────────────── */
+
+/* All text inside Clerk cards */
+.cl-card,
+.cl-userProfile-root,
+.cl-profilePage,
+.cl-profileSection,
+.cl-navbar {
+  color: #ffffff !important;
+}
+
+/* Headers & titles */
+.cl-headerTitle,
+.cl-headerSubtitle,
+.cl-profileSectionTitle,
+.cl-profileSectionTitleText,
+.cl-navbarButton,
+.cl-navbarButton span,
+.cl-accordionTriggerButton,
+.cl-tableHead,
+.cl-formFieldLabel,
+.cl-formFieldLabelRow,
+.cl-identityPreviewText,
+.cl-userPreviewMainIdentifier,
+.cl-userPreviewSecondaryIdentifier,
+.cl-badge,
+.cl-badgeLabel {
+  color: #ffffff !important;
+}
+
+/* Navbar */
+.cl-navbar {
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.cl-navbarButton:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Inputs */
+.cl-formFieldInput,
+.cl-formFieldInput:focus {
+  background-color: #0F172A !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.cl-formFieldInput:focus {
+  border-color: #22D3EE !important;
+  outline: none !important;
+  box-shadow: 0 0 0 1px #22D3EE !important;
+}
+
+/* Dividers / separators */
+.cl-profileSectionContent__profile,
+.cl-profileSection {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Action cards (e.g. "Add email" expanded form) */
+.cl-actionCard,
+.cl-accordionContent {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+/* Cancel / secondary buttons */
+.cl-formButtonReset {
+  color: #cbd5e1 !important;
+}
+
+.cl-formButtonReset:hover {
+  color: #ffffff !important;
+}
+
+/* Connected account text */
+.cl-profileSectionContent *,
+.cl-accordionContent * {
+  color: #ffffff !important;
+}
+
+/* ── Browser autofill override ───────────────────────────────────────── */
 /* Fix browser autofill overriding dark input backgrounds */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,

@@ -1,9 +1,13 @@
 import Link from "next/link";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const { userId } = await auth();
+  if (userId) redirect("/dashboard");
   return (
     <main
-      className="min-h-screen flex flex-col items-center justify-center p-6 sm:p-12 relative overflow-hidden"
+      className="min-h-screen flex flex-col items-center justify-center p-5 sm:p-10 relative overflow-hidden"
       style={{ backgroundColor: "#0F172A" }}
     >
       {/* Decorative blobs */}
@@ -24,11 +28,11 @@ export default function HomePage() {
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-10">
           <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl"
+            className="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center shadow-xl"
             style={{ backgroundColor: "#22D3EE" }}
           >
             <svg
-              className="w-8 h-8"
+              className="w-5 h-5 sm:w-8 sm:h-8"
               style={{ color: "#0F172A" }}
               fill="currentColor"
               viewBox="0 0 24 24"
@@ -37,17 +41,17 @@ export default function HomePage() {
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
             </svg>
           </div>
-          <span className="text-4xl font-bold tracking-tight text-white">
+          <span className="text-2xl sm:text-4xl font-bold tracking-tight text-white">
             Prono<span style={{ color: "#22D3EE" }}>Hub</span>
           </span>
         </div>
 
         {/* Headline */}
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight mb-5 text-white">
+        <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold leading-tight mb-4 sm:mb-5 text-white">
           Predict. Compete.<br />
           <span style={{ color: "#22D3EE" }}>Dominate.</span>
         </h1>
-        <p className="text-lg sm:text-xl leading-relaxed mb-10 max-w-md" style={{ color: "rgba(255,255,255,0.65)" }}>
+        <p className="text-base sm:text-xl leading-relaxed mb-8 sm:mb-10 max-w-md" style={{ color: "rgba(255,255,255,0.65)" }}>
           Join thousands of sports fans making predictions, climbing leaderboards,
           and winning glory every matchday.
         </p>
@@ -75,7 +79,7 @@ export default function HomePage() {
         </div>
 
         {/* Stats */}
-        <div className="mt-14 grid grid-cols-3 gap-4 sm:gap-6 w-full max-w-sm">
+        <div className="mt-10 sm:mt-14 grid grid-cols-3 gap-3 sm:gap-6 w-full max-w-xs sm:max-w-sm">
           {[
             { value: "50K+", label: "Players" },
             { value: "200+", label: "Leagues" },

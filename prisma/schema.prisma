@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String             @id @default(auto()) @map("_id") @db.ObjectId
+  clerkId     String             @unique
+  email       String             @unique
+  firstName   String?
+  lastName    String?
+  imageUrl    String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  memberships TournamentMember[]
+  tournaments Tournament[]       @relation("CreatedTournaments")
+}
+
+model Tournament {
+  id         String             @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  inviteCode String             @unique
+  creatorId  String             @db.ObjectId
+  creator    User               @relation("CreatedTournaments", fields: [creatorId], references: [id])
+  members    TournamentMember[]
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+}
+
+model TournamentMember {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  tournamentId String     @db.ObjectId
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+  userId       String     @db.ObjectId
+  user         User       @relation(fields: [userId], references: [id])
+  joinedAt     DateTime   @default(now())
+
+  @@unique([tournamentId, userId])
+}
