@@ -1,0 +1,101 @@
+import type { FootballDataMatch } from "@/lib/football-data";
+import { venueLabel } from "@/lib/football-data";
+import { formatMatchKickoff } from "@/lib/match-datetime";
+import Image from "next/image";
+
+export function FootballDataMatchCard({ m }: { m: FootballDataMatch }) {
+  const venue = venueLabel(m);
+  const when = formatMatchKickoff(m.utcDate);
+  const home = m.homeTeam.name ?? m.homeTeam.shortName ?? "—";
+  const away = m.awayTeam.name ?? m.awayTeam.shortName ?? "—";
+  const hl = m.homeTeam.crest;
+  const al = m.awayTeam.crest;
+
+  return (
+    <div
+      className="max-w-xl mx-auto w-full rounded-2xl border overflow-hidden relative"
+      style={{
+        borderColor: "rgba(34,211,238,0.22)",
+        background:
+          "linear-gradient(145deg, rgba(15,23,42,0.96) 0%, rgba(30,41,59,0.88) 100%)",
+      }}
+    >
+      <div
+        className="absolute inset-x-0 top-0 h-px opacity-70"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent, #22D3EE, #BEF264, transparent)",
+        }}
+      />
+      <div className="px-4 py-5 sm:px-6 sm:py-6">
+        <div className="grid grid-cols-[1fr_minmax(8rem,1.2fr)_1fr] gap-3 sm:gap-5 items-stretch">
+          {/* Home */}
+          <div className="flex flex-col items-center justify-center gap-2.5 text-center min-w-0 px-3 py-2">
+            {hl ? (
+              <Image
+                src={hl}
+                alt=""
+                width={40}
+                height={40}
+                className="rounded-lg bg-white/90 p-0.5 mx-auto object-contain shrink-0"
+                unoptimized
+              />
+            ) : (
+              <div
+                className="w-10 h-10 rounded-lg shrink-0 mx-auto"
+                style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+              />
+            )}
+            <span className="font-bold text-white text-sm sm:text-base leading-snug break-words hyphens-auto">
+              {home}
+            </span>
+          </div>
+
+          {/* Venue + kick-off */}
+          <div
+            className="flex flex-col items-center justify-center text-center px-4 py-4 rounded-xl min-h-[5rem]"
+            style={{
+              backgroundColor: "rgba(0,0,0,0.28)",
+              border: "1px solid rgba(255,255,255,0.08)",
+            }}
+          >
+            <span
+              className="text-[11px] sm:text-xs font-semibold leading-snug line-clamp-4 px-1"
+              style={{ color: "#67E8F9" }}
+            >
+              {venue ?? "Venue TBD"}
+            </span>
+            <span
+              className="text-[10px] mt-2 font-medium tabular-nums"
+              style={{ color: "#BEF264" }}
+            >
+              {when}
+            </span>
+          </div>
+
+          {/* Away */}
+          <div className="flex flex-col items-center justify-center gap-2.5 text-center min-w-0 px-3 py-2">
+            {al ? (
+              <Image
+                src={al}
+                alt=""
+                width={40}
+                height={40}
+                className="rounded-lg bg-white/90 p-0.5 mx-auto object-contain shrink-0"
+                unoptimized
+              />
+            ) : (
+              <div
+                className="w-10 h-10 rounded-lg shrink-0 mx-auto"
+                style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+              />
+            )}
+            <span className="font-bold text-white text-sm sm:text-base leading-snug break-words hyphens-auto">
+              {away}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
