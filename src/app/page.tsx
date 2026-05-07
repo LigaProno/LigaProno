@@ -78,6 +78,15 @@ export default async function HomePage() {
           </Link>
         </div>
 
+        <Link
+          href="/matches"
+          className="mt-6 inline-flex items-center gap-2 text-base font-semibold underline-offset-4 hover:underline transition-all"
+          style={{ color: "#22D3EE" }}
+        >
+          FIFA World Cup 2026 — standings & fixtures
+          <span aria-hidden="true">→</span>
+        </Link>
+
         {/* Stats */}
         <div className="mt-10 sm:mt-14 grid grid-cols-3 gap-3 sm:gap-6 w-full max-w-xs sm:max-w-sm">
           {[
