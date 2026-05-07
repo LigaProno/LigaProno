@@ -25,6 +25,13 @@ export type FootballDataTeam = {
   crest?: string;
 };
 
+/** Scor din API (meciuri terminate / în desfășurare). */
+export type FootballDataScore = {
+  winner?: string | null;
+  fullTime?: { home?: number | null; away?: number | null };
+  halfTime?: { home?: number | null; away?: number | null };
+};
+
 /** Formă minimală din răspunsul la `/competitions/{code}/matches`. */
 export type FootballDataMatch = {
   id: number;
@@ -36,6 +43,7 @@ export type FootballDataMatch = {
   homeTeam: FootballDataTeam;
   awayTeam: FootballDataTeam;
   venue?: string | { name?: string; city?: string | null } | null;
+  score?: FootballDataScore | null;
 };
 
 type MatchesEnvelope = {
@@ -412,4 +420,36 @@ export function partitionFootballDataMatches(matches: FootballDataMatch[]): {
   for (const [, list] of knockoutByStageLabel) list.sort(sortByDate);
 
   return { groups, knockoutByStageLabel };
+}
+
+/** Echipe unice din lista de meciuri (pentru selectoare campion / calificări). */
+export function collectTeamsFromMatches(
+  matches: FootballDataMatch[],
+): FootballDataTeam[] {
+  const byId = new Map<number, FootballDataTeam>();
+  for (const m of matches) {
+    const hid = m.homeTeam?.id;
+    const aid = m.awayTeam?.id;
+    if (hid !== undefined) byId.set(hid, m.homeTeam);
+    if (aid !== undefined) byId.set(aid, m.awayTeam);
+  }
+  return [...byId.values()].sort((a, b) => {
+    const na = a.name ?? a.shortName ?? "";
+    const nb = b.name ?? b.shortName ?? "";
+    return na.localeCompare(nb, "en");
+  });
+}
+
+/** team id → `Group X` from standings tables (for validation / UI limits). */
+export function buildTeamIdToGroupKeyFromStandings(
+  standings: GroupStanding[],
+): Map<number, string> {
+  const m = new Map<number, string>();
+  for (const g of standings) {
+    for (const row of g.rows) {
+      const id = row.team?.id;
+      if (id !== undefined) m.set(id, g.groupKey);
+    }
+  }
+  return m;
 }

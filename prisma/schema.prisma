@@ -8,27 +8,68 @@ datasource db {
 }
 
 model User {
-  id          String             @id @default(auto()) @map("_id") @db.ObjectId
-  clerkId     String             @unique
-  email       String             @unique
-  firstName   String?
-  lastName    String?
-  imageUrl    String?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  memberships TournamentMember[]
-  tournaments Tournament[]       @relation("CreatedTournaments")
+  id                  String               @id @default(auto()) @map("_id") @db.ObjectId
+  clerkId             String               @unique
+  email               String               @unique
+  firstName           String?
+  lastName            String?
+  imageUrl            String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  memberships         TournamentMember[]
+  tournaments         Tournament[]         @relation("CreatedTournaments")
+  wcMatchPredictions  WcMatchPrediction[]
+  wcExtraPredictions  WcExtraPrediction[]
 }
 
+/** Competiție activă în party: null = fără pronosticuri structurate; WC_2026 = Cupa Mondială 2026. */
 model Tournament {
-  id         String             @id @default(auto()) @map("_id") @db.ObjectId
-  name       String
-  inviteCode String             @unique
-  creatorId  String             @db.ObjectId
-  creator    User               @relation("CreatedTournaments", fields: [creatorId], references: [id])
-  members    TournamentMember[]
-  createdAt  DateTime           @default(now())
-  updatedAt  DateTime           @updatedAt
+  id                   String               @id @default(auto()) @map("_id") @db.ObjectId
+  name                 String
+  inviteCode           String               @unique
+  creatorId            String               @db.ObjectId
+  creator              User                 @relation("CreatedTournaments", fields: [creatorId], references: [id])
+  members              TournamentMember[]
+  competition          String?
+  wcMatchPredictions   WcMatchPrediction[]
+  wcExtraPredictions   WcExtraPrediction[]
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+}
+
+/** Pronostic pe meci (pauză, final, scor). matchId = id Football-Data.org. */
+model WcMatchPrediction {
+  id            String     @id @default(auto()) @map("_id") @db.ObjectId
+  tournamentId  String     @db.ObjectId
+  tournament    Tournament @relation(fields: [tournamentId], references: [id])
+  userId        String     @db.ObjectId
+  user          User       @relation(fields: [userId], references: [id])
+  matchId       Int
+  htOutcome     String?
+  ftOutcome     String?
+  predHomeGoals Int?
+  predAwayGoals Int?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([tournamentId, userId, matchId])
+  @@index([tournamentId])
+}
+
+/** Calificări din grupe + campion. advancingTeamIds = id-uri echipe Football-Data. */
+model WcExtraPrediction {
+  id                 String     @id @default(auto()) @map("_id") @db.ObjectId
+  tournamentId       String     @db.ObjectId
+  tournament         Tournament @relation(fields: [tournamentId], references: [id])
+  userId             String     @db.ObjectId
+  user               User       @relation(fields: [userId], references: [id])
+  advancingTeamIds   Int[]
+  championTeamId     Int?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  @@unique([tournamentId, userId])
+  @@index([tournamentId])
 }
 
 model TournamentMember {

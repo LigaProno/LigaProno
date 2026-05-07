@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import CreateTournamentForm from "@/components/CreateTournamentForm";
@@ -83,6 +84,14 @@ export default async function PartyPage() {
                   >
                     {t.inviteCode}
                   </div>
+
+                  <Link
+                    href={`/party/${t.id}`}
+                    className="px-4 py-2 rounded-xl text-xs font-bold transition-opacity hover:opacity-90 shrink-0"
+                    style={{ backgroundColor: "#22D3EE", color: "#0F172A" }}
+                  >
+                    Open
+                  </Link>
                 </div>
               </div>
             ))}
