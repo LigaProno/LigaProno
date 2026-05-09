@@ -1,11 +1,25 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
+import {
+  type FootballDataCompetitionPickerOption,
+} from "@/lib/competition";
+import { getFootballDataCompetitionPickerOptions } from "@/lib/football-data";
 import { prisma } from "@/lib/prisma";
 import CreateTournamentForm from "@/components/CreateTournamentForm";
 import JoinTournamentForm from "@/components/JoinTournamentForm";
 
 export default async function PartyPage() {
   const { userId: clerkId } = await auth();
+
+  let competitionPickerOptions: FootballDataCompetitionPickerOption[] = [];
+  let competitionsLoadError: string | null = null;
+  try {
+    competitionPickerOptions =
+      await getFootballDataCompetitionPickerOptions();
+  } catch (e) {
+    competitionsLoadError =
+      e instanceof Error ? e.message : "Nu s-a putut încărca lista de competiții.";
+  }
 
   const user = await prisma.user.findUnique({
     where: { clerkId: clerkId! },
@@ -37,7 +51,10 @@ export default async function PartyPage() {
 
       {/* Create / Join cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
-        <CreateTournamentForm />
+        <CreateTournamentForm
+          competitionPickerOptions={competitionPickerOptions}
+          competitionsLoadError={competitionsLoadError}
+        />
         <JoinTournamentForm />
       </div>
 

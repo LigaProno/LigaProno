@@ -22,7 +22,7 @@ model User {
   wcExtraPredictions  WcExtraPrediction[]
 }
 
-/** Competiție activă în party: null = fără pronosticuri structurate; WC_2026 = Cupa Mondială 2026. */
+/** Competiție activă în party: null = fără pronosticuri; altfel `{COD_API}_{anSezon}` (ex. WC_2026, PL_2024) din Football-Data. */
 model Tournament {
   id                   String               @id @default(auto()) @map("_id") @db.ObjectId
   name                 String
@@ -33,8 +33,20 @@ model Tournament {
   competition          String?
   wcMatchPredictions   WcMatchPrediction[]
   wcExtraPredictions   WcExtraPrediction[]
+  bettingOdds          TournamentBettingOdds?
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
+}
+
+/** Snapshot cote (Gemini) folosit la punctaj: bază × cotă pentru rezultatul real. */
+model TournamentBettingOdds {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  tournamentId String     @unique @db.ObjectId
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  payload      Json
+  geminiModel  String?
+  fetchedAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 }
 
 /** Pronostic pe meci (pauză, final, scor). matchId = id Football-Data.org. */

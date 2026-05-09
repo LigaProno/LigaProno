@@ -1,19 +1,36 @@
+import {
+  lookup1x2Odd,
+  lookupCorrectScoreOdd,
+  lookupTeamOutrightOdd,
+  lookupTeamQualifyOdd,
+  type MatchOddsRow,
+  type Odds1x2Outcome,
+  type TournamentOddsMaps,
+} from "@/lib/betting-odds";
 import type {
   FootballDataMatch,
   GroupStanding,
   StandingTableRow,
 } from "@/lib/football-data";
 
-/** Valoare `Tournament.competition` pentru CM 2026. */
-export const COMPETITION_WC_2026 = "WC_2026";
+export { COMPETITION_WC_2026 } from "@/lib/competition";
 
-export const POINTS_HT = 1;
-export const POINTS_FT = 3;
-export const POINTS_CORRECT_SCORE = 5;
-export const POINTS_QUALIFIER_TEAM = 4;
-export const POINTS_CHAMPION = 15;
+export type MatchOutcome = Odds1x2Outcome;
 
-export type MatchOutcome = "HOME" | "AWAY" | "DRAW";
+/** Punctaj de bază pentru pauză (înmulțit cu cota rezultatului real). */
+export const POINTS_HT_BASE = 0.5;
+/** Punctaj de bază pentru final 1X2. */
+export const POINTS_FT_BASE = 1;
+/** Punctaj de bază pentru scor exact. */
+export const POINTS_CORRECT_SCORE_BASE = 3;
+/** Punctaj de bază per echipă ghicită calificată din grupe. */
+export const POINTS_QUALIFIER_TEAM_BASE = 2.5;
+/** Punctaj de bază pentru campion ghicit. */
+export const POINTS_CHAMPION_BASE = 12;
+
+export function roundPoints(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 export function outcomeFromScores(home: number, away: number): MatchOutcome {
   if (home > away) return "HOME";
@@ -152,6 +169,7 @@ export type MatchPointsBreakdown = {
 export function computeMatchPoints(
   pred: MatchPredictionInput,
   match: FootballDataMatch,
+  matchOdds?: MatchOddsRow | null,
 ): MatchPointsBreakdown {
   const empty = { halfTime: 0, fullTime: 0, correctScore: 0, total: 0 };
   if (match.status !== "FINISHED") return empty;
@@ -169,7 +187,10 @@ export function computeMatchPoints(
       pred.htOutcome === "DRAW")
   ) {
     const actualHt = outcomeFromScores(ht.home!, ht.away!);
-    if (actualHt === pred.htOutcome) halfTime = POINTS_HT;
+    if (actualHt === pred.htOutcome) {
+      const odd = lookup1x2Odd(matchOdds, "ht1x2", actualHt);
+      halfTime = roundPoints(POINTS_HT_BASE * odd);
+    }
   }
 
   let fullTime = 0;
@@ -183,7 +204,8 @@ export function computeMatchPoints(
         pred.ftOutcome === "DRAW") &&
       actualFt === pred.ftOutcome
     ) {
-      fullTime = POINTS_FT;
+      const odd = lookup1x2Odd(matchOdds, "ft1x2", actualFt);
+      fullTime = roundPoints(POINTS_FT_BASE * odd);
     }
     if (
       pred.predHomeGoals != null &&
@@ -191,7 +213,8 @@ export function computeMatchPoints(
       pred.predHomeGoals === ft.home &&
       pred.predAwayGoals === ft.away
     ) {
-      correctScore = POINTS_CORRECT_SCORE;
+      const oddCs = lookupCorrectScoreOdd(matchOdds, ft.home, ft.away);
+      correctScore = roundPoints(POINTS_CORRECT_SCORE_BASE * oddCs);
     }
   }
 
@@ -199,27 +222,31 @@ export function computeMatchPoints(
     halfTime,
     fullTime,
     correctScore,
-    total: halfTime + fullTime + correctScore,
+    total: roundPoints(halfTime + fullTime + correctScore),
   };
 }
 
 export function computeQualifierPoints(
   predictedIds: number[],
   actualSet: Set<number>,
+  oddsMaps?: TournamentOddsMaps | null,
 ): number {
-  let n = 0;
+  let sum = 0;
   const seen = new Set<number>();
   for (const id of predictedIds) {
     if (seen.has(id)) continue;
     seen.add(id);
-    if (actualSet.has(id)) n += 1;
+    if (!actualSet.has(id)) continue;
+    const odd = oddsMaps ? lookupTeamQualifyOdd(oddsMaps, id) : 1;
+    sum += POINTS_QUALIFIER_TEAM_BASE * odd;
   }
-  return n * POINTS_QUALIFIER_TEAM;
+  return roundPoints(sum);
 }
 
 export function computeChampionPoints(
   predictedChampionId: number | null | undefined,
   actualChampionId: number | null,
+  oddsMaps?: TournamentOddsMaps | null,
 ): number {
   if (
     predictedChampionId == null ||
@@ -228,7 +255,9 @@ export function computeChampionPoints(
   ) {
     return 0;
   }
-  return POINTS_CHAMPION;
+  const odd =
+    oddsMaps ? lookupTeamOutrightOdd(oddsMaps, actualChampionId) : 1;
+  return roundPoints(POINTS_CHAMPION_BASE * odd);
 }
 
 export type UserWcTotals = {
@@ -251,6 +280,7 @@ export function computeUserWcTotals(
   extra: { advancingTeamIds: number[]; championTeamId: number | null } | null,
   matches: FootballDataMatch[],
   standings: GroupStanding[],
+  oddsMaps?: TournamentOddsMaps | null,
 ): UserWcTotals {
   let fullTimeGuessPoints = 0;
   let halfTimeGuessPoints = 0;
@@ -258,13 +288,15 @@ export function computeUserWcTotals(
   for (const m of matches) {
     const pred = matchPredictionsByMatchId.get(m.id);
     if (!pred) continue;
-    const b = computeMatchPoints(pred, m);
+    const oddsRow = oddsMaps?.matchById.get(m.id) ?? null;
+    const b = computeMatchPoints(pred, m, oddsRow);
     halfTimeGuessPoints += b.halfTime;
     fullTimeGuessPoints += b.fullTime;
     correctScorePoints += b.correctScore;
   }
-  const matchPoints =
-    fullTimeGuessPoints + halfTimeGuessPoints + correctScorePoints;
+  const matchPoints = roundPoints(
+    fullTimeGuessPoints + halfTimeGuessPoints + correctScorePoints,
+  );
 
   const advancingSet = resolveActualAdvancingTeamIdsForScoring(
     matches,
@@ -272,22 +304,29 @@ export function computeUserWcTotals(
   );
   const qualifierPoints =
     extra?.advancingTeamIds?.length ?
-      computeQualifierPoints(extra.advancingTeamIds, advancingSet)
+      computeQualifierPoints(
+        extra.advancingTeamIds,
+        advancingSet,
+        oddsMaps ?? null,
+      )
     : 0;
 
   const championActual = getFinalWinnerFromMatches(matches);
   const championPoints = computeChampionPoints(
     extra?.championTeamId ?? null,
     championActual,
+    oddsMaps ?? null,
   );
 
   return {
-    fullTimeGuessPoints,
-    halfTimeGuessPoints,
-    correctScorePoints,
+    fullTimeGuessPoints: roundPoints(fullTimeGuessPoints),
+    halfTimeGuessPoints: roundPoints(halfTimeGuessPoints),
+    correctScorePoints: roundPoints(correctScorePoints),
     matchPoints,
     qualifierPoints,
     championPoints,
-    total: matchPoints + qualifierPoints + championPoints,
+    total: roundPoints(
+      matchPoints + qualifierPoints + championPoints,
+    ),
   };
 }

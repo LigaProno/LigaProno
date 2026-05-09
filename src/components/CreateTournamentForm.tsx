@@ -3,15 +3,23 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createTournament } from "@/app/actions/tournament";
+import type { FootballDataCompetitionPickerOption } from "@/lib/competition";
 
 function generateCode(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   return Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 }
 
-export default function CreateTournamentForm() {
+export default function CreateTournamentForm({
+  competitionPickerOptions = [],
+  competitionsLoadError = null,
+}: {
+  competitionPickerOptions?: FootballDataCompetitionPickerOption[];
+  competitionsLoadError?: string | null;
+}) {
   const [name, setName] = useState("");
   const [code, setCode] = useState(() => generateCode());
+  const [competitionKey, setCompetitionKey] = useState("");
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -24,10 +32,15 @@ export default function CreateTournamentForm() {
     setError(null);
     startTransition(async () => {
       try {
-        const result = await createTournament(name.trim(), code.trim());
+        const result = await createTournament(
+          name.trim(),
+          code.trim(),
+          competitionKey.trim() || null,
+        );
         setCreatedCode(result.inviteCode);
         setName("");
         setCode(generateCode());
+        setCompetitionKey("");
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong");
@@ -92,6 +105,37 @@ export default function CreateTournamentForm() {
               className="w-full rounded-xl px-4 py-3 text-sm outline-none border transition-colors"
               style={{ backgroundColor: "#0F172A", color: "#ffffff", borderColor: "rgba(255,255,255,0.12)" }}
             />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
+              Competiție (Football-Data)
+            </label>
+            {competitionsLoadError ?
+              <p className="text-xs" style={{ color: "#fbbf24" }}>
+                {competitionsLoadError} Poți crea party fără competiție și o setezi mai târziu.
+              </p>
+            : null}
+            <select
+              value={competitionKey}
+              onChange={(e) => setCompetitionKey(e.target.value)}
+              className="w-full rounded-xl px-4 py-3 text-sm outline-none border transition-colors"
+              style={{
+                backgroundColor: "#0F172A",
+                color: "#ffffff",
+                borderColor: "rgba(255,255,255,0.12)",
+              }}
+            >
+              <option value="">Fără competiție (doar party)</option>
+              {competitionPickerOptions.map((c) => (
+                <option key={c.storageKey} value={c.storageKey}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] leading-relaxed" style={{ color: "rgba(255,255,255,0.35)" }}>
+              Lista depinde de planul API Football-Data.org. Sezonul folosit este anul de start al sezonului curent.
+            </p>
           </div>
 
           <div className="flex flex-col gap-1.5">
