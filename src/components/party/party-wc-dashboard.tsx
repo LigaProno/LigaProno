@@ -1,7 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type { FootballDataMatch, FootballDataTeam, GroupStanding } from "@/lib/football-data";
 import {
   buildTeamIdToGroupKeyFromStandings,
@@ -13,19 +15,26 @@ import {
 } from "@/lib/football-data";
 import { formatMatchKickoff } from "@/lib/match-datetime";
 import {
-  COMPETITION_WC_2026,
-  computeMatchPoints,
-  POINTS_CHAMPION,
-  POINTS_CORRECT_SCORE,
-  POINTS_FT,
-  POINTS_HT,
-  POINTS_QUALIFIER_TEAM,
-} from "@/lib/wc-scoring";
+  isWorldCup2026Storage,
+  parseStoredCompetition,
+  type FootballDataCompetitionPickerOption,
+} from "@/lib/competition";
+import type { MatchOddsRow } from "@/lib/betting-odds";
+import { refreshTournamentBettingOdds } from "@/app/actions/betting-odds";
 import {
   saveWcExtraPrediction,
   saveWcMatchPrediction,
   setTournamentCompetition,
+  simulateRandomClPredictionsForMe,
 } from "@/app/actions/wc-predictions";
+import {
+  computeMatchPoints,
+  POINTS_CHAMPION_BASE,
+  POINTS_CORRECT_SCORE_BASE,
+  POINTS_FT_BASE,
+  POINTS_HT_BASE,
+  POINTS_QUALIFIER_TEAM_BASE,
+} from "@/lib/wc-scoring";
 
 export type LeaderboardRow = {
   rank: number;
@@ -41,6 +50,19 @@ export type LeaderboardRow = {
   cg: number;
   championPoints: number;
   total: number;
+  championPick: string | null;
+  lastMatch: {
+    matchId: number;
+    fixture: string;
+    pred: string;
+    actualHt: string | null;
+    actualFt: string | null;
+  } | null;
+  nextMatches: ({
+    matchId: number;
+    fixture: string;
+    pred: string;
+  } | null)[];
 };
 
 type MatchPredState = {
@@ -125,6 +147,8 @@ export default function PartyWcDashboard({
   tournamentName,
   inviteCode,
   competition,
+  competitionPickerOptions = [],
+  showDevClSimulator = false,
   isCreator,
   currentUserId,
   matches,
@@ -133,11 +157,16 @@ export default function PartyWcDashboard({
   myPreds,
   myExtra,
   allTeams,
+  bettingOddsByMatchId = {},
+  bettingOddsFetchedAt = null,
 }: {
   tournamentId: string;
   tournamentName: string;
   inviteCode: string;
   competition: string | null;
+  competitionPickerOptions?: FootballDataCompetitionPickerOption[];
+  /** Dev only: buton pentru pronosticuri UCL aleatoare (setat din server). */
+  showDevClSimulator?: boolean;
   isCreator: boolean;
   currentUserId: string;
   matches: FootballDataMatch[];
@@ -157,13 +186,21 @@ export default function PartyWcDashboard({
     championTeamId: number | null;
   } | null;
   allTeams: FootballDataTeam[];
+  /** Cote per matchId (string cheie), pentru multiplicator la punctaj. */
+  bettingOddsByMatchId?: Record<string, MatchOddsRow>;
+  bettingOddsFetchedAt?: string | null;
 }) {
+  const router = useRouter();
   const [tab, setTab] = useState<"leaderboard" | "matches" | "extras">("leaderboard");
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [simDevNote, setSimDevNote] = useState<string | null>(null);
 
-  const wcActive = competition === COMPETITION_WC_2026;
+  const wc2026Mode = isWorldCup2026Storage(competition);
+  const competitionActive = parseStoredCompetition(competition) != null;
+  const isChampionsLeagueParty =
+    parseStoredCompetition(competition)?.code === "CL";
 
   const teamIdToGroupKey = useMemo(
     () => buildTeamIdToGroupKeyFromStandings(standings),
@@ -172,9 +209,18 @@ export default function PartyWcDashboard({
 
   const { groupBlocks, knockoutBlocks } = useMemo(() => {
     const { groups, knockoutByStageLabel } = partitionFootballDataMatches(matches);
-    const groupKeysOrdered = [...WC_GROUP_ORDER];
-    if ((groups.get(WC_UNASSIGNED_GROUP_KEY)?.length ?? 0) > 0) {
-      groupKeysOrdered.push(WC_UNASSIGNED_GROUP_KEY);
+    let groupKeysOrdered: string[];
+    if (wc2026Mode) {
+      groupKeysOrdered = [...WC_GROUP_ORDER];
+      if ((groups.get(WC_UNASSIGNED_GROUP_KEY)?.length ?? 0) > 0) {
+        groupKeysOrdered.push(WC_UNASSIGNED_GROUP_KEY);
+      }
+    } else {
+      groupKeysOrdered = [...groups.keys()].sort((a, b) => {
+        if (a === WC_UNASSIGNED_GROUP_KEY) return 1;
+        if (b === WC_UNASSIGNED_GROUP_KEY) return -1;
+        return a.localeCompare(b, undefined, { numeric: true });
+      });
     }
     const groupBlocks = groupKeysOrdered.map((key) => ({
       key,
@@ -186,7 +232,7 @@ export default function PartyWcDashboard({
       matches: knockoutByStageLabel.get(stageLabel) ?? [],
     }));
     return { groupBlocks, knockoutBlocks };
-  }, [matches]);
+  }, [matches, wc2026Mode]);
 
   const [advancing, setAdvancing] = useState<Set<number>>(
     () => new Set(myExtra?.advancingTeamIds ?? []),
@@ -210,19 +256,19 @@ export default function PartyWcDashboard({
     });
   }
 
-  function onSetCompetition(nextWc: boolean) {
+  function onCompetitionChange(storageKey: string) {
     setErr(null);
     setMsg(null);
     startTransition(async () => {
       try {
         await setTournamentCompetition(
           tournamentId,
-          nextWc ? COMPETITION_WC_2026 : null,
+          storageKey.trim() === "" ? null : storageKey.trim(),
         );
         setMsg(
-          nextWc ?
-            "FIFA World Cup 2026 enabled for this party."
-          : "Competition mode turned off.",
+          storageKey.trim() === "" ?
+            "Competition cleared."
+          : "Competition updated.",
         );
       } catch (e) {
         setErr(e instanceof Error ? e.message : "Something went wrong");
@@ -241,67 +287,200 @@ export default function PartyWcDashboard({
               {inviteCode}
             </span>
           </p>
+          {competitionActive && bettingOddsFetchedAt ?
+            <p className="text-[10px] mt-1.5" style={{ color: "rgba(167,243,208,0.8)" }}>
+              Snapshot cote: {new Date(bettingOddsFetchedAt).toLocaleString("ro-RO")} ·{" "}
+              {Object.keys(bettingOddsByMatchId).length} meciuri
+            </p>
+          : competitionActive ?
+            <p className="text-[10px] mt-1.5 text-amber-200/85">
+              Fără snapshot de cote — multiplicator 1 (creatorul poate actualiza din setările competiției).
+            </p>
+          : null}
         </div>
-        {wcActive && (
+        {competitionActive && wc2026Mode && (
           <div
-            className="rounded-xl px-4 py-2 text-xs font-medium shrink-0"
+            className="rounded-xl px-4 py-2 text-xs font-medium shrink-0 max-w-lg leading-snug"
             style={{ backgroundColor: "rgba(34,211,238,0.12)", color: "#67E8F9" }}
           >
-            WC 2026 on · scoring: HT {POINTS_HT}p · FT {POINTS_FT}p · exact score {POINTS_CORRECT_SCORE}p ·
-            qualifier {POINTS_QUALIFIER_TEAM}p each · champion {POINTS_CHAMPION}p
+            WC 2026 · punctaj: pauză {POINTS_HT_BASE}×cota 1X2 la pauză (rezultat real), final {POINTS_FT_BASE}×cota 1X2
+            final, scor exact {POINTS_CORRECT_SCORE_BASE}×cota scorului, calificat {POINTS_QUALIFIER_TEAM_BASE}×cota
+            calificării, campion {POINTS_CHAMPION_BASE}×cota câștigătorului. Fără snapshot de cote, multiplicatorul e
+            1.
+          </div>
+        )}
+        {competitionActive && !wc2026Mode && (
+          <div
+            className="rounded-xl px-4 py-2 text-xs font-medium shrink-0 max-w-lg leading-snug"
+            style={{ backgroundColor: "rgba(34,211,238,0.12)", color: "#67E8F9" }}
+          >
+            Pronosticuri active · aceleași reguli de bază × cote (Gemini). Extras: calificări + campion când programul
+            suportă regulile de cupă.
           </div>
         )}
       </header>
 
+      {showDevClSimulator && isChampionsLeagueParty && competitionActive && (
+        <div
+          className="rounded-xl border px-4 py-3 text-xs flex flex-col gap-2"
+          style={{
+            borderColor: "rgba(251,191,36,0.35)",
+            backgroundColor: "rgba(120,53,15,0.25)",
+            color: "rgba(254,243,199,0.95)",
+          }}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <span className="flex-1">
+              <strong className="text-amber-200">Dev:</strong> generează pronosticuri aleatoare pe toate meciurile UCL
+              (scoruri + 1–3 echipe aleatoare per grupă din clasament + campion aleator). Suprascrie pronosticurile tale.
+            </span>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                setErr(null);
+                setMsg(null);
+                setSimDevNote(null);
+                startTransition(async () => {
+                  try {
+                    const r = await simulateRandomClPredictionsForMe(tournamentId);
+                    setSimDevNote(
+                      `Gata: ${r.matchCount} meciuri, ${r.advancingCount} calificați aleși în extras.`,
+                    );
+                    router.refresh();
+                  } catch (e) {
+                    setSimDevNote(
+                      e instanceof Error ? e.message : "Simulator failed",
+                    );
+                  }
+                });
+              }}
+              className="shrink-0 px-4 py-2 rounded-lg font-bold text-xs cursor-pointer disabled:opacity-50"
+              style={{ backgroundColor: "#FBBF24", color: "#1c1917" }}
+            >
+              Randomize my UCL picks
+            </button>
+          </div>
+          {simDevNote ?
+            <p
+              className={`text-xs ${simDevNote.startsWith("Gata:") ? "text-emerald-300" : "text-red-300"}`}
+            >
+              {simDevNote}
+            </p>
+          : null}
+        </div>
+      )}
+
       {isCreator && (
         <div
-          className="rounded-2xl border px-4 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between"
+          className="rounded-2xl border px-4 py-4 flex flex-col gap-3"
           style={{ backgroundColor: "#1E293B", borderColor: "rgba(255,255,255,0.08)" }}
         >
           <div>
             <p className="text-white text-sm font-semibold">Party competition</p>
             <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>
-              Enable FIFA World Cup 2026 for predictions and the leaderboard.
+              Alege competiția din Football-Data (același catalog ca la creare). Lista depinde de planul API.
             </p>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          {competitionPickerOptions.length > 0 ?
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:flex-wrap">
+              <select
+                value={competition ?? ""}
+                disabled={pending}
+                onChange={(e) => onCompetitionChange(e.target.value)}
+                className="rounded-xl px-4 py-3 text-sm outline-none border min-w-[12rem] max-w-full sm:max-w-md cursor-pointer disabled:opacity-50"
+                style={{
+                  backgroundColor: "#0F172A",
+                  color: "#fff",
+                  borderColor: "rgba(255,255,255,0.12)",
+                }}
+              >
+                <option value="">Fără competiție</option>
+                {competitionPickerOptions.map((c) => (
+                  <option key={c.storageKey} value={c.storageKey}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          : <p className="text-xs" style={{ color: "#fbbf24" }}>
+              Lista de competiții nu e disponibilă (verifică token-ul API). Poți șterge competiția curentă dacă e
+              setată.
+            </p>}
+          {competition && competitionPickerOptions.length === 0 ?
             <button
               type="button"
-              disabled={pending || wcActive}
-              onClick={() => onSetCompetition(true)}
-              className="px-4 py-2 rounded-xl text-sm font-bold transition-opacity disabled:opacity-40 cursor-pointer"
-              style={{ backgroundColor: "#22D3EE", color: "#0F172A" }}
-            >
-              FIFA World Cup 2026
-            </button>
-            <button
-              type="button"
-              disabled={pending || !wcActive}
-              onClick={() => onSetCompetition(false)}
-              className="px-4 py-2 rounded-xl text-sm font-semibold border cursor-pointer transition-opacity disabled:opacity-40"
+              disabled={pending}
+              onClick={() => onCompetitionChange("")}
+              className="self-start px-4 py-2 rounded-xl text-sm font-semibold border cursor-pointer transition-opacity disabled:opacity-40"
               style={{
                 borderColor: "rgba(255,255,255,0.2)",
                 color: "rgba(255,255,255,0.85)",
               }}
             >
-              No competition
+              Șterge competiția
             </button>
-          </div>
+          : null}
+          {competitionActive && (
+            <div
+              className="mt-3 pt-3 border-t flex flex-col gap-2"
+              style={{ borderColor: "rgba(255,255,255,0.08)" }}
+            >
+              <p className="text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>
+                Cote pentru punctaj: Gemini cu{" "}
+                <strong className="text-cyan-200/95">Grounding Google Search</strong> (căutare web pentru linii
+                actuale), salvate în MongoDB. Necesită{" "}
+                <code className="text-cyan-200/90">GEMINI_API_KEY</code>. Poți dezactiva căutarea cu{" "}
+                <code className="text-cyan-200/90">GEMINI_ODDS_USE_GOOGLE_SEARCH=false</code> dacă API-ul refuză
+                combinația sau vrei doar răspuns fără web.
+              </p>
+              {bettingOddsFetchedAt ?
+                <p className="text-[10px]" style={{ color: "rgba(167,243,208,0.85)" }}>
+                  Snapshot cote: {new Date(bettingOddsFetchedAt).toLocaleString("ro-RO")} ·{" "}
+                  {Object.keys(bettingOddsByMatchId).length} meciuri cu linii în snapshot
+                </p>
+              : <p className="text-[10px] text-amber-200/90">Încă nu există snapshot de cote — punctajul folosește
+                  multiplicator 1 până la prima actualizare.</p>}
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => {
+                  setErr(null);
+                  setMsg(null);
+                  startTransition(async () => {
+                    try {
+                      const r = await refreshTournamentBettingOdds(tournamentId);
+                      setMsg(
+                        `Cote actualizate (${r.matchCount} meciuri, ${r.teamCount} echipe, model ${r.model}${r.usedGoogleSearch ? ", cu căutare Google" : ", fără căutare Google"}).`,
+                      );
+                      router.refresh();
+                    } catch (e) {
+                      setErr(e instanceof Error ? e.message : "Nu s-au putut actualiza cotele");
+                    }
+                  });
+                }}
+                className="self-start px-4 py-2 rounded-xl text-xs font-bold cursor-pointer disabled:opacity-40"
+                style={{ backgroundColor: "#0EA5E9", color: "#0f172a" }}
+              >
+                Actualizează cotele (Gemini)
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      {!wcActive && (
+      {!competitionActive && (
         <div
           className="rounded-2xl border p-6 text-center text-sm"
           style={{ borderColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }}
         >
           {isCreator ?
-            "Enable “FIFA World Cup 2026” above to load fixtures, standings, and scoring."
-          : "The party creator can enable FIFA World Cup 2026 in the settings above."}
+            "Selectează o competiție mai sus pentru meciuri, clasament și pronosticuri."
+          : "Creatorul party-ului poate seta competiția din setările de mai sus."}
         </div>
       )}
 
-      {wcActive && (
+      {competitionActive && (
         <>
           {(msg || err) && (
             <p className={`text-sm ${err ? "text-red-400" : "text-emerald-400"}`}>
@@ -334,103 +513,174 @@ export default function PartyWcDashboard({
 
           {tab === "leaderboard" && (
             <div
-              className="rounded-2xl border overflow-hidden"
+              className="rounded-2xl border overflow-x-auto"
               style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "#1E293B" }}
             >
               <p
                 className="text-[10px] sm:text-xs px-3 sm:px-4 pt-3 pb-2 leading-relaxed"
                 style={{ color: "rgba(255,255,255,0.4)" }}
               >
-                <span className="font-semibold text-cyan-300/90">FG</span> Final guessed ·{" "}
-                <span className="font-semibold text-cyan-300/90">PG</span> Half-time guessed ·{" "}
-                <span className="font-semibold text-cyan-300/90">SC</span> Correct scores ·{" "}
-                <span className="font-semibold text-cyan-300/90">CG</span> Qualifiers guessed (counts after all
-                group games finish or Round of 32 line-up is complete) ·{" "}
-                <span className="font-semibold text-cyan-300/90">CH</span> Champion
-              </p>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                    <th className="text-left py-3 px-3 text-xs font-semibold" style={{ color: "rgba(255,255,255,0.45)" }}>
-                      #
-                    </th>
-                    <th className="text-left py-3 px-3 text-xs font-semibold min-w-[6rem]" style={{ color: "rgba(255,255,255,0.45)" }}>
-                      Member
-                    </th>
-                    <th
-                      className="text-right py-3 px-1.5 text-xs font-semibold tabular-nums"
-                      style={{ color: "rgba(255,255,255,0.45)" }}
-                      title="Final guessed (full-time winner)"
-                    >
-                      FG
-                    </th>
-                    <th
-                      className="text-right py-3 px-1.5 text-xs font-semibold tabular-nums"
-                      style={{ color: "rgba(255,255,255,0.45)" }}
-                      title="Half-time guessed"
-                    >
-                      PG
-                    </th>
-                    <th
-                      className="text-right py-3 px-1.5 text-xs font-semibold tabular-nums"
-                      style={{ color: "rgba(255,255,255,0.45)" }}
-                      title="Correct scores"
-                    >
-                      SC
-                    </th>
-                    <th
-                      className="text-right py-3 px-1.5 text-xs font-semibold tabular-nums"
-                      style={{ color: "rgba(255,255,255,0.45)" }}
-                      title="Qualifiers guessed"
-                    >
-                      CG
-                    </th>
-                    <th
-                      className="text-right py-3 px-1.5 text-xs font-semibold hidden md:table-cell tabular-nums"
-                      style={{ color: "rgba(255,255,255,0.45)" }}
-                      title="Champion"
-                    >
-                      CH
-                    </th>
-                    <th className="text-right py-3 px-3 text-xs font-semibold tabular-nums" style={{ color: "rgba(255,255,255,0.45)" }}>
-                      Total
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {leaderboard.map((row) => (
-                    <tr
-                      key={row.userId}
-                      style={{
-                        borderBottom: "1px solid rgba(255,255,255,0.06)",
-                        backgroundColor:
-                          row.userId === currentUserId ? "rgba(34,211,238,0.06)" : undefined,
-                      }}
-                    >
-                      <td className="py-3 px-3 text-white font-bold tabular-nums">{row.rank}</td>
-                      <td className="py-3 px-3 text-white truncate max-w-[8rem] sm:max-w-none">{row.displayName}</td>
-                      <td className="py-3 px-1.5 text-right tabular-nums" style={{ color: "rgba(255,255,255,0.85)" }}>
-                        {row.fg}
-                      </td>
-                      <td className="py-3 px-1.5 text-right tabular-nums" style={{ color: "rgba(255,255,255,0.85)" }}>
-                        {row.pg}
-                      </td>
-                      <td className="py-3 px-1.5 text-right tabular-nums" style={{ color: "rgba(255,255,255,0.85)" }}>
-                        {row.sc}
-                      </td>
-                      <td className="py-3 px-1.5 text-right tabular-nums" style={{ color: "rgba(255,255,255,0.85)" }}>
-                        {row.cg}
-                      </td>
-                      <td className="py-3 px-1.5 text-right tabular-nums hidden md:table-cell" style={{ color: "rgba(255,255,255,0.85)" }}>
-                        {row.championPoints}
-                      </td>
-                      <td className="py-3 px-3 text-right font-bold tabular-nums" style={{ color: "#BEF264" }}>
-                        {row.total}
-                      </td>
+                  <span className="font-semibold text-cyan-300/90">FG</span> Final guessed ·{" "}
+                  <span className="font-semibold text-cyan-300/90">PG</span> Half-time guessed ·{" "}
+                  <span className="font-semibold text-cyan-300/90">SC</span> Correct scores ·{" "}
+                  <span className="font-semibold text-cyan-300/90">CG</span> Qualifiers guessed (counts after all
+                  group games finish or Round of 32 line-up is complete) ·{" "}
+                  <span className="font-semibold text-cyan-300/90">CH</span> Champion points ·{" "}
+                  <span className="font-semibold text-cyan-300/90">Pick</span> champion team they chose ·{" "}
+                  <span className="font-semibold text-cyan-300/90">Last</span> /{" "}
+                  <span className="font-semibold text-cyan-300/90">Next 3</span> use the latest results and the next
+                  three fixtures on the schedule (your pick or “—”). Click a member name to open their full prediction
+                  page. Dacă există snapshot de cote (Gemini), fiecare categorie e înmulțită cu cota rezultatului /
+                  echipei reale.
+                </p>
+                <table className="w-full text-sm min-w-[720px]">
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                      <th className="text-left py-3 px-2 text-xs font-semibold" style={{ color: "rgba(255,255,255,0.45)" }}>
+                        #
+                      </th>
+                      <th className="text-left py-3 px-2 text-xs font-semibold min-w-[5.5rem]" style={{ color: "rgba(255,255,255,0.45)" }}>
+                        Member
+                      </th>
+                      <th
+                        className="text-left py-3 px-1.5 text-xs font-semibold max-w-[3.25rem]"
+                        style={{ color: "rgba(255,255,255,0.45)" }}
+                        title="Champion team they picked"
+                      >
+                        Pick
+                      </th>
+                      <th
+                        className="text-left py-3 px-1.5 text-xs font-semibold min-w-[4.5rem]"
+                        style={{ color: "rgba(255,255,255,0.45)" }}
+                        title="Prediction for the most recently finished match; HT/FT lines = actual scores when available"
+                      >
+                        Last
+                      </th>
+                      <th
+                        className="text-left py-3 px-1.5 text-xs font-semibold min-w-[5.5rem]"
+                        style={{ color: "rgba(255,255,255,0.45)" }}
+                        title="Their picks for the next three scheduled fixtures"
+                      >
+                        Next 3
+                      </th>
+                      <th
+                        className="text-right py-3 px-1 text-xs font-semibold tabular-nums"
+                        style={{ color: "rgba(255,255,255,0.45)" }}
+                        title="Final guessed (full-time winner)"
+                      >
+                        FG
+                      </th>
+                      <th
+                        className="text-right py-3 px-1 text-xs font-semibold tabular-nums"
+                        style={{ color: "rgba(255,255,255,0.45)" }}
+                        title="Half-time guessed"
+                      >
+                        PG
+                      </th>
+                      <th
+                        className="text-right py-3 px-1 text-xs font-semibold tabular-nums"
+                        style={{ color: "rgba(255,255,255,0.45)" }}
+                        title="Correct scores"
+                      >
+                        SC
+                      </th>
+                      <th
+                        className="text-right py-3 px-1 text-xs font-semibold tabular-nums"
+                        style={{ color: "rgba(255,255,255,0.45)" }}
+                        title="Qualifiers guessed"
+                      >
+                        CG
+                      </th>
+                      <th
+                        className="text-right py-3 px-1 text-xs font-semibold hidden md:table-cell tabular-nums"
+                        style={{ color: "rgba(255,255,255,0.45)" }}
+                        title="Champion points (scoring)"
+                      >
+                        CH
+                      </th>
+                      <th className="text-right py-3 px-2 text-xs font-semibold tabular-nums" style={{ color: "rgba(255,255,255,0.45)" }}>
+                        Total
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {leaderboard.map((row) => (
+                      <tr
+                        key={row.userId}
+                        style={{
+                          borderBottom: "1px solid rgba(255,255,255,0.06)",
+                          backgroundColor:
+                            row.userId === currentUserId ? "rgba(34,211,238,0.06)" : undefined,
+                        }}
+                      >
+                        <td className="py-2.5 px-2 text-white font-bold tabular-nums align-top">{row.rank}</td>
+                        <td className="py-2.5 px-2 align-top max-w-[7rem] sm:max-w-[9rem]">
+                          <Link
+                            href={`/party/${tournamentId}/member/${row.userId}`}
+                            className="text-left w-full inline-block text-white truncate hover:underline decoration-cyan-400/80 underline-offset-2 font-medium"
+                          >
+                            {row.displayName}
+                          </Link>
+                        </td>
+                        <td
+                          className="py-2.5 px-1.5 align-top text-[10px] sm:text-xs font-semibold tabular-nums max-w-[3.25rem] truncate"
+                          style={{ color: "#FDE68A" }}
+                          title={row.championPick ?? undefined}
+                        >
+                          {row.championPick ?? "—"}
+                        </td>
+                        <td className="py-2.5 px-1.5 align-top text-[10px] leading-snug" style={{ color: "rgba(255,255,255,0.82)" }}>
+                          {row.lastMatch ?
+                            <>
+                              <div className="font-medium text-cyan-200/90">{row.lastMatch.fixture}</div>
+                              <div>{row.lastMatch.pred}</div>
+                              {(row.lastMatch.actualHt || row.lastMatch.actualFt) && (
+                                <div className="text-[9px] mt-0.5 space-y-0.5" style={{ color: "rgba(255,255,255,0.38)" }}>
+                                  {row.lastMatch.actualHt ?
+                                    <div>HT {row.lastMatch.actualHt}</div>
+                                  : null}
+                                  {row.lastMatch.actualFt ?
+                                    <div>FT {row.lastMatch.actualFt}</div>
+                                  : null}
+                                </div>
+                              )}
+                            </>
+                          : <span style={{ color: "rgba(255,255,255,0.35)" }}>—</span>}
+                        </td>
+                        <td className="py-2.5 px-1.5 align-top text-[10px] leading-snug space-y-0.5" style={{ color: "rgba(255,255,255,0.82)" }}>
+                          {row.nextMatches.some(Boolean) ?
+                            row.nextMatches.map((n, i) =>
+                              n ?
+                                <div key={n.matchId}>
+                                  <span className="text-cyan-200/85">{n.fixture}</span>{" "}
+                                  <span className="tabular-nums">{n.pred}</span>
+                                </div>
+                              : null,
+                            )
+                          : <span style={{ color: "rgba(255,255,255,0.35)" }}>—</span>}
+                        </td>
+                        <td className="py-2.5 px-1 text-right tabular-nums align-top" style={{ color: "rgba(255,255,255,0.85)" }}>
+                          {row.fg}
+                        </td>
+                        <td className="py-2.5 px-1 text-right tabular-nums align-top" style={{ color: "rgba(255,255,255,0.85)" }}>
+                          {row.pg}
+                        </td>
+                        <td className="py-2.5 px-1 text-right tabular-nums align-top" style={{ color: "rgba(255,255,255,0.85)" }}>
+                          {row.sc}
+                        </td>
+                        <td className="py-2.5 px-1 text-right tabular-nums align-top" style={{ color: "rgba(255,255,255,0.85)" }}>
+                          {row.cg}
+                        </td>
+                        <td className="py-2.5 px-1 text-right tabular-nums align-top hidden md:table-cell" style={{ color: "rgba(255,255,255,0.85)" }}>
+                          {row.championPoints}
+                        </td>
+                        <td className="py-2.5 px-2 text-right font-bold tabular-nums align-top" style={{ color: "#BEF264" }}>
+                          {row.total}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
             </div>
           )}
 
@@ -446,6 +696,7 @@ export default function PartyWcDashboard({
                           key={m.id}
                           m={m}
                           tournamentId={tournamentId}
+                          matchOddsRow={bettingOddsByMatchId[String(m.id)] ?? null}
                           initial={predFromSaved(myPreds[m.id])}
                           onSaved={() => {
                             setMsg("Prediction saved.");
@@ -471,6 +722,7 @@ export default function PartyWcDashboard({
                           key={m.id}
                           m={m}
                           tournamentId={tournamentId}
+                          matchOddsRow={bettingOddsByMatchId[String(m.id)] ?? null}
                           initial={predFromSaved(myPreds[m.id])}
                           onSaved={() => {
                             setMsg("Prediction saved.");
@@ -495,11 +747,12 @@ export default function PartyWcDashboard({
               style={{ backgroundColor: "#1E293B", borderColor: "rgba(255,255,255,0.08)" }}
             >
               <p className="text-sm" style={{ color: "rgba(255,255,255,0.55)" }}>
-                Pick the teams you think reach the Round of 32: 1st and 2nd in each group, plus the eight
-                best 3rd‑placed sides (at most three picks from the same group). Points for correct picks (
-                {POINTS_QUALIFIER_TEAM}p each) are awarded only once qualifiers are known (all group fixtures
-                finished, or the Round of 32 bracket lists 32 teams). The correct champion adds{" "}
-                {POINTS_CHAMPION}p after the final.
+                Alege echipele care ajung în optimi (loc 1–2 în grupă + cele mai bune locuri 3, max. 3 echipe din
+                aceeași grupă). Pentru fiecare calificat ghicit primești{" "}
+                <span className="text-cyan-200/90">{POINTS_QUALIFIER_TEAM_BASE}×</span>cota lui de calificare (din
+                snapshot) — punctele se acordă doar după ce calificările sunt clare (toate meciurile din grupe
+                terminate sau 32 de echipe în bracket). Campionul corect:{" "}
+                <span className="text-cyan-200/90">{POINTS_CHAMPION_BASE}×</span>cota de câștigător final, după finală.
               </p>
               <p className="text-xs font-medium" style={{ color: "rgba(250,204,21,0.9)" }}>
                 You can select at most 3 teams from each group.
@@ -623,12 +876,14 @@ export default function PartyWcDashboard({
 function MatchPredictionBlock({
   m,
   tournamentId,
+  matchOddsRow,
   initial,
   onSaved,
   onError,
 }: {
   m: FootballDataMatch;
   tournamentId: string;
+  matchOddsRow: MatchOddsRow | null;
   initial: MatchPredState;
   onSaved: () => void;
   onError: (msg: string) => void;
@@ -656,8 +911,9 @@ function MatchPredictionBlock({
           predAwayGoals: p.predAwayGoals === "" ? null : Number(p.predAwayGoals),
         },
         m,
+        matchOddsRow,
       ),
-    [p, m],
+    [p, m, matchOddsRow],
   );
 
   const venue = venueLabel(m);
@@ -729,20 +985,20 @@ function MatchPredictionBlock({
       <div className="px-4 py-4 sm:px-6 flex flex-col gap-4">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <OutcomeSelect
-            label={`Half-time (+${POINTS_HT}p)`}
+            label={`Pauză (${POINTS_HT_BASE}×cotă 1X2)`}
             value={p.htOutcome}
             onChange={(v) => setP((s) => ({ ...s, htOutcome: v }))}
             disabled={finished}
           />
           <OutcomeSelect
-            label={`Full-time (+${POINTS_FT}p)`}
+            label={`Final (${POINTS_FT_BASE}×cotă 1X2)`}
             value={p.ftOutcome}
             onChange={(v) => setP((s) => ({ ...s, ftOutcome: v }))}
             disabled={finished}
           />
           <label className="flex flex-col gap-1 min-w-0">
             <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.45)" }}>
-              Home goals (+{POINTS_CORRECT_SCORE}p)
+              Goluri acasă (scor exact {POINTS_CORRECT_SCORE_BASE}×cotă)
             </span>
             <input
               type="number"

@@ -1,0 +1,149 @@
+import type { FootballDataMatch, FootballDataTeam } from "@/lib/football-data";
+import type { MatchPredictionInput } from "@/lib/wc-scoring";
+
+export function teamShort(t: FootballDataTeam | undefined): string {
+  if (!t) return "?";
+  return (t.tla ?? t.shortName ?? t.name ?? "?").trim() || "?";
+}
+
+export function hasAnyMatchPrediction(p: MatchPredictionInput | null | undefined): boolean {
+  if (!p) return false;
+  if (p.ftOutcome && p.ftOutcome !== "") return true;
+  if (p.htOutcome && p.htOutcome !== "") return true;
+  if (p.predHomeGoals != null && !Number.isNaN(Number(p.predHomeGoals))) return true;
+  if (p.predAwayGoals != null && !Number.isNaN(Number(p.predAwayGoals))) return true;
+  return false;
+}
+
+/** Rezumat pe un rând (legacy / tooltip). */
+export function formatPredDetail(p: MatchPredictionInput | null | undefined): string {
+  if (!p || !hasAnyMatchPrediction(p)) return "—";
+  const bits: string[] = [];
+  const hg = p.predHomeGoals;
+  const ag = p.predAwayGoals;
+  if (
+    hg != null &&
+    ag != null &&
+    Number.isFinite(hg) &&
+    Number.isFinite(ag) &&
+    hg >= 0 &&
+    ag >= 0
+  ) {
+    bits.push(`${hg}–${ag}`);
+  } else if (p.ftOutcome) {
+    bits.push(
+      p.ftOutcome === "HOME" ? "FT home" : p.ftOutcome === "AWAY" ? "FT away" : "FT draw",
+    );
+  }
+  if (p.htOutcome) {
+    bits.push(
+      p.htOutcome === "HOME" ? "HT home" : p.htOutcome === "AWAY" ? "HT away" : "HT draw",
+    );
+  }
+  return bits.join(" · ") || "—";
+}
+
+function outcome1x2(o: string | null | undefined): string {
+  if (o === "HOME") return "1";
+  if (o === "DRAW") return "X";
+  if (o === "AWAY") return "2";
+  return "—";
+}
+
+/** Pauză: doar 1/X/2 din pronostic (nu există scor separat la pauză în app). */
+export function formatPredHtPart(p: MatchPredictionInput | null | undefined): string {
+  if (!p?.htOutcome) return "—";
+  return outcome1x2(p.htOutcome);
+}
+
+/** Final: scor exact dacă e setat, altfel 1/X/2. */
+export function formatPredFtPart(p: MatchPredictionInput | null | undefined): string {
+  if (!p) return "—";
+  const hg = p.predHomeGoals;
+  const ag = p.predAwayGoals;
+  if (
+    hg != null &&
+    ag != null &&
+    Number.isFinite(hg) &&
+    Number.isFinite(ag) &&
+    hg >= 0 &&
+    ag >= 0
+  ) {
+    return `${hg}–${ag}`;
+  }
+  if (p.ftOutcome) return outcome1x2(p.ftOutcome);
+  return "—";
+}
+
+/** Scoruri oficiale din API (pauză / final). */
+export function matchResultHtFt(m: FootballDataMatch): { ht: string | null; ft: string | null } {
+  const ht = m.score?.halfTime;
+  const ft = m.score?.fullTime;
+  const htStr =
+    ht?.home != null && ht?.away != null ? `${ht.home}–${ht.away}` : null;
+  const ftStr =
+    ft?.home != null && ft?.away != null ? `${ft.home}–${ft.away}` : null;
+  return { ht: htStr, ft: ftStr };
+}
+
+/** Rezumat scurt pentru leaderboard (scor sau 1/X/2). */
+export function formatPredShort(p: MatchPredictionInput | null | undefined): string {
+  if (!p || !hasAnyMatchPrediction(p)) return "—";
+  const hg = p.predHomeGoals;
+  const ag = p.predAwayGoals;
+  if (
+    hg != null &&
+    ag != null &&
+    Number.isFinite(hg) &&
+    Number.isFinite(ag) &&
+    hg >= 0 &&
+    ag >= 0
+  ) {
+    return `${hg}-${ag}`;
+  }
+  if (p.ftOutcome === "HOME") return "1";
+  if (p.ftOutcome === "DRAW") return "X";
+  if (p.ftOutcome === "AWAY") return "2";
+  if (p.htOutcome === "HOME") return "HT 1";
+  if (p.htOutcome === "DRAW") return "HT X";
+  if (p.htOutcome === "AWAY") return "HT 2";
+  return "—";
+}
+
+export function formatActualFt(m: FootballDataMatch): string | null {
+  const ft = m.score?.fullTime;
+  if (ft?.home == null || ft?.away == null) return null;
+  return `${ft.home}-${ft.away}`;
+}
+
+export function fixtureTlaPair(m: FootballDataMatch): string {
+  return `${teamShort(m.homeTeam)}–${teamShort(m.awayTeam)}`;
+}
+
+export function championLabelFromTeams(
+  championTeamId: number | null | undefined,
+  teams: FootballDataTeam[],
+): string | null {
+  if (championTeamId == null || championTeamId <= 0) return null;
+  const t = teams.find((x) => x.id === championTeamId);
+  if (!t) return `#${championTeamId}`;
+  return teamShort(t);
+}
+
+/** Ultimul meci terminat (cronologic) și următoarele 3 meciuri încă nedecise. */
+export function lastFinishedAndNextThree(matches: FootballDataMatch[]): {
+  lastFinished: FootballDataMatch | null;
+  nextThree: FootballDataMatch[];
+} {
+  const finished = matches
+    .filter((m) => m.status === "FINISHED")
+    .sort((a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate));
+  const lastFinished = finished[finished.length - 1] ?? null;
+
+  const upcoming = matches
+    .filter((m) => m.status !== "FINISHED")
+    .sort((a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate))
+    .slice(0, 3);
+
+  return { lastFinished, nextThree: upcoming };
+}

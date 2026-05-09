@@ -4,7 +4,15 @@
  * Endpoint exemplu: GET /v4/competitions/WC/matches?season=2026
  */
 
+import { cache } from "react";
+import {
+  formatStoredCompetition,
+  type FootballDataCompetitionPickerOption,
+} from "@/lib/competition";
+
 const BASE_URL = "https://api.football-data.org/v4";
+
+export type { FootballDataCompetitionPickerOption } from "@/lib/competition";
 
 /** Cod competiție FIFA World Cup în API. */
 export const WC_COMPETITION_CODE = "WC";
@@ -109,13 +117,14 @@ async function fdFetch<T>(path: string, searchParams?: Record<string, string>): 
 }
 
 /**
- * Toate meciurile CM pentru sezonul dat (paginare limit/offset dacă e nevoie).
+ * Meciuri pentru o competiție + sezon (paginare limit/offset).
  */
-export async function fetchWorldCupMatchesFootballData(): Promise<
-  FootballDataMatch[]
-> {
-  const season = String(WC_SEASON_YEAR);
-  const path = `/competitions/${WC_COMPETITION_CODE}/matches`;
+export async function fetchCompetitionMatches(
+  competitionCode: string,
+  season: string,
+): Promise<FootballDataMatch[]> {
+  const code = competitionCode.trim().toUpperCase();
+  const path = `/competitions/${code}/matches`;
   const collected: FootballDataMatch[] = [];
   let offset = 0;
   const limit = 100;
@@ -123,7 +132,7 @@ export async function fetchWorldCupMatchesFootballData(): Promise<
   /* eslint-disable no-constant-condition */
   while (true) {
     const data = await fdFetch<MatchesEnvelope>(path, {
-      season,
+      season: season.trim(),
       limit: String(limit),
       offset: String(offset),
     });
@@ -147,9 +156,124 @@ export async function fetchWorldCupMatchesFootballData(): Promise<
   return collected;
 }
 
+/**
+ * Toate meciurile CM pentru sezonul dat (paginare limit/offset dacă e nevoie).
+ */
+export async function fetchWorldCupMatchesFootballData(): Promise<
+  FootballDataMatch[]
+> {
+  return fetchCompetitionMatches(
+    WC_COMPETITION_CODE,
+    String(WC_SEASON_YEAR),
+  );
+}
+
+type CompetitionsListEnvelope = {
+  competitions?: Array<{
+    code?: string;
+    name?: string;
+    emblem?: string;
+    currentSeason?: { startDate?: string; endDate?: string };
+  }>;
+};
+
+/**
+ * Lista competițiilor disponibile în contul API (planul tău determină setul).
+ * Memoizat pe request React.
+ */
+export const getFootballDataCompetitionPickerOptions = cache(
+  async (): Promise<FootballDataCompetitionPickerOption[]> => {
+    const data = await fdFetch<CompetitionsListEnvelope>("/competitions");
+    const out: FootballDataCompetitionPickerOption[] = [];
+
+    for (const c of data.competitions ?? []) {
+      const code = c.code?.trim();
+      const name = c.name?.trim();
+      const start = c.currentSeason?.startDate;
+      if (!code || !name || !start) continue;
+      const y = Number(start.slice(0, 4));
+      if (!Number.isFinite(y) || y < 1990 || y > 2100) continue;
+      const season = String(y);
+      const storageKey = formatStoredCompetition(code, y);
+      const end = c.currentSeason?.endDate;
+      const label =
+        end ?
+          `${name} (${season}/${String(Number(season) + 1).slice(2)})`
+        : `${name} (${season})`;
+      out.push({ storageKey, code, season, label });
+    }
+
+    out.sort((a, b) => a.label.localeCompare(b.label, "en"));
+    return out;
+  },
+);
+
+/**
+ * Clasamente pentru party: CM 2026 folosește logica specială cu grupe A–L;
+ * altfel citește `/standings` și mapează blocuri TOTAL / GROUP_STAGE.
+ */
+export async function fetchPartyStandings(
+  code: string,
+  season: string,
+  matches: FootballDataMatch[],
+): Promise<GroupStanding[]> {
+  const c = code.trim().toUpperCase();
+  const s = season.trim();
+  if (c === WC_COMPETITION_CODE && s === String(WC_SEASON_YEAR)) {
+    return fetchWorldCupGroupStandings(matches);
+  }
+
+  type RawStandings = {
+    standings?: Array<{
+      stage?: string | null;
+      type?: string | null;
+      group?: string | null;
+      table?: StandingTableRow[];
+    }>;
+  };
+
+  const data = await fdFetch<RawStandings>(
+    `/competitions/${c}/standings`,
+    { season: s },
+  );
+
+  const result: GroupStanding[] = [];
+  let ordinal = 0;
+
+  for (const block of data.standings ?? []) {
+    if (!block.table?.length) continue;
+    if (block.type === "HOME" || block.type === "AWAY") continue;
+
+    const stage = (block.stage ?? "").toString();
+    const groupRaw = block.group;
+
+    if (stage === "GROUP_STAGE" || (groupRaw && /^GROUP_/i.test(groupRaw))) {
+      const gk =
+        matchGroupToGroupKey(groupRaw) ??
+        (groupRaw ? String(groupRaw).replace(/_/g, " ") : `Group ${ordinal + 1}`);
+      const letter = String.fromCharCode(65 + (ordinal % 26));
+      ordinal++;
+      result.push({ letter, groupKey: gk, rows: block.table });
+      continue;
+    }
+
+    if (result.length === 0) {
+      result.push({
+        letter: "A",
+        groupKey: "League",
+        rows: block.table,
+      });
+      break;
+    }
+  }
+
+  return result;
+}
+
 /** Mapare `stage` (enum API) → titlu afișat. */
 export function stageDisplayName(stage: string): string {
   const map: Record<string, string> = {
+    REGULAR_SEASON: "Regular season",
     PRELIMINARY_ROUND: "Preliminary round",
     QUALIFICATION: "Qualification",
     QUALIFICATION_ROUND_1: "Qualification R1",
@@ -241,9 +365,9 @@ export function matchGroupToGroupKey(
 ): string | null {
   if (!groupRaw?.trim()) return null;
   const gu = groupRaw.trim().toUpperCase();
-  let m = gu.match(/^GROUP_([A-L])$/);
+  let m = gu.match(/^GROUP_([A-Z])$/);
   if (m) return `Group ${m[1]}`;
-  m = gu.match(/^([A-L])$/);
+  m = gu.match(/^([A-Z])$/);
   if (m) return `Group ${m[1]}`;
   return null;
 }
@@ -410,7 +534,13 @@ export function partitionFootballDataMatches(matches: FootballDataMatch[]): {
       const list = knockoutByStageLabel.get(label) ?? [];
       list.push(m);
       knockoutByStageLabel.set(label, list);
+      continue;
     }
+
+    const fallbackLabel = "Fixtures";
+    const list = knockoutByStageLabel.get(fallbackLabel) ?? [];
+    list.push(m);
+    knockoutByStageLabel.set(fallbackLabel, list);
   }
 
   const sortByDate = (a: FootballDataMatch, b: FootballDataMatch) =>

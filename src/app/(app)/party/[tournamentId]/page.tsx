@@ -7,13 +7,30 @@ import PartyWcDashboard, {
 import {
   collectTeamsFromMatches,
   createEmptyWcGroupStandings,
-  fetchWorldCupGroupStandings,
-  fetchWorldCupMatchesFootballData,
+  fetchCompetitionMatches,
+  fetchPartyStandings,
+  getFootballDataCompetitionPickerOptions,
   type FootballDataMatch,
+  type GroupStanding,
 } from "@/lib/football-data";
+import {
+  isWorldCup2026Storage,
+  parseStoredCompetition,
+  type FootballDataCompetitionPickerOption,
+} from "@/lib/competition";
 import { prisma } from "@/lib/prisma";
 import {
-  COMPETITION_WC_2026,
+  championLabelFromTeams,
+  fixtureTlaPair,
+  formatPredShort,
+  lastFinishedAndNextThree,
+  matchResultHtFt,
+} from "@/lib/wc-pred-display";
+import {
+  parseBettingOddsPayload,
+  payloadToOddsMaps,
+} from "@/lib/betting-odds";
+import {
   computeUserWcTotals,
   type MatchPredictionInput,
 } from "@/lib/wc-scoring";
@@ -46,6 +63,7 @@ export default async function PartyTournamentPage({
           },
         },
       },
+      bettingOdds: true,
     },
   });
 
@@ -56,31 +74,51 @@ export default async function PartyTournamentPage({
 
   const isCreator = tournament.creatorId === user.id;
 
+  const parsedCompetition = parseStoredCompetition(tournament.competition);
+
   let matches: FootballDataMatch[] = [];
   let loadError: string | null = null;
 
-  if (tournament.competition === COMPETITION_WC_2026) {
+  if (parsedCompetition) {
     try {
-      matches = await fetchWorldCupMatchesFootballData();
+      matches = await fetchCompetitionMatches(
+        parsedCompetition.code,
+        parsedCompetition.season,
+      );
     } catch (e) {
       loadError =
         e instanceof Error ? e.message : "Could not load matches.";
     }
   }
 
-  let standings = createEmptyWcGroupStandings();
-  if (tournament.competition === COMPETITION_WC_2026 && !loadError) {
+  let standings: GroupStanding[] = [];
+  if (parsedCompetition && !loadError) {
     try {
-      standings = await fetchWorldCupGroupStandings(matches);
+      standings = await fetchPartyStandings(
+        parsedCompetition.code,
+        parsedCompetition.season,
+        matches,
+      );
     } catch {
-      standings = createEmptyWcGroupStandings();
+      standings =
+        isWorldCup2026Storage(tournament.competition) ?
+          createEmptyWcGroupStandings()
+        : [];
     }
   }
 
   const allTeams =
-    tournament.competition === COMPETITION_WC_2026 && matches.length > 0 ?
+    parsedCompetition && matches.length > 0 ?
       collectTeamsFromMatches(matches)
     : [];
+
+  let competitionPickerOptions: FootballDataCompetitionPickerOption[] = [];
+  try {
+    competitionPickerOptions =
+      await getFootballDataCompetitionPickerOptions();
+  } catch {
+    competitionPickerOptions = [];
+  }
 
   const wcMatchPreds = await prisma.wcMatchPrediction.findMany({
     where: { tournamentId },
@@ -111,13 +149,47 @@ export default async function PartyTournamentPage({
     ]),
   );
 
+  const { lastFinished, nextThree } = lastFinishedAndNextThree(matches);
+
+  const oddsPayload =
+    tournament.bettingOdds?.payload != null ?
+      parseBettingOddsPayload(tournament.bettingOdds.payload)
+    : null;
+  const oddsMaps = payloadToOddsMaps(oddsPayload);
+
   const leaderboardRows: LeaderboardRow[] = tournament.members.map((m) => {
     const totals = computeUserWcTotals(
       predsByUser.get(m.userId) ?? new Map(),
       extraByUser.get(m.userId) ?? null,
       matches,
       standings,
+      oddsMaps ?? undefined,
     );
+    const pmap = predsByUser.get(m.userId) ?? new Map();
+    const extra = extraByUser.get(m.userId) ?? null;
+
+    const lastScores = lastFinished ? matchResultHtFt(lastFinished) : null;
+    const lastMatch =
+      lastFinished ?
+        {
+          matchId: lastFinished.id,
+          fixture: fixtureTlaPair(lastFinished),
+          pred: formatPredShort(pmap.get(lastFinished.id) ?? null),
+          actualHt: lastScores?.ht ?? null,
+          actualFt: lastScores?.ft ?? null,
+        }
+      : null;
+
+    const nextMatches = [0, 1, 2].map((i) => {
+      const nm = nextThree[i];
+      if (!nm) return null;
+      return {
+        matchId: nm.id,
+        fixture: fixtureTlaPair(nm),
+        pred: formatPredShort(pmap.get(nm.id) ?? null),
+      };
+    });
+
     return {
       rank: 0,
       userId: m.userId,
@@ -128,6 +200,9 @@ export default async function PartyTournamentPage({
       cg: totals.qualifierPoints,
       championPoints: totals.championPoints,
       total: totals.total,
+      championPick: championLabelFromTeams(extra?.championTeamId ?? null, allTeams),
+      lastMatch,
+      nextMatches,
     };
   });
 
@@ -176,7 +251,7 @@ export default async function PartyTournamentPage({
         Back to Party
       </Link>
 
-      {loadError && tournament.competition === COMPETITION_WC_2026 && (
+      {loadError && parsedCompetition && (
         <div
           className="mb-6 rounded-xl border px-4 py-3 text-sm text-red-300"
           style={{
@@ -193,6 +268,8 @@ export default async function PartyTournamentPage({
         tournamentName={tournament.name}
         inviteCode={tournament.inviteCode}
         competition={tournament.competition}
+        competitionPickerOptions={competitionPickerOptions}
+        showDevClSimulator={process.env.NODE_ENV === "development"}
         isCreator={isCreator}
         currentUserId={user.id}
         matches={matches}
@@ -201,6 +278,8 @@ export default async function PartyTournamentPage({
         myPreds={myPredsRecord}
         myExtra={myExtra}
         allTeams={allTeams}
+        bettingOddsByMatchId={oddsPayload?.matches ?? {}}
+        bettingOddsFetchedAt={tournament.bettingOdds?.fetchedAt?.toISOString() ?? null}
       />
     </div>
   );

@@ -1,8 +1,21 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
+import { getFootballDataCompetitionPickerOptions } from "@/lib/football-data";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+
+async function resolveValidatedCompetition(
+  token: string | null | undefined,
+): Promise<string | null> {
+  if (token == null || token === "" || token === "__none__") return null;
+  const t = token.trim();
+  const opts = await getFootballDataCompetitionPickerOptions();
+  if (!opts.some((o) => o.storageKey === t)) {
+    throw new Error("Invalid competition selection.");
+  }
+  return t;
+}
 
 function generateInviteCode(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -11,7 +24,8 @@ function generateInviteCode(): string {
 
 export async function createTournament(
   name: string,
-  customCode?: string
+  customCode?: string,
+  competitionStorage?: string | null,
 ): Promise<{ inviteCode: string }> {
   const { userId: clerkId } = await auth();
   if (!clerkId) throw new Error("Not authenticated");
@@ -24,8 +38,10 @@ export async function createTournament(
   const taken = await prisma.tournament.findUnique({ where: { inviteCode } });
   if (taken) throw new Error("That invite code is already taken, try another");
 
+  const competition = await resolveValidatedCompetition(competitionStorage);
+
   const tournament = await prisma.tournament.create({
-    data: { name, inviteCode, creatorId: user.id },
+    data: { name, inviteCode, creatorId: user.id, competition },
   });
 
   await prisma.tournamentMember.create({
