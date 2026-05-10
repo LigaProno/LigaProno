@@ -11,6 +11,7 @@ import {
   getFootballDataCompetitionPickerOptions,
 } from "@/lib/football-data";
 import { parseStoredCompetition } from "@/lib/competition";
+import { isCompetitionUnderway } from "@/lib/prediction-window";
 import { outcomeFromScores } from "@/lib/wc-scoring";
 
 function validOutcome(v: unknown): v is "HOME" | "AWAY" | "DRAW" | "" {
@@ -65,6 +66,42 @@ async function assertMember(tournamentId: string, userId: string) {
   if (!m) throw new Error("You are not a member of this party.");
 }
 
+async function isCompetitionUnderwayForStorage(
+  competitionStorage: string | null,
+): Promise<boolean> {
+  const parsed = parseStoredCompetition(competitionStorage);
+  if (!parsed) return false;
+  try {
+    const matches = await fetchCompetitionMatches(parsed.code, parsed.season);
+    return isCompetitionUnderway(matches);
+  } catch {
+    return false;
+  }
+}
+
+function sortedTeamIds(ids: number[]): number[] {
+  return [...ids].sort((a, b) => a - b);
+}
+
+function wcExtraPredictionChanged(
+  prev: {
+    advancingTeamIds: number[];
+    championTeamId: number | null;
+  },
+  next: {
+    advancingTeamIds: number[];
+    championTeamId: number | null;
+  },
+): boolean {
+  const a = sortedTeamIds(prev.advancingTeamIds);
+  const b = sortedTeamIds(next.advancingTeamIds);
+  if (a.length !== b.length) return true;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return true;
+  }
+  return prev.championTeamId !== next.championTeamId;
+}
+
 export async function saveWcMatchPrediction(
   tournamentId: string,
   matchId: number,
@@ -84,11 +121,19 @@ export async function saveWcMatchPrediction(
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
   });
-  if (!parseStoredCompetition(tournament?.competition ?? null)) {
+  if (!tournament) throw new Error("Party not found.");
+  if (!parseStoredCompetition(tournament.competition ?? null)) {
     throw new Error("This party has no competition enabled for predictions.");
   }
 
   await assertMember(tournamentId, user.id);
+
+  const underway = await isCompetitionUnderwayForStorage(tournament.competition);
+  if (underway && !(tournament.allowPredictionChangesDuringCompetition ?? false)) {
+    throw new Error(
+      "Competiția a început. În acest party pronosticurile nu mai pot fi modificate.",
+    );
+  }
 
   const ht =
     input.htOutcome != null && input.htOutcome !== "" ?
@@ -118,7 +163,7 @@ export async function saveWcMatchPrediction(
     predAwayGoals = null;
   }
 
-  await prisma.wcMatchPrediction.upsert({
+  const existing = await prisma.wcMatchPrediction.findUnique({
     where: {
       tournamentId_userId_matchId: {
         tournamentId,
@@ -126,21 +171,55 @@ export async function saveWcMatchPrediction(
         matchId,
       },
     },
-    create: {
-      tournamentId,
-      userId: user.id,
-      matchId,
-      htOutcome: ht,
-      ftOutcome: ft,
-      predHomeGoals,
-      predAwayGoals,
-    },
-    update: {
-      htOutcome: ht,
-      ftOutcome: ft,
-      predHomeGoals,
-      predAwayGoals,
-    },
+  });
+
+  const changed =
+    !!existing &&
+    (existing.htOutcome !== ht ||
+      existing.ftOutcome !== ft ||
+      existing.predHomeGoals !== predHomeGoals ||
+      existing.predAwayGoals !== predAwayGoals);
+
+  const applyChangePenalty =
+    underway &&
+    (tournament.allowPredictionChangesDuringCompetition ?? false) &&
+    changed;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.wcMatchPrediction.upsert({
+      where: {
+        tournamentId_userId_matchId: {
+          tournamentId,
+          userId: user.id,
+          matchId,
+        },
+      },
+      create: {
+        tournamentId,
+        userId: user.id,
+        matchId,
+        htOutcome: ht,
+        ftOutcome: ft,
+        predHomeGoals,
+        predAwayGoals,
+      },
+      update: {
+        htOutcome: ht,
+        ftOutcome: ft,
+        predHomeGoals,
+        predAwayGoals,
+      },
+    });
+    if (applyChangePenalty) {
+      await tx.tournamentMember.update({
+        where: {
+          tournamentId_userId: { tournamentId, userId: user.id },
+        },
+        data: {
+          midCompetitionPredictionChangeCount: { increment: 1 },
+        },
+      });
+    }
   });
 
   revalidatePath(`/party/${tournamentId}`);
@@ -160,12 +239,20 @@ export async function saveWcExtraPrediction(
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
   });
-  const parsed = parseStoredCompetition(tournament?.competition ?? null);
+  if (!tournament) throw new Error("Party not found.");
+  const parsed = parseStoredCompetition(tournament.competition ?? null);
   if (!parsed) {
     throw new Error("This party has no competition enabled for predictions.");
   }
 
   await assertMember(tournamentId, user.id);
+
+  const underway = await isCompetitionUnderwayForStorage(tournament.competition);
+  if (underway && !(tournament.allowPredictionChangesDuringCompetition ?? false)) {
+    throw new Error(
+      "Competiția a început. În acest party pronosticurile nu mai pot fi modificate.",
+    );
+  }
 
   const seen = new Set<number>();
   const clean: number[] = [];
@@ -209,20 +296,54 @@ export async function saveWcExtraPrediction(
       championTeamId
     : null;
 
-  await prisma.wcExtraPrediction.upsert({
+  const existingExtra = await prisma.wcExtraPrediction.findUnique({
     where: {
       tournamentId_userId: { tournamentId, userId: user.id },
     },
-    create: {
-      tournamentId,
-      userId: user.id,
-      advancingTeamIds: clean,
-      championTeamId: champ,
-    },
-    update: {
-      advancingTeamIds: clean,
-      championTeamId: champ,
-    },
+  });
+
+  const nextExtra = { advancingTeamIds: clean, championTeamId: champ };
+  const changed =
+    !!existingExtra &&
+    wcExtraPredictionChanged(
+      {
+        advancingTeamIds: existingExtra.advancingTeamIds,
+        championTeamId: existingExtra.championTeamId,
+      },
+      nextExtra,
+    );
+
+  const applyChangePenalty =
+    underway &&
+    (tournament.allowPredictionChangesDuringCompetition ?? false) &&
+    changed;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.wcExtraPrediction.upsert({
+      where: {
+        tournamentId_userId: { tournamentId, userId: user.id },
+      },
+      create: {
+        tournamentId,
+        userId: user.id,
+        advancingTeamIds: clean,
+        championTeamId: champ,
+      },
+      update: {
+        advancingTeamIds: clean,
+        championTeamId: champ,
+      },
+    });
+    if (applyChangePenalty) {
+      await tx.tournamentMember.update({
+        where: {
+          tournamentId_userId: { tournamentId, userId: user.id },
+        },
+        data: {
+          midCompetitionPredictionChangeCount: { increment: 1 },
+        },
+      });
+    }
   });
 
   revalidatePath(`/party/${tournamentId}`);

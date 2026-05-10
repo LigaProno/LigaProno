@@ -31,6 +31,8 @@ model Tournament {
   creator              User                 @relation("CreatedTournaments", fields: [creatorId], references: [id])
   members              TournamentMember[]
   competition          String?
+  /** Dacă false: pronosticurile se blochează după startul competiției. Dacă true: se pot modifica, cu penalizare per schimbare. */
+  allowPredictionChangesDuringCompetition Boolean            @default(false)
   wcMatchPredictions   WcMatchPrediction[]
   wcExtraPredictions   WcExtraPrediction[]
   bettingOdds          TournamentBettingOdds?
@@ -91,6 +93,8 @@ model TournamentMember {
   userId       String     @db.ObjectId
   user         User       @relation(fields: [userId], references: [id])
   joinedAt     DateTime   @default(now())
+  /** Număr de salvări care au modificat pronosticul după startul competiției (10 pct fiecare). */
+  midCompetitionPredictionChangeCount Int @default(0)
 
   @@unique([tournamentId, userId])
 }
