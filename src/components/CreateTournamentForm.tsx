@@ -20,6 +20,8 @@ export default function CreateTournamentForm({
   const [name, setName] = useState("");
   const [code, setCode] = useState(() => generateCode());
   const [competitionKey, setCompetitionKey] = useState("");
+  const [allowChangesDuringCompetition, setAllowChangesDuringCompetition] =
+    useState(false);
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -36,11 +38,13 @@ export default function CreateTournamentForm({
           name.trim(),
           code.trim(),
           competitionKey.trim() || null,
+          allowChangesDuringCompetition,
         );
         setCreatedCode(result.inviteCode);
         setName("");
         setCode(generateCode());
         setCompetitionKey("");
+        setAllowChangesDuringCompetition(false);
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong");
@@ -137,6 +141,37 @@ export default function CreateTournamentForm({
               Lista depinde de planul API Football-Data.org. Sezonul folosit este anul de start al sezonului curent.
             </p>
           </div>
+
+          <fieldset className="flex flex-col gap-2 rounded-xl border px-3 py-3" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
+            <legend className="text-xs font-medium px-1" style={{ color: "rgba(255,255,255,0.5)" }}>
+              Când se pot face pronosticurile
+            </legend>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="predWindow"
+                className="mt-1 shrink-0"
+                checked={!allowChangesDuringCompetition}
+                onChange={() => setAllowChangesDuringCompetition(false)}
+              />
+              <span className="text-sm" style={{ color: "rgba(255,255,255,0.88)" }}>
+                Doar înainte de startul competiției (se blochează după primul meci început / ora de start).
+              </span>
+            </label>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="predWindow"
+                className="mt-1 shrink-0"
+                checked={allowChangesDuringCompetition}
+                onChange={() => setAllowChangesDuringCompetition(true)}
+              />
+              <span className="text-sm" style={{ color: "rgba(255,255,255,0.88)" }}>
+                Și în timpul competiției — fiecare modificare a pronosticului după start costă{" "}
+                <strong className="text-amber-200/95">10 puncte</strong> din totalul tău.
+              </span>
+            </label>
+          </fieldset>
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>

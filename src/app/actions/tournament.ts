@@ -26,6 +26,7 @@ export async function createTournament(
   name: string,
   customCode?: string,
   competitionStorage?: string | null,
+  allowPredictionChangesDuringCompetition = false,
 ): Promise<{ inviteCode: string }> {
   const { userId: clerkId } = await auth();
   if (!clerkId) throw new Error("Not authenticated");
@@ -41,7 +42,15 @@ export async function createTournament(
   const competition = await resolveValidatedCompetition(competitionStorage);
 
   const tournament = await prisma.tournament.create({
-    data: { name, inviteCode, creatorId: user.id, competition },
+    data: {
+      name,
+      inviteCode,
+      creatorId: user.id,
+      competition,
+      allowPredictionChangesDuringCompetition: Boolean(
+        allowPredictionChangesDuringCompetition,
+      ),
+    },
   });
 
   await prisma.tournamentMember.create({

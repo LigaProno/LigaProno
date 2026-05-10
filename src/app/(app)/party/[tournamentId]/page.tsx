@@ -30,6 +30,7 @@ import {
   parseBettingOddsPayload,
   payloadToOddsMaps,
 } from "@/lib/betting-odds";
+import { isCompetitionUnderway } from "@/lib/prediction-window";
 import {
   computeUserWcTotals,
   type MatchPredictionInput,
@@ -157,6 +158,11 @@ export default async function PartyTournamentPage({
     : null;
   const oddsMaps = payloadToOddsMaps(oddsPayload);
 
+  const competitionUnderway =
+    parsedCompetition && !loadError && matches.length > 0 ?
+      isCompetitionUnderway(matches)
+    : false;
+
   const leaderboardRows: LeaderboardRow[] = tournament.members.map((m) => {
     const totals = computeUserWcTotals(
       predsByUser.get(m.userId) ?? new Map(),
@@ -164,6 +170,7 @@ export default async function PartyTournamentPage({
       matches,
       standings,
       oddsMaps ?? undefined,
+      m.midCompetitionPredictionChangeCount ?? 0,
     );
     const pmap = predsByUser.get(m.userId) ?? new Map();
     const extra = extraByUser.get(m.userId) ?? null;
@@ -199,6 +206,7 @@ export default async function PartyTournamentPage({
       sc: totals.correctScorePoints,
       cg: totals.qualifierPoints,
       championPoints: totals.championPoints,
+      changePenalty: totals.predictionChangePenalty,
       total: totals.total,
       championPick: championLabelFromTeams(extra?.championTeamId ?? null, allTeams),
       lastMatch,
@@ -238,6 +246,10 @@ export default async function PartyTournamentPage({
 
   const myExtra = extraByUser.get(user.id) ?? null;
 
+  const myMembership = tournament.members.find((mem) => mem.userId === user.id);
+  const myMidCompetitionChangeCount =
+    myMembership?.midCompetitionPredictionChangeCount ?? 0;
+
   return (
     <div className="flex-1 p-4 sm:p-6 md:p-8 max-w-4xl mx-auto w-full">
       <Link
@@ -268,6 +280,11 @@ export default async function PartyTournamentPage({
         tournamentName={tournament.name}
         inviteCode={tournament.inviteCode}
         competition={tournament.competition}
+        allowPredictionChangesDuringCompetition={
+          tournament.allowPredictionChangesDuringCompetition ?? false
+        }
+        competitionUnderway={competitionUnderway}
+        myMidCompetitionChangeCount={myMidCompetitionChangeCount}
         competitionPickerOptions={competitionPickerOptions}
         showDevClSimulator={process.env.NODE_ENV === "development"}
         isCreator={isCreator}

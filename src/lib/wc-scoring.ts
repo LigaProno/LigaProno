@@ -7,6 +7,7 @@ import {
   type Odds1x2Outcome,
   type TournamentOddsMaps,
 } from "@/lib/betting-odds";
+import { POINTS_PER_PREDICTION_CHANGE_AFTER_START } from "@/lib/prediction-window";
 import type {
   FootballDataMatch,
   GroupStanding,
@@ -272,6 +273,8 @@ export type UserWcTotals = {
   /** Qualifier picks points (CG). */
   qualifierPoints: number;
   championPoints: number;
+  /** Puncte pierdute la modificări după start (10 × număr de schimbări). */
+  predictionChangePenalty: number;
   total: number;
 };
 
@@ -281,6 +284,7 @@ export function computeUserWcTotals(
   matches: FootballDataMatch[],
   standings: GroupStanding[],
   oddsMaps?: TournamentOddsMaps | null,
+  midCompetitionPredictionChangeCount = 0,
 ): UserWcTotals {
   let fullTimeGuessPoints = 0;
   let halfTimeGuessPoints = 0;
@@ -318,6 +322,12 @@ export function computeUserWcTotals(
     oddsMaps ?? null,
   );
 
+  const predictionChangePenalty = roundPoints(
+    POINTS_PER_PREDICTION_CHANGE_AFTER_START *
+      Math.max(0, midCompetitionPredictionChangeCount),
+  );
+  const gross = roundPoints(matchPoints + qualifierPoints + championPoints);
+
   return {
     fullTimeGuessPoints: roundPoints(fullTimeGuessPoints),
     halfTimeGuessPoints: roundPoints(halfTimeGuessPoints),
@@ -325,8 +335,7 @@ export function computeUserWcTotals(
     matchPoints,
     qualifierPoints,
     championPoints,
-    total: roundPoints(
-      matchPoints + qualifierPoints + championPoints,
-    ),
+    predictionChangePenalty,
+    total: roundPoints(gross - predictionChangePenalty),
   };
 }
