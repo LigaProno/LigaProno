@@ -239,6 +239,7 @@ function FixtureCard({
 
   const finished = fixture.status === "FINISHED";
   const hasResult = fixture.ftHome != null && fixture.ftAway != null;
+  const hasLiveScore = !hasResult && fixture.htHome != null && fixture.htAway != null;
 
   function handleSave() {
     startSave(() => {
@@ -283,6 +284,15 @@ function FixtureCard({
                   ({fixture.htHome}–{fixture.htAway})
                 </span>
               )}
+            </div>
+          ) : hasLiveScore ? (
+            <div className="flex flex-col items-end gap-0.5">
+              <div className="font-bold text-white text-sm">
+                {fixture.htHome}–{fixture.htAway}
+              </div>
+              <span className="text-xs font-medium" style={{ color: statusColor(fixture.status) }}>
+                {statusLabel(fixture.status)}
+              </span>
             </div>
           ) : (
             <span className="text-xs font-medium" style={{ color: statusColor(fixture.status) }}>
