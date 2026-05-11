@@ -6,7 +6,7 @@ import {
   type TeamOddsRow,
 } from "@/lib/betting-odds";
 
-const DEFAULT_MODEL = "gemini-2.0-flash";
+const DEFAULT_MODEL = "gemini-2.5-flash";
 const MATCH_BATCH = 28;
 
 /** Implicit activ: `GEMINI_ODDS_USE_GOOGLE_SEARCH=false` îl dezactivează. */
@@ -17,7 +17,7 @@ function isGoogleSearchGroundingEnabled(): boolean {
   return v !== "0" && v !== "false" && v !== "no" && v !== "off";
 }
 
-function getGeminiApiKey(): string {
+export function getGeminiApiKey(): string {
   const k = process.env.GEMINI_API_KEY?.trim();
   if (!k) {
     throw new Error("Lipsește GEMINI_API_KEY în `.env` pentru actualizarea cotelor.");
@@ -58,7 +58,7 @@ function stripJsonFence(raw: string): string {
   return s.trim();
 }
 
-async function callGeminiJson(
+export async function callGeminiJson(
   apiKey: string,
   model: string,
   userPrompt: string,
@@ -72,7 +72,8 @@ async function callGeminiJson(
     contents: [{ role: "user", parts: [{ text: userPrompt }] }],
     generationConfig: {
       temperature: 0.25,
-      responseMimeType: "application/json",
+      // responseMimeType + google_search grounding are mutually exclusive in Gemini API
+      ...(googleSearch ? {} : { responseMimeType: "application/json" }),
     },
   };
 
@@ -85,6 +86,7 @@ async function callGeminiJson(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(requestBody),
+    signal: AbortSignal.timeout(90_000),
   });
   const text = await res.text();
   let body: unknown;

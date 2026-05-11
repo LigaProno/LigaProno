@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/liga1-results",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

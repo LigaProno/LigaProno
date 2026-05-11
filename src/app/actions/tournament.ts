@@ -4,12 +4,15 @@ import { auth } from "@clerk/nextjs/server";
 import { getFootballDataCompetitionPickerOptions } from "@/lib/football-data";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { COMPETITION_LIGA1_2025 } from "@/lib/competition";
 
 async function resolveValidatedCompetition(
   token: string | null | undefined,
 ): Promise<string | null> {
   if (token == null || token === "" || token === "__none__") return null;
   const t = token.trim();
+  // Hardcoded competitions that bypass the football-data.org API check
+  if (t === COMPETITION_LIGA1_2025) return t;
   const opts = await getFootballDataCompetitionPickerOptions();
   if (!opts.some((o) => o.storageKey === t)) {
     throw new Error("Invalid competition selection.");

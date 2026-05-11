@@ -22,7 +22,7 @@ model User {
   wcExtraPredictions  WcExtraPrediction[]
 }
 
-/** Competiție activă în party: null = fără pronosticuri; altfel `{COD_API}_{anSezon}` (ex. WC_2026, PL_2024) din Football-Data. */
+// Competiție activă în party: null = fără pronosticuri; altfel `{COD_API}_{anSezon}` (ex. WC_2026, PL_2024) din Football-Data.
 model Tournament {
   id                   String               @id @default(auto()) @map("_id") @db.ObjectId
   name                 String
@@ -31,16 +31,17 @@ model Tournament {
   creator              User                 @relation("CreatedTournaments", fields: [creatorId], references: [id])
   members              TournamentMember[]
   competition          String?
-  /** Dacă false: pronosticurile se blochează după startul competiției. Dacă true: se pot modifica, cu penalizare per schimbare. */
+  // Dacă false: pronosticurile se blochează după startul competiției. Dacă true: se pot modifica, cu penalizare per schimbare.
   allowPredictionChangesDuringCompetition Boolean            @default(false)
   wcMatchPredictions   WcMatchPrediction[]
   wcExtraPredictions   WcExtraPrediction[]
   bettingOdds          TournamentBettingOdds?
+  liga1Fixtures        Liga1Fixture[]
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
 }
 
-/** Snapshot cote (Gemini) folosit la punctaj: bază × cotă pentru rezultatul real. */
+// Snapshot cote (Gemini) folosit la punctaj: bază × cotă pentru rezultatul real.
 model TournamentBettingOdds {
   id           String     @id @default(auto()) @map("_id") @db.ObjectId
   tournamentId String     @unique @db.ObjectId
@@ -51,7 +52,7 @@ model TournamentBettingOdds {
   updatedAt    DateTime   @updatedAt
 }
 
-/** Pronostic pe meci (pauză, final, scor). matchId = id Football-Data.org. */
+// Pronostic pe meci (pauză, final, scor). matchId = id Football-Data.org.
 model WcMatchPrediction {
   id            String     @id @default(auto()) @map("_id") @db.ObjectId
   tournamentId  String     @db.ObjectId
@@ -70,7 +71,7 @@ model WcMatchPrediction {
   @@index([tournamentId])
 }
 
-/** Calificări din grupe + campion. advancingTeamIds = id-uri echipe Football-Data. */
+// Calificări din grupe + campion. advancingTeamIds = id-uri echipe Football-Data.
 model WcExtraPrediction {
   id                 String     @id @default(auto()) @map("_id") @db.ObjectId
   tournamentId       String     @db.ObjectId
@@ -86,6 +87,33 @@ model WcExtraPrediction {
   @@index([tournamentId])
 }
 
+model Liga1Fixture {
+  id              String     @id @default(auto()) @map("_id") @db.ObjectId
+  tournamentId    String     @db.ObjectId
+  tournament      Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  internalMatchId Int
+  matchday        Int
+  homeTeamId      Int
+  homeTeamName    String
+  awayTeamId      Int
+  awayTeamName    String
+  utcDate         DateTime
+  htFetchAt       DateTime
+  ftFetchAt       DateTime
+  status          String     @default("SCHEDULED")
+  htHome          Int?
+  htAway          Int?
+  ftHome          Int?
+  ftAway          Int?
+  geminiConfident Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@unique([tournamentId, internalMatchId])
+  @@index([tournamentId])
+  @@index([status])
+}
+
 model TournamentMember {
   id           String     @id @default(auto()) @map("_id") @db.ObjectId
   tournamentId String     @db.ObjectId
@@ -93,7 +121,7 @@ model TournamentMember {
   userId       String     @db.ObjectId
   user         User       @relation(fields: [userId], references: [id])
   joinedAt     DateTime   @default(now())
-  /** Număr de salvări care au modificat pronosticul după startul competiției (10 pct fiecare). */
+  // Număr de salvări care au modificat pronosticul după startul competiției (10 pct fiecare).
   midCompetitionPredictionChangeCount Int @default(0)
 
   @@unique([tournamentId, userId])

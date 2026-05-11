@@ -17,10 +17,17 @@ export type TeamOddsRow = {
   outrightWinner: number | null;
 };
 
+export type Liga1StandingRow = {
+  teamId: number;
+  teamName: string;
+  position: number;
+};
+
 export type BettingOddsPayload = {
   schemaVersion: typeof BETTING_ODDS_SCHEMA_VERSION;
   matches: Record<string, MatchOddsRow>;
   teams: Record<string, TeamOddsRow>;
+  liga1Standings?: Liga1StandingRow[];
 };
 
 export type TournamentOddsMaps = {
@@ -29,6 +36,22 @@ export type TournamentOddsMaps = {
 };
 
 const OUTCOMES: Odds1x2Outcome[] = ["HOME", "DRAW", "AWAY"];
+
+function parseLiga1Standings(raw: unknown): Liga1StandingRow[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Liga1StandingRow[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const teamId = Number(o.teamId);
+    const teamName = typeof o.teamName === "string" ? o.teamName : "";
+    const position = Number(o.position);
+    if (Number.isFinite(teamId) && teamName && Number.isFinite(position)) {
+      out.push({ teamId, teamName, position });
+    }
+  }
+  return out.sort((a, b) => a.position - b.position);
+}
 
 function clampOdd(raw: unknown): number {
   if (typeof raw !== "number" || !Number.isFinite(raw)) return 1;
@@ -111,7 +134,8 @@ export function parseBettingOddsPayload(raw: unknown): BettingOddsPayload | null
       teams[id] = normalizeTeamRow(row);
     }
   }
-  return { schemaVersion: BETTING_ODDS_SCHEMA_VERSION, matches, teams };
+  const liga1Standings = parseLiga1Standings(o.liga1Standings);
+  return { schemaVersion: BETTING_ODDS_SCHEMA_VERSION, matches, teams, ...(liga1Standings.length > 0 ? { liga1Standings } : {}) };
 }
 
 /** Normalizează toate valorile numerice după un răspuns Gemini. */
@@ -125,7 +149,12 @@ export function sanitizeBettingPayload(input: BettingOddsPayload): BettingOddsPa
   for (const [k, v] of Object.entries(input.teams)) {
     teams[k] = normalizeTeamRow(v);
   }
-  return { schemaVersion: BETTING_ODDS_SCHEMA_VERSION, matches, teams };
+  return {
+    schemaVersion: BETTING_ODDS_SCHEMA_VERSION,
+    matches,
+    teams,
+    ...(input.liga1Standings ? { liga1Standings: input.liga1Standings } : {}),
+  };
 }
 
 export function payloadToOddsMaps(
