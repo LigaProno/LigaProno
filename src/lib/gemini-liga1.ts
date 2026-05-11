@@ -155,17 +155,27 @@ type ResultFetchInput = {
 };
 
 function resultFetchPrompt(fixtures: ResultFetchInput[], season: string): string {
-  const lines = fixtures.map((f) =>
-    `${f.matchId}\t${f.matchday}\t${f.homeTeamName} vs ${f.awayTeamName}\t${f.utcDate}\t${f.needHt ? "HT" : ""}${f.needFt ? "+FT" : ""}`,
-  );
+  const now = new Date();
+  const lines = fixtures.map((f) => {
+    const kickoff = new Date(f.utcDate);
+    const elapsedMin = Math.floor((now.getTime() - kickoff.getTime()) / 60000);
+    const elapsed = elapsedMin > 0 ? `(kicked off ${elapsedMin} min ago)` : "(not started yet)";
+    return `${f.matchId}\t${f.homeTeamName} vs ${f.awayTeamName}\t${f.utcDate} ${elapsed}\t${f.needHt ? "need HT" : ""}${f.needFt ? " need FT" : ""}`;
+  });
 
   return `You are a football results assistant. Return ONLY valid JSON — no markdown, no prose.
 
-Liga 1 România season ${season}-${String(Number(season) + 1)}.
+Superliga României (also called Liga 1 România) season ${season}-${String(Number(season) + 1)}.
 
-Search the web for the current scores of these specific matches:
+IMPORTANT INSTRUCTIONS:
+1. Search NOW for each match below using Romanian terms: "<HomeTeam> <AwayTeam> scor", "<HomeTeam> <AwayTeam> rezultat", "Superliga Romania rezultate azi".
+2. Also try international sites: Google, BBC Sport, FlashScore, SofaScore, LiveScore.
+3. If a match started MORE THAN 95 minutes ago it IS finished — you MUST find and return the score. Do not return confident=false for a finished match.
+4. If a match started less than 95 minutes ago it may be in play — return current score with status IN_PLAY or PAUSED.
+5. Only use confident=false if the match has NOT yet started OR if searches return zero results at all.
+
+Fixtures to look up:
 ${lines.join("\n")}
-(Format: matchId TAB matchday TAB fixture TAB kickoffUTC TAB what_is_needed)
 
 Return:
 {
@@ -183,11 +193,11 @@ Return:
 }
 
 Rules:
-- status values: "SCHEDULED" | "IN_PLAY" | "PAUSED" | "FINISHED"
-- If you cannot find the result confidently, set "confident": false and omit score fields.
-- htHome/htAway required if status is PAUSED or FINISHED.
-- ftHome/ftAway required only if status is FINISHED.
-- Include every matchId from the input, even if not confident.
+- status: "SCHEDULED" | "IN_PLAY" | "PAUSED" | "FINISHED"
+- confident=false ONLY if you found literally nothing after searching — not just because you are uncertain.
+- htHome/htAway: include whenever status is IN_PLAY, PAUSED, or FINISHED.
+- ftHome/ftAway: include only when status is FINISHED.
+- Include EVERY matchId from the input.
 `;
 }
 
