@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/liga1-results",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/wc-news",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/tournament-odds",
+      "schedule": "0 5 * * *"
     }
   ]
 }

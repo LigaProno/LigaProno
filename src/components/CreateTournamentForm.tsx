@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createTournament } from "@/app/actions/tournament";
 import type { FootballDataCompetitionPickerOption } from "@/lib/competition";
@@ -19,7 +19,13 @@ export default function CreateTournamentForm({
   competitionsLoadError?: string | null;
 }) {
   const [name, setName] = useState("");
-  const [code, setCode] = useState(() => generateCode());
+  const [code, setCode] = useState("");
+  const [codeReady, setCodeReady] = useState(false);
+
+  useEffect(() => {
+    setCode(generateCode());
+    setCodeReady(true);
+  }, []);
   const [competitionKey, setCompetitionKey] = useState("");
   const [allowChangesDuringCompetition, setAllowChangesDuringCompetition] =
     useState(false);
@@ -31,7 +37,7 @@ export default function CreateTournamentForm({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !code.trim()) return;
+    if (!name.trim() || !codeReady || !code.trim()) return;
     setError(null);
     startTransition(async () => {
       try {
@@ -182,11 +188,16 @@ export default function CreateTournamentForm({
               Invite code
             </label>
             <div className="flex items-center gap-2 rounded-xl px-4 py-3 border" style={{ backgroundColor: "#0F172A", borderColor: "rgba(255,255,255,0.12)" }}>
-              <span className="flex-1 text-sm font-bold tracking-[0.15em]" style={{ color: "#22D3EE" }}>
-                {code}
+              <span
+                className="flex-1 text-sm font-bold tracking-[0.15em] min-h-[1.25rem]"
+                style={{ color: "#22D3EE" }}
+                suppressHydrationWarning
+              >
+                {codeReady ? code : "··········"}
               </span>
               <button
                 type="button"
+                disabled={!codeReady}
                 onClick={() => setCode(generateCode())}
                 title="Regenerate code"
                 className="transition-all cursor-pointer active:scale-95 shrink-0"
@@ -205,7 +216,7 @@ export default function CreateTournamentForm({
 
           <button
             type="submit"
-            disabled={isPending || !name.trim()}
+            disabled={isPending || !name.trim() || !codeReady}
             className="w-full py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50 mt-1 cursor-pointer hover:opacity-90 active:scale-[0.98]"
             style={{ backgroundColor: "#22D3EE", color: "#0F172A" }}
           >

@@ -1,15 +1,8 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { revalidatePath } from "next/cache";
-import { parseStoredCompetition } from "@/lib/competition";
-import { collectTeamsFromMatches, fetchCompetitionMatches } from "@/lib/football-data";
-import {
-  sanitizeBettingPayload,
-  type BettingOddsPayload,
-} from "@/lib/betting-odds";
-import { fetchBettingOddsViaGemini } from "@/lib/gemini-odds-fetch";
 import { prisma } from "@/lib/prisma";
+import { refreshOddsForTournament } from "@/lib/refresh-tournament-odds";
 
 export async function refreshTournamentBettingOdds(
   tournamentId: string,
@@ -34,48 +27,20 @@ export async function refreshTournamentBettingOdds(
     throw new Error("Doar creatorul party-ului poate actualiza cotele.");
   }
 
-  const parsed = parseStoredCompetition(tournament.competition);
-  if (!parsed) {
+  if (!tournament.competition) {
     throw new Error("Setează mai întâi o competiție pentru acest party.");
   }
 
-  const matches = await fetchCompetitionMatches(parsed.code, parsed.season);
-  const allTeams = collectTeamsFromMatches(matches);
-  const teams = allTeams
-    .filter((t) => t.id != null)
-    .map((t) => ({
-      id: t.id!,
-      name: t.name ?? t.shortName ?? `Team ${t.id}`,
-    }));
-
-  const competitionLabel = `${parsed.code} ${parsed.season}`;
-
-  const { payload: rawPayload, model, usedGoogleSearch } =
-    await fetchBettingOddsViaGemini(competitionLabel, matches, teams);
-  const payload: BettingOddsPayload = sanitizeBettingPayload(rawPayload);
-
-  await prisma.tournamentBettingOdds.upsert({
-    where: { tournamentId },
-    create: {
-      tournamentId,
-      payload: payload as object,
-      geminiModel: model,
-    },
-    update: {
-      payload: payload as object,
-      geminiModel: model,
-      fetchedAt: new Date(),
-    },
-  });
-
-  revalidatePath("/party");
-  revalidatePath(`/party/${tournamentId}`);
+  const result = await refreshOddsForTournament(tournamentId);
+  if (!result.ok) {
+    throw new Error(result.error);
+  }
 
   return {
     ok: true,
-    matchCount: Object.keys(payload.matches).length,
-    teamCount: Object.keys(payload.teams).length,
-    model,
-    usedGoogleSearch,
+    matchCount: result.matchCount,
+    teamCount: result.teamCount,
+    model: result.model,
+    usedGoogleSearch: result.usedGoogleSearch,
   };
 }

@@ -1,28 +1,13 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
+import { Montserrat } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 
-const novarese = localFont({
-  src: [
-    {
-      path: "../fonts/ITC-Novarese-Book.ttf",
-      weight: "400",
-      style: "normal",
-    },
-    {
-      path: "../fonts/ITC-Novarese-Bold.ttf",
-      weight: "700",
-      style: "normal",
-    },
-    {
-      path: "../fonts/ITC-Novarese-Ultra.ttf",
-      weight: "900",
-      style: "normal",
-    },
-  ],
-  variable: "--font-novarese",
+const montserrat = Montserrat({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-montserrat",
   display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -37,8 +22,8 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en" className={`${novarese.variable} h-full antialiased`}>
-        <body className="min-h-full flex flex-col font-[family-name:var(--font-novarese)]">
+      <html lang="ro" className={`${montserrat.variable} h-full antialiased`}>
+        <body className={`${montserrat.className} min-h-full flex flex-col`}>
           {children}
         </body>
       </html>

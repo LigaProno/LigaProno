@@ -30,6 +30,11 @@ const nextConfig: NextConfig = {
         hostname: "crests.football-data.org",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+        pathname: "/**",
+      },
     ],
   },
 };

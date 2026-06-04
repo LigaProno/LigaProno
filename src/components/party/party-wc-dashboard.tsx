@@ -9,11 +9,9 @@ import {
   buildTeamIdToGroupKeyFromStandings,
   partitionFootballDataMatches,
   sortKnockoutStageLabels,
-  venueLabel,
   WC_GROUP_ORDER,
   WC_UNASSIGNED_GROUP_KEY,
 } from "@/lib/football-data";
-import { formatMatchKickoff } from "@/lib/match-datetime";
 import {
   isWorldCup2026Storage,
   parseStoredCompetition,
@@ -23,19 +21,19 @@ import type { MatchOddsRow } from "@/lib/betting-odds";
 import { refreshTournamentBettingOdds } from "@/app/actions/betting-odds";
 import {
   saveWcExtraPrediction,
-  saveWcMatchPrediction,
   setTournamentCompetition,
   simulateRandomClPredictionsForMe,
 } from "@/app/actions/wc-predictions";
 import { POINTS_PER_PREDICTION_CHANGE_AFTER_START } from "@/lib/prediction-window";
 import {
-  computeMatchPoints,
-  POINTS_CHAMPION_BASE,
-  POINTS_CORRECT_SCORE_BASE,
-  POINTS_FT_BASE,
-  POINTS_HT_BASE,
-  POINTS_QUALIFIER_TEAM_BASE,
-} from "@/lib/wc-scoring";
+  PartyMatchPredictionCard,
+  predFromSaved,
+  type MatchPredState,
+} from "@/components/party/party-match-prediction-card";
+import {
+  NextThreePredictionsPanel,
+  type NextThreeMatchPreds,
+} from "@/components/party/next-three-predictions-panel";
 
 export type LeaderboardRow = {
   rank: number;
@@ -68,83 +66,6 @@ export type LeaderboardRow = {
   } | null)[];
 };
 
-type MatchPredState = {
-  htOutcome: string;
-  ftOutcome: string;
-  predHomeGoals: string;
-  predAwayGoals: string;
-};
-
-function emptyPred(): MatchPredState {
-  return {
-    htOutcome: "",
-    ftOutcome: "",
-    predHomeGoals: "",
-    predAwayGoals: "",
-  };
-}
-
-function predFromSaved(
-  p:
-    | {
-        htOutcome?: string | null;
-        ftOutcome?: string | null;
-        predHomeGoals?: number | null;
-        predAwayGoals?: number | null;
-      }
-    | undefined,
-): MatchPredState {
-  if (!p) return emptyPred();
-  return {
-    htOutcome: p.htOutcome ?? "",
-    ftOutcome: p.ftOutcome ?? "",
-    predHomeGoals:
-      p.predHomeGoals !== null && p.predHomeGoals !== undefined ?
-        String(p.predHomeGoals)
-      : "",
-    predAwayGoals:
-      p.predAwayGoals !== null && p.predAwayGoals !== undefined ?
-        String(p.predAwayGoals)
-      : "",
-  };
-}
-
-function OutcomeSelect({
-  label,
-  value,
-  onChange,
-  disabled,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <label className="flex flex-col gap-1 min-w-0">
-      <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.45)" }}>
-        {label}
-      </span>
-      <select
-        disabled={disabled}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg px-2 py-2 text-xs outline-none border w-full disabled:opacity-50"
-        style={{
-          backgroundColor: "#0F172A",
-          color: "#fff",
-          borderColor: "rgba(255,255,255,0.12)",
-        }}
-      >
-        <option value="">—</option>
-        <option value="HOME">Home</option>
-        <option value="DRAW">Draw</option>
-        <option value="AWAY">Away</option>
-      </select>
-    </label>
-  );
-}
-
 export default function PartyWcDashboard({
   tournamentId,
   tournamentName,
@@ -165,6 +86,7 @@ export default function PartyWcDashboard({
   allTeams,
   bettingOddsByMatchId = {},
   bettingOddsFetchedAt = null,
+  nextThreeMemberPreds = [],
 }: {
   tournamentId: string;
   tournamentName: string;
@@ -198,6 +120,7 @@ export default function PartyWcDashboard({
   /** Cote per matchId (string cheie), pentru multiplicator la punctaj. */
   bettingOddsByMatchId?: Record<string, MatchOddsRow>;
   bettingOddsFetchedAt?: string | null;
+  nextThreeMemberPreds?: NextThreeMatchPreds[];
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<"leaderboard" | "matches" | "extras">("leaderboard");
@@ -308,13 +231,11 @@ export default function PartyWcDashboard({
           </p>
           {competitionActive && bettingOddsFetchedAt ?
             <p className="text-[10px] mt-1.5" style={{ color: "rgba(167,243,208,0.8)" }}>
-              Snapshot cote: {new Date(bettingOddsFetchedAt).toLocaleString("ro-RO")} ·{" "}
+              Cote: {new Date(bettingOddsFetchedAt).toLocaleString("ro-RO")} ·{" "}
               {Object.keys(bettingOddsByMatchId).length} meciuri
             </p>
           : competitionActive ?
-            <p className="text-[10px] mt-1.5 text-amber-200/85">
-              Fără snapshot de cote — multiplicator 1 (creatorul poate actualiza din setările competiției).
-            </p>
+            <p className="text-[10px] mt-1.5 text-amber-200/85">Cote indisponibile (×1)</p>
           : null}
           {competitionActive && predictionsReadOnly ?
             <p className="text-[10px] mt-1.5 text-amber-200/95 font-medium">
@@ -329,26 +250,6 @@ export default function PartyWcDashboard({
             </p>
           : null}
         </div>
-        {competitionActive && wc2026Mode && (
-          <div
-            className="rounded-xl px-4 py-2 text-xs font-medium shrink-0 max-w-lg leading-snug"
-            style={{ backgroundColor: "rgba(34,211,238,0.12)", color: "#67E8F9" }}
-          >
-            WC 2026 · punctaj: pauză {POINTS_HT_BASE}×cota 1X2 la pauză (rezultat real), final {POINTS_FT_BASE}×cota 1X2
-            final, scor exact {POINTS_CORRECT_SCORE_BASE}×cota scorului, calificat {POINTS_QUALIFIER_TEAM_BASE}×cota
-            calificării, campion {POINTS_CHAMPION_BASE}×cota câștigătorului. Fără snapshot de cote, multiplicatorul e
-            1.
-          </div>
-        )}
-        {competitionActive && !wc2026Mode && (
-          <div
-            className="rounded-xl px-4 py-2 text-xs font-medium shrink-0 max-w-lg leading-snug"
-            style={{ backgroundColor: "rgba(34,211,238,0.12)", color: "#67E8F9" }}
-          >
-            Pronosticuri active · aceleași reguli de bază × cote (Gemini). Extras: calificări + campion când programul
-            suportă regulile de cupă.
-          </div>
-        )}
       </header>
 
       {showDevClSimulator && isChampionsLeagueParty && competitionActive && (
@@ -457,21 +358,12 @@ export default function PartyWcDashboard({
               className="mt-3 pt-3 border-t flex flex-col gap-2"
               style={{ borderColor: "rgba(255,255,255,0.08)" }}
             >
-              <p className="text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>
-                Cote pentru punctaj: Gemini cu{" "}
-                <strong className="text-cyan-200/95">Grounding Google Search</strong> (căutare web pentru linii
-                actuale), salvate în MongoDB. Necesită{" "}
-                <code className="text-cyan-200/90">GEMINI_API_KEY</code>. Poți dezactiva căutarea cu{" "}
-                <code className="text-cyan-200/90">GEMINI_ODDS_USE_GOOGLE_SEARCH=false</code> dacă API-ul refuză
-                combinația sau vrei doar răspuns fără web.
-              </p>
               {bettingOddsFetchedAt ?
                 <p className="text-[10px]" style={{ color: "rgba(167,243,208,0.85)" }}>
-                  Snapshot cote: {new Date(bettingOddsFetchedAt).toLocaleString("ro-RO")} ·{" "}
-                  {Object.keys(bettingOddsByMatchId).length} meciuri cu linii în snapshot
+                  Cote: {new Date(bettingOddsFetchedAt).toLocaleString("ro-RO")} ·{" "}
+                  {Object.keys(bettingOddsByMatchId).length} meciuri
                 </p>
-              : <p className="text-[10px] text-amber-200/90">Încă nu există snapshot de cote — punctajul folosește
-                  multiplicator 1 până la prima actualizare.</p>}
+              : <p className="text-[10px] text-amber-200/90">Cote indisponibile (×1)</p>}
               <button
                 type="button"
                 disabled={pending}
@@ -493,7 +385,7 @@ export default function PartyWcDashboard({
                 className="self-start px-4 py-2 rounded-xl text-xs font-bold cursor-pointer disabled:opacity-40"
                 style={{ backgroundColor: "#0EA5E9", color: "#0f172a" }}
               >
-                Actualizează cotele (Gemini)
+                Actualizează cotele
               </button>
             </div>
           )}
@@ -547,25 +439,6 @@ export default function PartyWcDashboard({
               className="rounded-2xl border overflow-x-auto"
               style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "#1E293B" }}
             >
-              <p
-                className="text-[10px] sm:text-xs px-3 sm:px-4 pt-3 pb-2 leading-relaxed"
-                style={{ color: "rgba(255,255,255,0.4)" }}
-              >
-                  <span className="font-semibold text-cyan-300/90">FG</span> Final guessed ·{" "}
-                  <span className="font-semibold text-cyan-300/90">PG</span> Half-time guessed ·{" "}
-                  <span className="font-semibold text-cyan-300/90">SC</span> Correct scores ·{" "}
-                  <span className="font-semibold text-cyan-300/90">CG</span> Qualifiers guessed (counts after all
-                  group games finish or Round of 32 line-up is complete) ·{" "}
-                  <span className="font-semibold text-cyan-300/90">CH</span> Champion points ·{" "}
-                  <span className="font-semibold text-cyan-300/90">Pen</span> penalizare modificări după start (dacă
-                  party-ul o permite) ·{" "}
-                  <span className="font-semibold text-cyan-300/90">Pick</span> champion team they chose ·{" "}
-                  <span className="font-semibold text-cyan-300/90">Last</span> /{" "}
-                  <span className="font-semibold text-cyan-300/90">Next 3</span> use the latest results and the next
-                  three fixtures on the schedule (your pick or “—”). Click a member name to open their full prediction
-                  page. Dacă există snapshot de cote (Gemini), fiecare categorie e înmulțită cu cota rezultatului /
-                  echipei reale.
-                </p>
                 <table className="w-full text-sm min-w-[780px]">
                   <thead>
                     <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
@@ -764,13 +637,17 @@ export default function PartyWcDashboard({
                   (meci sau extras), scăzute din totalul tău.
                 </div>
               : null}
+              <NextThreePredictionsPanel
+                matches={nextThreeMemberPreds}
+                currentUserId={currentUserId}
+              />
               {groupBlocks.map(({ key, matches: gm }) =>
                 gm.length > 0 ?
                   <section key={key}>
                     <h3 className="text-white font-semibold mb-3">{key}</h3>
                     <div className="flex flex-col gap-5">
                       {gm.map((m) => (
-                        <MatchPredictionBlock
+                        <PartyMatchPredictionCard
                           key={m.id}
                           m={m}
                           tournamentId={tournamentId}
@@ -779,7 +656,7 @@ export default function PartyWcDashboard({
                           predictionsReadOnly={predictionsReadOnly}
                           midCompetitionPenaltyMode={midCompetitionPenaltyMode}
                           onSaved={() => {
-                            setMsg("Prediction saved.");
+                            setMsg("Pronostic salvat.");
                             setErr(null);
                             router.refresh();
                           }}
@@ -799,7 +676,7 @@ export default function PartyWcDashboard({
                     <h3 className="text-white font-semibold mb-3">{stageLabel}</h3>
                     <div className="flex flex-col gap-5">
                       {km.map((m) => (
-                        <MatchPredictionBlock
+                        <PartyMatchPredictionCard
                           key={m.id}
                           m={m}
                           tournamentId={tournamentId}
@@ -808,7 +685,7 @@ export default function PartyWcDashboard({
                           predictionsReadOnly={predictionsReadOnly}
                           midCompetitionPenaltyMode={midCompetitionPenaltyMode}
                           onSaved={() => {
-                            setMsg("Prediction saved.");
+                            setMsg("Pronostic salvat.");
                             setErr(null);
                             router.refresh();
                           }}
@@ -831,15 +708,7 @@ export default function PartyWcDashboard({
               style={{ backgroundColor: "#1E293B", borderColor: "rgba(255,255,255,0.08)" }}
             >
               <p className="text-sm" style={{ color: "rgba(255,255,255,0.55)" }}>
-                Alege echipele care ajung în optimi (loc 1–2 în grupă + cele mai bune locuri 3, max. 3 echipe din
-                aceeași grupă). Pentru fiecare calificat ghicit primești{" "}
-                <span className="text-cyan-200/90">{POINTS_QUALIFIER_TEAM_BASE}×</span>cota lui de calificare (din
-                snapshot) — punctele se acordă doar după ce calificările sunt clare (toate meciurile din grupe
-                terminate sau 32 de echipe în bracket). Campionul corect:{" "}
-                <span className="text-cyan-200/90">{POINTS_CHAMPION_BASE}×</span>cota de câștigător final, după finală.
-              </p>
-              <p className="text-xs font-medium" style={{ color: "rgba(250,204,21,0.9)" }}>
-                You can select at most 3 teams from each group.
+                Calificări în optimi și campion. Max. 3 echipe din aceeași grupă.
               </p>
               {predictionsReadOnly ?
                 <p className="text-sm text-amber-200/95">
@@ -968,224 +837,6 @@ export default function PartyWcDashboard({
           )}
         </>
       )}
-    </div>
-  );
-}
-
-function MatchPredictionBlock({
-  m,
-  tournamentId,
-  matchOddsRow,
-  initial,
-  predictionsReadOnly = false,
-  midCompetitionPenaltyMode = false,
-  onSaved,
-  onError,
-}: {
-  m: FootballDataMatch;
-  tournamentId: string;
-  matchOddsRow: MatchOddsRow | null;
-  initial: MatchPredState;
-  predictionsReadOnly?: boolean;
-  midCompetitionPenaltyMode?: boolean;
-  onSaved: () => void;
-  onError: (msg: string) => void;
-}) {
-  const [p, setP] = useState<MatchPredState>(initial);
-  const [pending, startTransition] = useTransition();
-  const finished = m.status === "FINISHED";
-  const formLocked = finished || predictionsReadOnly;
-
-  useEffect(() => {
-    setP(initial);
-  }, [
-    initial.htOutcome,
-    initial.ftOutcome,
-    initial.predHomeGoals,
-    initial.predAwayGoals,
-  ]);
-
-  const breakdown = useMemo(
-    () =>
-      computeMatchPoints(
-        {
-          htOutcome: p.htOutcome || null,
-          ftOutcome: p.ftOutcome || null,
-          predHomeGoals: p.predHomeGoals === "" ? null : Number(p.predHomeGoals),
-          predAwayGoals: p.predAwayGoals === "" ? null : Number(p.predAwayGoals),
-        },
-        m,
-        matchOddsRow,
-      ),
-    [p, m, matchOddsRow],
-  );
-
-  const venue = venueLabel(m);
-  const when = formatMatchKickoff(m.utcDate);
-  const home = m.homeTeam.name ?? m.homeTeam.shortName ?? "—";
-  const away = m.awayTeam.name ?? m.awayTeam.shortName ?? "—";
-  const hl = m.homeTeam.crest;
-  const al = m.awayTeam.crest;
-  const ft = m.score?.fullTime;
-  const ht = m.score?.halfTime;
-
-  return (
-    <div
-      className="rounded-2xl border overflow-hidden"
-      style={{
-        borderColor: "rgba(34,211,238,0.22)",
-        background: "linear-gradient(145deg, rgba(15,23,42,0.96) 0%, rgba(30,41,59,0.88) 100%)",
-      }}
-    >
-      <div className="px-4 py-4 sm:px-6 border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-        <div className="grid grid-cols-[1fr_minmax(7rem,1fr)_1fr] gap-2 sm:gap-4 items-center">
-          <div className="flex flex-col items-center gap-2 min-w-0">
-            {hl ?
-              <Image
-                src={hl}
-                alt=""
-                width={40}
-                height={40}
-                className="rounded-lg bg-white/90 p-0.5 object-contain"
-                unoptimized
-              />
-            : null}
-            <span className="font-bold text-white text-xs sm:text-sm text-center break-words">{home}</span>
-          </div>
-          <div className="flex flex-col items-center justify-center text-center px-1">
-            <span className="text-[10px] sm:text-xs font-semibold line-clamp-3" style={{ color: "#67E8F9" }}>
-              {venue ?? "Venue TBD"}
-            </span>
-            <span className="text-[10px] mt-1 tabular-nums" style={{ color: "#BEF264" }}>
-              {when}
-            </span>
-            {finished && ft?.home != null && ft?.away != null && (
-              <span className="text-white font-bold mt-2 tabular-nums">
-                {ft.home} – {ft.away}
-                {ht?.home != null && ht?.away != null ?
-                  <span className="block text-[10px] font-normal mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>
-                    HT {ht.home}–{ht.away}
-                  </span>
-                : null}
-              </span>
-            )}
-          </div>
-          <div className="flex flex-col items-center gap-2 min-w-0">
-            {al ?
-              <Image
-                src={al}
-                alt=""
-                width={40}
-                height={40}
-                className="rounded-lg bg-white/90 p-0.5 object-contain"
-                unoptimized
-              />
-            : null}
-            <span className="font-bold text-white text-xs sm:text-sm text-center break-words">{away}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-4 py-4 sm:px-6 flex flex-col gap-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <OutcomeSelect
-            label={`Pauză (${POINTS_HT_BASE}×cotă 1X2)`}
-            value={p.htOutcome}
-            onChange={(v) => setP((s) => ({ ...s, htOutcome: v }))}
-            disabled={formLocked}
-          />
-          <OutcomeSelect
-            label={`Final (${POINTS_FT_BASE}×cotă 1X2)`}
-            value={p.ftOutcome}
-            onChange={(v) => setP((s) => ({ ...s, ftOutcome: v }))}
-            disabled={formLocked}
-          />
-          <label className="flex flex-col gap-1 min-w-0">
-            <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.45)" }}>
-              Goluri acasă (scor exact {POINTS_CORRECT_SCORE_BASE}×cotă)
-            </span>
-            <input
-              type="number"
-              min={0}
-              disabled={formLocked}
-              value={p.predHomeGoals}
-              onChange={(e) => setP((s) => ({ ...s, predHomeGoals: e.target.value }))}
-              className="rounded-lg px-2 py-2 text-xs outline-none border w-full disabled:opacity-50"
-              style={{
-                backgroundColor: "#0F172A",
-                color: "#fff",
-                borderColor: "rgba(255,255,255,0.12)",
-              }}
-            />
-          </label>
-          <label className="flex flex-col gap-1 min-w-0">
-            <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.45)" }}>
-              Away goals
-            </span>
-            <input
-              type="number"
-              min={0}
-              disabled={formLocked}
-              value={p.predAwayGoals}
-              onChange={(e) => setP((s) => ({ ...s, predAwayGoals: e.target.value }))}
-              className="rounded-lg px-2 py-2 text-xs outline-none border w-full disabled:opacity-50"
-              style={{
-                backgroundColor: "#0F172A",
-                color: "#fff",
-                borderColor: "rgba(255,255,255,0.12)",
-              }}
-            />
-          </label>
-        </div>
-
-        {finished && (
-          <p className="text-xs" style={{ color: "rgba(255,255,255,0.55)" }}>
-            Points from this match:{" "}
-            <span className="font-bold text-emerald-400">{breakdown.total}</span> (HT {breakdown.halfTime}, FT{" "}
-            {breakdown.fullTime}, exact score {breakdown.correctScore})
-          </p>
-        )}
-
-        {!finished && predictionsReadOnly ?
-          <p className="text-xs text-amber-200/90">
-            Nu poți salva: pronosticurile sunt blocate după startul competiției.
-          </p>
-        : !finished ?
-          <div className="flex flex-col gap-1.5 items-start">
-            {midCompetitionPenaltyMode ?
-              <p className="text-[11px] leading-snug" style={{ color: "rgba(253,224,71,0.88)" }}>
-                Dacă această salvare schimbă pronosticul față de ce era înregistrat, pierzi{" "}
-                {POINTS_PER_PREDICTION_CHANGE_AFTER_START} puncte.
-              </p>
-            : null}
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => {
-                startTransition(async () => {
-                  try {
-                    await saveWcMatchPrediction(tournamentId, m.id, {
-                      htOutcome: p.htOutcome || null,
-                      ftOutcome: p.ftOutcome || null,
-                      predHomeGoals:
-                        p.predHomeGoals === "" ? null : Number(p.predHomeGoals),
-                      predAwayGoals:
-                        p.predAwayGoals === "" ? null : Number(p.predAwayGoals),
-                    });
-                    onSaved();
-                  } catch (e) {
-                    onError(e instanceof Error ? e.message : "Something went wrong");
-                  }
-                });
-              }}
-              className="self-start px-5 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50 cursor-pointer"
-              style={{ backgroundColor: "#22D3EE", color: "#0F172A" }}
-            >
-              Save prediction
-            </button>
-          </div>
-        : null}
-      </div>
     </div>
   );
 }

@@ -126,3 +126,13 @@ model TournamentMember {
 
   @@unique([tournamentId, userId])
 }
+
+// Știri zilnice CM 2026 pentru dashboard (Gemini + Google Search).
+model DashboardNewsSnapshot {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  dateKey     String   @unique
+  items       Json
+  geminiModel String?
+  fetchedAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

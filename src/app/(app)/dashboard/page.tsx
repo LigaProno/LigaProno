@@ -1,7 +1,22 @@
-export default function DashboardPage() {
+import type { Metadata } from "next";
+import DashboardHome from "@/components/dashboard/dashboard-home";
+import { getTodayWcNews } from "@/lib/wc-dashboard-news";
+
+export const metadata: Metadata = {
+  title: "Dashboard | PronoHub",
+  description: "Evenimente, Cupa Mondială 2026 și știri zilnice de fotbal.",
+};
+
+export const dynamic = "force-dynamic";
+
+export default async function DashboardPage() {
+  const { items, fetchedAt, dateKey } = await getTodayWcNews();
+
   return (
-    <div className="flex-1 flex items-center justify-center p-8">
-      <p className="text-white/30 text-sm">Dashboard — coming soon</p>
-    </div>
+    <DashboardHome
+      news={items}
+      newsFetchedAt={fetchedAt}
+      newsDateKey={dateKey}
+    />
   );
 }

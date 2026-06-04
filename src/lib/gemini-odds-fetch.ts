@@ -58,11 +58,26 @@ function stripJsonFence(raw: string): string {
   return s.trim();
 }
 
+/** Extrage obiect JSON din text (inclusiv când Gemini adaugă explicații). */
+export function parseGeminiJsonText(jsonText: string): unknown {
+  const trimmed = stripJsonFence(jsonText);
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    const start = trimmed.indexOf("{");
+    const end = trimmed.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      return JSON.parse(trimmed.slice(start, end + 1));
+    }
+    throw new Error("Gemini: textul nu e JSON valid.");
+  }
+}
+
 export async function callGeminiJson(
   apiKey: string,
   model: string,
   userPrompt: string,
-  options?: { googleSearch?: boolean },
+  options?: { googleSearch?: boolean; timeoutMs?: number },
 ): Promise<unknown> {
   const googleSearch = options?.googleSearch ?? isGoogleSearchGroundingEnabled();
 
@@ -86,7 +101,7 @@ export async function callGeminiJson(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(requestBody),
-    signal: AbortSignal.timeout(90_000),
+    signal: AbortSignal.timeout(options?.timeoutMs ?? 90_000),
   });
   const text = await res.text();
   let body: unknown;
@@ -102,12 +117,8 @@ export async function callGeminiJson(
         : text.slice(0, 400);
     throw new Error(`Gemini ${res.status}: ${msg}`);
   }
-  const jsonText = stripJsonFence(extractGeminiTextParts(body));
-  try {
-    return JSON.parse(jsonText);
-  } catch {
-    throw new Error("Gemini: textul nu e JSON valid.");
-  }
+  const jsonText = extractGeminiTextParts(body);
+  return parseGeminiJsonText(jsonText);
 }
 
 function teamListPrompt(

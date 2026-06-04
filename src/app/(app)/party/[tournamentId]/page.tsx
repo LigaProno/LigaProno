@@ -24,6 +24,7 @@ import {
   type FootballDataCompetitionPickerOption,
 } from "@/lib/competition";
 import { prisma } from "@/lib/prisma";
+import { formatMatchKickoff } from "@/lib/match-datetime";
 import {
   championLabelFromTeams,
   fixtureTlaPair,
@@ -31,6 +32,7 @@ import {
   lastFinishedAndNextThree,
   matchResultHtFt,
 } from "@/lib/wc-pred-display";
+import type { NextThreeMatchPreds } from "@/components/party/next-three-predictions-panel";
 import {
   parseBettingOddsPayload,
   payloadToOddsMaps,
@@ -285,6 +287,19 @@ export default async function PartyTournamentPage({
 
   const { lastFinished, nextThree } = lastFinishedAndNextThree(matches);
 
+  const nextThreeMemberPreds: NextThreeMatchPreds[] = nextThree.map((nm) => ({
+    matchId: nm.id,
+    fixture: fixtureTlaPair(nm),
+    kickoff: formatMatchKickoff(nm.utcDate),
+    rows: tournament.members
+      .map((m) => ({
+        userId: m.userId,
+        displayName: displayName(m.user.firstName, m.user.lastName),
+        pred: formatPredShort(predsByUser.get(m.userId)?.get(nm.id) ?? null),
+      }))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, "ro")),
+  }));
+
   const oddsPayload =
     tournament.bettingOdds?.payload != null ?
       parseBettingOddsPayload(tournament.bettingOdds.payload)
@@ -430,6 +445,7 @@ export default async function PartyTournamentPage({
         allTeams={allTeams}
         bettingOddsByMatchId={oddsPayload?.matches ?? {}}
         bettingOddsFetchedAt={tournament.bettingOdds?.fetchedAt?.toISOString() ?? null}
+        nextThreeMemberPreds={nextThreeMemberPreds}
       />
     </div>
   );
