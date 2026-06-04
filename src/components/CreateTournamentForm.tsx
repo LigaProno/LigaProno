@@ -4,7 +4,6 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createTournament } from "@/app/actions/tournament";
 import type { FootballDataCompetitionPickerOption } from "@/lib/competition";
-import { LIGA1_PICKER_OPTION } from "@/lib/competition";
 
 function generateCode(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -138,9 +137,6 @@ export default function CreateTournamentForm({
               }}
             >
               <option value="">Fără competiție (doar party)</option>
-              <option key={LIGA1_PICKER_OPTION.storageKey} value={LIGA1_PICKER_OPTION.storageKey}>
-                {LIGA1_PICKER_OPTION.label}
-              </option>
               {competitionPickerOptions.map((c) => (
                 <option key={c.storageKey} value={c.storageKey}>
                   {c.label}

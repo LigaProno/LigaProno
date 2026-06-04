@@ -36,7 +36,6 @@ model Tournament {
   wcMatchPredictions   WcMatchPrediction[]
   wcExtraPredictions   WcExtraPrediction[]
   bettingOdds          TournamentBettingOdds?
-  liga1Fixtures        Liga1Fixture[]
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
 }
@@ -85,33 +84,6 @@ model WcExtraPrediction {
 
   @@unique([tournamentId, userId])
   @@index([tournamentId])
-}
-
-model Liga1Fixture {
-  id              String     @id @default(auto()) @map("_id") @db.ObjectId
-  tournamentId    String     @db.ObjectId
-  tournament      Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  internalMatchId Int
-  matchday        Int
-  homeTeamId      Int
-  homeTeamName    String
-  awayTeamId      Int
-  awayTeamName    String
-  utcDate         DateTime
-  htFetchAt       DateTime
-  ftFetchAt       DateTime
-  status          String     @default("SCHEDULED")
-  htHome          Int?
-  htAway          Int?
-  ftHome          Int?
-  ftAway          Int?
-  geminiConfident Boolean    @default(true)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-
-  @@unique([tournamentId, internalMatchId])
-  @@index([tournamentId])
-  @@index([status])
 }
 
 model TournamentMember {

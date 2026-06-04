@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isLiga1Storage } from "@/lib/competition";
 import { refreshOddsForTournament } from "@/lib/refresh-tournament-odds";
 import { prisma } from "@/lib/prisma";
 
@@ -25,10 +24,6 @@ export async function GET(req: NextRequest) {
     select: { id: true, competition: true, name: true },
   });
 
-  const footballDataTournaments = tournaments.filter(
-    (t) => t.competition && !isLiga1Storage(t.competition),
-  );
-
   const results: {
     tournamentId: string;
     name: string;
@@ -37,7 +32,7 @@ export async function GET(req: NextRequest) {
     error?: string;
   }[] = [];
 
-  for (const t of footballDataTournaments) {
+  for (const t of tournaments) {
     const r = await refreshOddsForTournament(t.id);
     if (r.ok) {
       results.push({

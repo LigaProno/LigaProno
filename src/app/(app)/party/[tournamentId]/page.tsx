@@ -4,10 +4,6 @@ import { notFound, redirect } from "next/navigation";
 import PartyWcDashboard, {
   type LeaderboardRow,
 } from "@/components/party/party-wc-dashboard";
-import PartyLiga1Dashboard, {
-  type Liga1LeaderboardRow,
-  type Liga1Team,
-} from "@/components/party/PartyLiga1Dashboard";
 import {
   collectTeamsFromMatches,
   createEmptyWcGroupStandings,
@@ -19,7 +15,6 @@ import {
 } from "@/lib/football-data";
 import {
   isWorldCup2026Storage,
-  isLiga1Storage,
   parseStoredCompetition,
   type FootballDataCompetitionPickerOption,
 } from "@/lib/competition";
@@ -42,11 +37,6 @@ import {
   computeUserWcTotals,
   type MatchPredictionInput,
 } from "@/lib/wc-scoring";
-import {
-  computeLiga1UserTotals,
-  isLiga1CompetitionUnderway,
-  type Liga1FixtureForScoring,
-} from "@/lib/liga1-scoring";
 
 function displayName(first?: string | null, last?: string | null): string {
   const s = `${first ?? ""} ${last ?? ""}`.trim();
@@ -86,129 +76,6 @@ export default async function PartyTournamentPage({
   if (!isMember) redirect("/party");
 
   const isCreator = tournament.creatorId === user.id;
-
-  // -------------------------------------------------------------------------
-  // Liga1 branch
-  // -------------------------------------------------------------------------
-  if (isLiga1Storage(tournament.competition)) {
-    const liga1Fixtures = await prisma.liga1Fixture.findMany({
-      where: { tournamentId },
-      orderBy: [{ matchday: "asc" }, { utcDate: "asc" }],
-    });
-
-    const fixturesForScoring: Liga1FixtureForScoring[] = liga1Fixtures.map((f) => ({
-      internalMatchId: f.internalMatchId,
-      matchday: f.matchday,
-      homeTeamId: f.homeTeamId,
-      homeTeamName: f.homeTeamName,
-      awayTeamId: f.awayTeamId,
-      awayTeamName: f.awayTeamName,
-      utcDate: f.utcDate,
-      status: f.status,
-      htHome: f.htHome,
-      htAway: f.htAway,
-      ftHome: f.ftHome,
-      ftAway: f.ftAway,
-    }));
-
-    const wcMatchPreds = await prisma.wcMatchPrediction.findMany({ where: { tournamentId } });
-    const wcExtras = await prisma.wcExtraPrediction.findMany({ where: { tournamentId } });
-
-    const predsByUser = new Map<string, Map<number, MatchPredictionInput>>();
-    for (const p of wcMatchPreds) {
-      if (!predsByUser.has(p.userId)) predsByUser.set(p.userId, new Map());
-      predsByUser.get(p.userId)!.set(p.matchId, {
-        htOutcome: p.htOutcome, ftOutcome: p.ftOutcome,
-        predHomeGoals: p.predHomeGoals, predAwayGoals: p.predAwayGoals,
-      });
-    }
-    const extraByUser = new Map(
-      wcExtras.map((e) => [e.userId, { advancingTeamIds: e.advancingTeamIds, championTeamId: e.championTeamId }]),
-    );
-
-    const oddsPayload = tournament.bettingOdds?.payload != null
-      ? parseBettingOddsPayload(tournament.bettingOdds.payload) : null;
-    const oddsMaps = payloadToOddsMaps(oddsPayload);
-    const liga1Standings = oddsPayload?.liga1Standings;
-
-    const competitionUnderway = isLiga1CompetitionUnderway(fixturesForScoring);
-
-    // Build unique teams from fixture data
-    const teamMap = new Map<number, Liga1Team>();
-    for (const f of liga1Fixtures) {
-      if (!teamMap.has(f.homeTeamId)) teamMap.set(f.homeTeamId, { id: f.homeTeamId, name: f.homeTeamName, shortName: f.homeTeamName.slice(0, 3).toUpperCase() });
-      if (!teamMap.has(f.awayTeamId)) teamMap.set(f.awayTeamId, { id: f.awayTeamId, name: f.awayTeamName, shortName: f.awayTeamName.slice(0, 3).toUpperCase() });
-    }
-    const allTeams = [...teamMap.values()].sort((a, b) => a.name.localeCompare(b.name));
-
-    const leaderboard: Liga1LeaderboardRow[] = tournament.members.map((m) => {
-      const totals = computeLiga1UserTotals(
-        predsByUser.get(m.userId) ?? new Map(),
-        extraByUser.get(m.userId) ?? null,
-        fixturesForScoring,
-        oddsMaps,
-        liga1Standings,
-        m.midCompetitionPredictionChangeCount ?? 0,
-      );
-      const champId = extraByUser.get(m.userId)?.championTeamId ?? null;
-      return {
-        rank: 0,
-        userId: m.userId,
-        displayName: `${m.user.firstName ?? ""} ${m.user.lastName ?? ""}`.trim() || "Member",
-        fg: totals.fullTimeGuessPoints,
-        pg: totals.halfTimeGuessPoints,
-        sc: totals.correctScorePoints,
-        top4: totals.top4Points,
-        championPoints: totals.championPoints,
-        changePenalty: totals.predictionChangePenalty,
-        total: totals.total,
-        championPickName: champId != null ? (teamMap.get(champId)?.name ?? null) : null,
-      };
-    });
-    leaderboard.sort((a, b) => b.total !== a.total ? b.total - a.total : a.displayName.localeCompare(b.displayName));
-    leaderboard.forEach((r, i) => { r.rank = i + 1; });
-
-    const myPredsRecord: Record<number, { htOutcome: string | null; ftOutcome: string | null; predHomeGoals: number | null; predAwayGoals: number | null }> = {};
-    const minePredMap = predsByUser.get(user.id);
-    if (minePredMap) {
-      for (const [mid, pred] of minePredMap) {
-        myPredsRecord[mid] = { htOutcome: pred.htOutcome ?? null, ftOutcome: pred.ftOutcome ?? null, predHomeGoals: pred.predHomeGoals ?? null, predAwayGoals: pred.predAwayGoals ?? null };
-      }
-    }
-
-    return (
-      <div className="flex-1 p-4 sm:p-6 md:p-8 max-w-4xl mx-auto w-full">
-        <Link href="/party" className="inline-flex items-center gap-2 text-sm mb-6 hover:opacity-80 transition-opacity" style={{ color: "rgba(255,255,255,0.5)" }}>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to Party
-        </Link>
-        <PartyLiga1Dashboard
-          tournamentId={tournament.id}
-          tournamentName={tournament.name}
-          inviteCode={tournament.inviteCode}
-          competition={tournament.competition ?? ""}
-          isCreator={isCreator}
-          currentUserId={user.id}
-          fixturesInitialised={liga1Fixtures.length > 0}
-          fixtures={fixturesForScoring}
-          leaderboard={leaderboard}
-          myPreds={myPredsRecord}
-          myExtra={extraByUser.get(user.id) ?? null}
-          allTeams={allTeams}
-          competitionUnderway={competitionUnderway}
-          allowPredictionChangesDuringCompetition={tournament.allowPredictionChangesDuringCompetition ?? false}
-          bettingOddsByMatchId={oddsPayload?.matches ?? {}}
-          bettingOddsFetchedAt={tournament.bettingOdds?.fetchedAt?.toISOString() ?? null}
-        />
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------------------
-  // Football-data.org / WC branch (existing code continues below)
-  // -------------------------------------------------------------------------
 
   const parsedCompetition = parseStoredCompetition(tournament.competition);
 
