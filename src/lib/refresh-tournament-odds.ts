@@ -33,7 +33,7 @@ export async function refreshOddsForTournament(
       where: { id: tournamentId },
     });
     if (!tournament) {
-      return { ok: false, tournamentId, error: "Party inexistent." };
+      return { ok: false, tournamentId, error: "Turneu inexistent." };
     }
 
     const parsed = parseStoredCompetition(tournament.competition);
@@ -105,8 +105,9 @@ export async function refreshOddsForTournament(
       },
     });
 
-    revalidatePath("/party");
-    revalidatePath(`/party/${tournamentId}`);
+    revalidatePath("/turnee");
+    revalidatePath("/turnee/clasament");
+    revalidatePath(`/turnee/${tournamentId}`);
 
     return {
       ok: true,

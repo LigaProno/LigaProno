@@ -46,19 +46,28 @@ export async function fetchOddsPortalHtml(url: string, referer?: string): Promis
   return res.text();
 }
 
-/** Extrage fixture-uri din scripturile JSON-LD de pe pagina turneului. */
-export function parseTournamentFixturesFromHtml(html: string): Array<{
+export type OpScheduleFixture = {
   matchId: string;
   home: string;
   away: string;
   startDateIso: string | null;
-}> {
-  const fixtures: Array<{
-    matchId: string;
-    home: string;
-    away: string;
-    startDateIso: string | null;
-  }> = [];
+  stadium: string | null;
+  city: string | null;
+  country: string | null;
+};
+
+function decodeHtmlEntities(value: string): string {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)));
+}
+
+export function parseTournamentFixturesFromHtml(html: string): OpScheduleFixture[] {
+  const fixtures: OpScheduleFixture[] = [];
   const seen = new Set<string>();
 
   const ldJsonBlocks = html.match(
@@ -73,17 +82,32 @@ export function parseTournamentFixturesFromHtml(html: string): Array<{
         name?: string;
         startDate?: string;
         url?: string;
+        location?: {
+          name?: string;
+          address?: {
+            addressLocality?: string;
+            addressCountry?: string;
+          };
+        };
       };
       const url = obj.url ?? "";
       const hashMatch = url.match(/#([A-Za-z0-9]+)\/?$/);
       const matchId = hashMatch?.[1];
       if (!matchId || seen.has(matchId)) continue;
 
-      const name = obj.name?.trim();
+      const name = decodeHtmlEntities(obj.name?.trim() ?? "");
       if (!name || !name.includes(" - ")) continue;
 
-      const [home, away] = name.split(" - ").map((s) => s.trim());
+      const [home, away] = name.split(" - ").map((s) => decodeHtmlEntities(s.trim()));
       if (!home || !away) continue;
+
+      const stadium = decodeHtmlEntities(obj.location?.name?.trim() ?? "") || null;
+      const city =
+        decodeHtmlEntities(obj.location?.address?.addressLocality?.trim() ?? "") ||
+        null;
+      const country =
+        decodeHtmlEntities(obj.location?.address?.addressCountry?.trim() ?? "") ||
+        null;
 
       seen.add(matchId);
       fixtures.push({
@@ -91,9 +115,12 @@ export function parseTournamentFixturesFromHtml(html: string): Array<{
         home,
         away,
         startDateIso: obj.startDate ?? null,
+        stadium,
+        city,
+        country,
       });
     } catch {
-      // skip invalid JSON-LD
+      continue;
     }
   }
 
@@ -211,9 +238,7 @@ export async function fetchOutrightWinnerFeed(
 
 export async function fetchTournamentFixtures(
   config: OddsPortalCompetitionConfig,
-): Promise<
-  Array<{ matchId: string; home: string; away: string; startDateIso: string | null }>
-> {
+): Promise<OpScheduleFixture[]> {
   const html = await fetchOddsPortalHtml(config.tournamentPageUrl);
   return parseTournamentFixturesFromHtml(html);
 }

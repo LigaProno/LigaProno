@@ -43,11 +43,11 @@ export default async function PartyMemberPredictionsPage({
   if (!tournament) notFound();
 
   const isMember = tournament.members.some((m) => m.userId === user.id);
-  if (!isMember) redirect("/party");
+  if (!isMember) redirect("/turnee");
 
   const parsedCompetition = parseStoredCompetition(tournament.competition);
   if (!parsedCompetition) {
-    redirect(`/party/${tournamentId}`);
+    redirect(`/turnee/${tournamentId}`);
   }
 
   const targetMembership = tournament.members.find((m) => m.userId === memberUserId);

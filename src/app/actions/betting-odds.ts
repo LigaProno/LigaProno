@@ -22,7 +22,7 @@ export async function refreshTournamentBettingOdds(
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
   });
-  if (!tournament) throw new Error("Party inexistent.");
+  if (!tournament) throw new Error("Turneu inexistent.");
   if (tournament.creatorId !== user.id) {
     throw new Error("Doar creatorul party-ului poate actualiza cotele.");
   }

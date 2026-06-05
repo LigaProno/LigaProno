@@ -9,9 +9,14 @@ const nextConfig: NextConfig = {
         permanent: false,
       },
       {
-        source: "/world-cup/fifa",
-        destination: "/matches",
-        permanent: false,
+        source: "/party",
+        destination: "/turnee",
+        permanent: true,
+      },
+      {
+        source: "/party/:path*",
+        destination: "/turnee/:path*",
+        permanent: true,
       },
     ];
   },

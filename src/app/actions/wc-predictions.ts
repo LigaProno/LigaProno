@@ -40,9 +40,9 @@ export async function setTournamentCompetition(
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
   });
-  if (!tournament) throw new Error("Party not found.");
+  if (!tournament) throw new Error("Turneu negăsit.");
   if (tournament.creatorId !== user.id) {
-    throw new Error("Only the party creator can change the competition.");
+    throw new Error("Doar creatorul turneului poate schimba competiția.");
   }
 
   const next =
@@ -55,15 +55,16 @@ export async function setTournamentCompetition(
     data: { competition: next },
   });
 
-  revalidatePath("/party");
-  revalidatePath(`/party/${tournamentId}`);
+  revalidatePath("/turnee");
+  revalidatePath("/turnee/clasament");
+  revalidatePath(`/turnee/${tournamentId}`);
 }
 
 async function assertMember(tournamentId: string, userId: string) {
   const m = await prisma.tournamentMember.findUnique({
     where: { tournamentId_userId: { tournamentId, userId } },
   });
-  if (!m) throw new Error("You are not a member of this party.");
+  if (!m) throw new Error("Nu ești membru al acestui turneu.");
 }
 
 async function isCompetitionUnderwayForStorage(
@@ -121,9 +122,9 @@ export async function saveWcMatchPrediction(
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
   });
-  if (!tournament) throw new Error("Party not found.");
+  if (!tournament) throw new Error("Turneu negăsit.");
   if (!parseStoredCompetition(tournament.competition ?? null)) {
-    throw new Error("This party has no competition enabled for predictions.");
+    throw new Error("Acest turneu nu are competiție activă pentru pronosticuri.");
   }
 
   await assertMember(tournamentId, user.id);
@@ -131,7 +132,7 @@ export async function saveWcMatchPrediction(
   const underway = await isCompetitionUnderwayForStorage(tournament.competition);
   if (underway && !(tournament.allowPredictionChangesDuringCompetition ?? false)) {
     throw new Error(
-      "Competiția a început. În acest party pronosticurile nu mai pot fi modificate.",
+      "Competiția a început. În acest turneu pronosticurile nu mai pot fi modificate.",
     );
   }
 
@@ -222,7 +223,8 @@ export async function saveWcMatchPrediction(
     }
   });
 
-  revalidatePath(`/party/${tournamentId}`);
+  revalidatePath(`/turnee/${tournamentId}`);
+  revalidatePath("/turnee/clasament");
 }
 
 export async function saveWcExtraPrediction(
@@ -239,10 +241,10 @@ export async function saveWcExtraPrediction(
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
   });
-  if (!tournament) throw new Error("Party not found.");
+  if (!tournament) throw new Error("Turneu negăsit.");
   const parsed = parseStoredCompetition(tournament.competition ?? null);
   if (!parsed) {
-    throw new Error("This party has no competition enabled for predictions.");
+    throw new Error("Acest turneu nu are competiție activă pentru pronosticuri.");
   }
 
   await assertMember(tournamentId, user.id);
@@ -250,7 +252,7 @@ export async function saveWcExtraPrediction(
   const underway = await isCompetitionUnderwayForStorage(tournament.competition);
   if (underway && !(tournament.allowPredictionChangesDuringCompetition ?? false)) {
     throw new Error(
-      "Competiția a început. În acest party pronosticurile nu mai pot fi modificate.",
+      "Competiția a început. În acest turneu pronosticurile nu mai pot fi modificate.",
     );
   }
 
@@ -346,7 +348,8 @@ export async function saveWcExtraPrediction(
     }
   });
 
-  revalidatePath(`/party/${tournamentId}`);
+  revalidatePath(`/turnee/${tournamentId}`);
+  revalidatePath("/turnee/clasament");
 }
 
 function shuffleInPlace<T>(arr: T[]): void {
@@ -382,11 +385,11 @@ export async function simulateRandomClPredictionsForMe(
   });
   const parsed = parseStoredCompetition(tournament?.competition ?? null);
   if (!parsed) {
-    throw new Error("This party has no competition enabled.");
+    throw new Error("Acest turneu nu are competiție activă.");
   }
   if (parsed.code !== "CL") {
     throw new Error(
-      "This simulator only works when the party competition is Champions League (CL).",
+      "Simulatorul funcționează doar când competiția turneului e Champions League (CL).",
     );
   }
 
@@ -475,9 +478,10 @@ export async function simulateRandomClPredictionsForMe(
     },
   });
 
-  revalidatePath("/party");
-  revalidatePath(`/party/${tournamentId}`);
-  revalidatePath(`/party/${tournamentId}/member/${user.id}`);
+  revalidatePath("/turnee");
+  revalidatePath("/turnee/clasament");
+  revalidatePath(`/turnee/${tournamentId}`);
+  revalidatePath(`/turnee/${tournamentId}/member/${user.id}`);
 
   return { matchCount: matches.length, advancingCount: advancing.length };
 }

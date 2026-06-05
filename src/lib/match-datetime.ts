@@ -1,8 +1,7 @@
-/** Kick-off display: English locale, Europe/Bucharest (tournament host-friendly). */
 export function formatMatchKickoff(isoUtc: string): string {
   try {
     const d = new Date(isoUtc);
-    return new Intl.DateTimeFormat("en-GB", {
+    return new Intl.DateTimeFormat("ro-RO", {
       timeZone: "Europe/Bucharest",
       weekday: "short",
       day: "numeric",

@@ -1,12 +1,8 @@
 import type { FootballDataMatch } from "@/lib/football-data";
 import { TEAM_NAME_ALIASES } from "@/lib/odds-providers/oddsportal/competition-map";
+import type { OpScheduleFixture } from "@/lib/odds-providers/oddsportal/client";
 
-export type OpFixture = {
-  matchId: string;
-  home: string;
-  away: string;
-  startDateIso: string | null;
-};
+export type OpFixture = OpScheduleFixture;
 
 function stripDiacritics(s: string): string {
   return s.normalize("NFD").replace(/\p{M}/gu, "");

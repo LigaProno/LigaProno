@@ -9,6 +9,7 @@ const navItems = [
   {
     href: "/dashboard",
     label: "Dashboard",
+    match: (pathname: string) => pathname === "/dashboard",
     icon: (
       <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <rect x="3" y="3" width="7" height="7" rx="1" />
@@ -19,14 +20,27 @@ const navItems = [
     ),
   },
   {
-    href: "/party",
-    label: "Party",
+    href: "/turnee",
+    label: "Turnee",
+    match: (pathname: string) =>
+      pathname === "/turnee" ||
+      (pathname.startsWith("/turnee/") && !pathname.startsWith("/turnee/clasament")),
     icon: (
       <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
         <circle cx="9" cy="7" r="4" />
         <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    ),
+  },
+  {
+    href: "/turnee/clasament",
+    label: "Clasament global",
+    match: (pathname: string) => pathname === "/turnee/clasament",
+    icon: (
+      <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
       </svg>
     ),
   },
@@ -46,7 +60,7 @@ function NavLinks({ pathname, onClick }: { pathname: string; onClick?: () => voi
   return (
     <nav className="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto">
       {navItems.map((item) => {
-        const active = pathname === item.href;
+        const active = item.match(pathname);
         return (
           <Link
             key={item.href}

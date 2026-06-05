@@ -199,16 +199,16 @@ export default function DashboardHome({
             className="text-base sm:text-lg max-w-xl mb-8 leading-relaxed"
             style={{ color: "rgba(255,255,255,0.7)" }}
           >
-            Platforma ta de pronosticuri cu prietenii — clasamente live, party-uri private
+            Platforma ta de pronosticuri cu prietenii — clasamente live, turnee private
             și evenimente majore de fotbal.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link
-              href="/party"
+              href="/turnee"
               className="px-6 py-3 rounded-xl font-bold text-sm sm:text-base shadow-lg transition active:scale-[0.98]"
               style={{ backgroundColor: "#22D3EE", color: "#0F172A" }}
             >
-              Intră în Party
+              Intră în Turnee
             </Link>
             <Link
               href="/matches"
@@ -265,14 +265,14 @@ export default function DashboardHome({
               </div>
               <p className="text-sm sm:text-base leading-relaxed mb-6" style={{ color: "rgba(255,255,255,0.6)" }}>
                 SUA, Canada și Mexic găzduiesc cel mai mare turneu din fotbal. Urmărește clasamentele
-                și meciurile, creează un party și pune pronosticuri pe fiecare fază — de la grupe până la finală.
+                și meciurile, creează un turneu și pune pronosticuri pe fiecare fază — de la grupe până la finală.
               </p>
               <ul className="space-y-2 mb-6 text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>
                 <li className="flex items-center gap-2">
-                  <span style={{ color: "#22D3EE" }}>✓</span> Clasament & program live (Football-Data)
+                  <span style={{ color: "#22D3EE" }}>✓</span> Clasament live + program cu stadion (ora RO)
                 </li>
                 <li className="flex items-center gap-2">
-                  <span style={{ color: "#22D3EE" }}>✓</span> Party-uri private cu clasament
+                  <span style={{ color: "#22D3EE" }}>✓</span> Turnee private cu clasament
                 </li>
                 <li className="flex items-center gap-2">
                   <span style={{ color: "#22D3EE" }}>✓</span> Pronosticuri meci + calificări & campion
@@ -287,14 +287,14 @@ export default function DashboardHome({
                   Vezi CM 2026
                 </Link>
                 <Link
-                  href="/party"
+                  href="/turnee"
                   className="inline-flex px-5 py-2.5 rounded-xl text-sm font-bold border"
                   style={{
                     borderColor: "rgba(255,255,255,0.2)",
                     color: "rgba(255,255,255,0.85)",
                   }}
                 >
-                  Creează party
+                  Creează turneu
                 </Link>
               </div>
             </div>
@@ -358,20 +358,20 @@ export default function DashboardHome({
         <section className="grid sm:grid-cols-3 gap-4">
           {[
             {
-              title: "Party",
+              title: "Turnee",
               desc: "Invită prietenii cu cod unic și urmăriți clasamentul împreună.",
-              href: "/party",
+              href: "/turnee",
               accent: "#22D3EE",
             },
             {
               title: "Pronosticuri",
               desc: "Meciuri, calificări din grupe și campion — punctaj cu cote Gemini.",
-              href: "/party",
+              href: "/turnee",
               accent: "#BEF264",
             },
             {
               title: "CM 2026 Hub",
-              desc: "Clasament grupe, program și eliminări direct din Football-Data.",
+              desc: "Clasament grupe, program cu stadion/locație și eliminări.",
               href: "/matches",
               accent: "#F472B6",
             },

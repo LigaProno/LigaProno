@@ -33,7 +33,7 @@ export default function JoinTournamentForm() {
       <div>
         <h2 className="text-white font-bold text-lg">Join Tournament</h2>
         <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>
-          Enter an invite code to join a party
+          Enter an invite code to join a tournament
         </p>
       </div>
 

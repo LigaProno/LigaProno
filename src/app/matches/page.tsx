@@ -11,12 +11,13 @@ import {
   type FootballDataMatch,
   type GroupStanding,
 } from "@/lib/football-data";
+import { enrichWorldCupMatchesWithSchedule } from "@/lib/wc-match-schedule-scraper";
 import { Cm2026FootballDataClient } from "./cm2026-client";
 
 export const metadata: Metadata = {
-  title: "FIFA World Cup 2026 — Football-Data | PronoHub",
+  title: "Program CM 2026 | PronoHub",
   description:
-    "World Cup 2026 group standings and fixtures (Football-Data.org API v4).",
+    "Clasament grupe și program meciuri Cupa Mondială 2026 — stadion, locație, ora României.",
 };
 
 export const dynamic = "force-dynamic";
@@ -47,9 +48,10 @@ export default async function MatchesPage({
 
   try {
     matches = await fetchWorldCupMatchesFootballData();
+    matches = await enrichWorldCupMatchesWithSchedule(matches);
   } catch (e) {
     loadError =
-      e instanceof Error ? e.message : "Could not load matches.";
+      e instanceof Error ? e.message : "Nu s-au putut încărca meciurile.";
   }
 
   if (!loadError) {
@@ -97,14 +99,14 @@ export default async function MatchesPage({
             }}
             role="alert"
           >
-            <p className="font-bold mb-2">Football-Data error</p>
+            <p className="font-bold mb-2">Eroare la încărcare</p>
             <p className="text-sm mb-6">{loadError}</p>
             <a
               href="/"
               className="inline-flex px-4 py-2 rounded-xl text-sm font-bold border"
               style={{ borderColor: "rgba(255,255,255,0.25)", color: "#BEF264" }}
             >
-              ← Home
+              ← Acasă
             </a>
           </div>
         </div>

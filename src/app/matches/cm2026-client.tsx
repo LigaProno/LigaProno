@@ -63,19 +63,16 @@ export function Cm2026FootballDataClient(props: {
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-8">
         <div>
           <p className="text-sm font-medium mb-1" style={{ color: "#22D3EE" }}>
-            Football-Data.org · API v4
+            Cupa Mondială 2026
           </p>
           <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-            FIFA World Cup 2026
+            Program & clasament
           </h1>
           <p
             className="mt-2 text-sm max-w-xl"
             style={{ color: "rgba(255,255,255,0.5)" }}
           >
-            Group standings and full schedule (kick-offs Europe/Bucharest).
-            Token:{" "}
-            <code className="text-cyan-300 text-xs">FOOTBALL_DATA_TOKEN</code> /{" "}
-            <code className="text-cyan-300 text-xs">FOOTBALL_API_KEY</code>.
+            Stadion, locație și ora de start în fusul României (Europe/Bucharest).
           </p>
         </div>
         <Link
@@ -83,7 +80,7 @@ export function Cm2026FootballDataClient(props: {
           className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-sm font-bold border transition-all hover:bg-white/5 self-start"
           style={{ borderColor: "rgba(255,255,255,0.2)", color: "#BEF264" }}
         >
-          ← Home
+          ← Acasă
         </Link>
       </header>
 
@@ -114,7 +111,7 @@ export function Cm2026FootballDataClient(props: {
                 }
           }
         >
-          Group standings
+          Clasament grupe
         </button>
         <button
           type="button"
@@ -135,7 +132,7 @@ export function Cm2026FootballDataClient(props: {
                 }
           }
         >
-          All matches{" "}
+          Toate meciurile{" "}
           <span className="opacity-60 font-normal">({totalMatches})</span>
         </button>
       </div>
@@ -202,7 +199,7 @@ export function Cm2026FootballDataClient(props: {
                             className="px-4 py-6 text-center text-sm"
                             style={{ color: "rgba(255,255,255,0.45)" }}
                           >
-                            No standings data for this group in the API response yet.
+                            Nu există date de clasament pentru această grupă.
                           </td>
                         </tr>
                       ) : (
@@ -274,7 +271,7 @@ export function Cm2026FootballDataClient(props: {
                 className="text-xl font-black mb-6 pb-2 border-b"
                 style={{ color: "#fff", borderColor: "rgba(34,211,238,0.35)" }}
               >
-                Group stage
+                Faza grupelor
               </h2>
               <div className="space-y-10">
                 {groupKeysOrdered.map((key) => {
@@ -295,7 +292,7 @@ export function Cm2026FootballDataClient(props: {
                           className="text-sm text-center py-4 max-w-xl mx-auto"
                           style={{ color: "rgba(255,255,255,0.4)" }}
                         >
-                          No matches for this group in the API response.
+                          Nu există meciuri pentru această grupă.
                         </p>
                       ) : (
                         <div className="flex flex-col gap-3">
@@ -317,7 +314,7 @@ export function Cm2026FootballDataClient(props: {
                 className="text-xl font-black mb-6 pb-2 border-b"
                 style={{ color: "#fff", borderColor: "rgba(34,211,238,0.35)" }}
               >
-                Knockout stage
+                Faza eliminatorie
               </h2>
               <div className="space-y-10">
                 {knockoutBlocks.map(({ stageLabel, matches: ms }) => (
@@ -344,7 +341,7 @@ export function Cm2026FootballDataClient(props: {
 
           {groupKeysOrdered.length === 0 && knockoutBlocks.length === 0 ? (
             <p style={{ color: "rgba(255,255,255,0.55)" }}>
-              No matches returned by the API.
+              Nu există meciuri disponibile.
             </p>
           ) : null}
         </section>

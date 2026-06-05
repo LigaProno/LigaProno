@@ -239,7 +239,7 @@ export default function PartyWcDashboard({
           : null}
           {competitionActive && predictionsReadOnly ?
             <p className="text-[10px] mt-1.5 text-amber-200/95 font-medium">
-              Pronosticuri blocate: acest party permite doar pronosticuri înainte de startul competiției.
+              Pronosticuri blocate: acest turneu permite doar pronosticuri înainte de startul competiției.
             </p>
           : null}
           {competitionActive && midCompetitionPenaltyMode ?
@@ -309,7 +309,7 @@ export default function PartyWcDashboard({
           style={{ backgroundColor: "#1E293B", borderColor: "rgba(255,255,255,0.08)" }}
         >
           <div>
-            <p className="text-white text-sm font-semibold">Party competition</p>
+            <p className="text-white text-sm font-semibold">Competiție turneu</p>
             <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>
               Alege competiția din Football-Data (același catalog ca la creare). Lista depinde de planul API.
             </p>
@@ -399,7 +399,7 @@ export default function PartyWcDashboard({
         >
           {isCreator ?
             "Selectează o competiție mai sus pentru meciuri, clasament și pronosticuri."
-          : "Creatorul party-ului poate seta competiția din setările de mai sus."}
+          : "Creatorul turneului poate seta competiția din setările de mai sus."}
         </div>
       )}
 
@@ -529,7 +529,7 @@ export default function PartyWcDashboard({
                         <td className="py-2.5 px-2 text-white font-bold tabular-nums align-top">{row.rank}</td>
                         <td className="py-2.5 px-2 align-top max-w-[7rem] sm:max-w-[9rem]">
                           <Link
-                            href={`/party/${tournamentId}/member/${row.userId}`}
+                            href={`/turnee/${tournamentId}/member/${row.userId}`}
                             className="text-left w-full inline-block text-white truncate hover:underline decoration-cyan-400/80 underline-offset-2 font-medium"
                           >
                             {row.displayName}
@@ -712,7 +712,7 @@ export default function PartyWcDashboard({
               </p>
               {predictionsReadOnly ?
                 <p className="text-sm text-amber-200/95">
-                  Extras blocate: competiția a început și acest party nu permite modificări după start.
+                  Extras blocate: competiția a început și acest turneu nu permite modificări după start.
                 </p>
               : null}
               {midCompetitionPenaltyMode ?

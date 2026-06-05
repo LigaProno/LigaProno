@@ -29,7 +29,6 @@ export function FootballDataMatchCard({ m }: { m: FootballDataMatch }) {
       />
       <div className="px-4 py-5 sm:px-6 sm:py-6">
         <div className="grid grid-cols-[1fr_minmax(8rem,1.2fr)_1fr] gap-3 sm:gap-5 items-stretch">
-          {/* Home */}
           <div className="flex flex-col items-center justify-center gap-2.5 text-center min-w-0 px-3 py-2">
             {hl ? (
               <Image
@@ -51,7 +50,6 @@ export function FootballDataMatchCard({ m }: { m: FootballDataMatch }) {
             </span>
           </div>
 
-          {/* Venue + kick-off */}
           <div
             className="flex flex-col items-center justify-center text-center px-4 py-4 rounded-xl min-h-[5rem]"
             style={{
@@ -63,17 +61,16 @@ export function FootballDataMatchCard({ m }: { m: FootballDataMatch }) {
               className="text-[11px] sm:text-xs font-semibold leading-snug line-clamp-4 px-1"
               style={{ color: "#67E8F9" }}
             >
-              {venue ?? "Venue TBD"}
+              {venue ?? "Stadion de confirmat"}
             </span>
             <span
               className="text-[10px] mt-2 font-medium tabular-nums"
               style={{ color: "#BEF264" }}
             >
-              {when}
+              {when} · ora României
             </span>
           </div>
 
-          {/* Away */}
           <div className="flex flex-col items-center justify-center gap-2.5 text-center min-w-0 px-3 py-2">
             {al ? (
               <Image

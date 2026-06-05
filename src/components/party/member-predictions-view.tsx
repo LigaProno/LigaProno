@@ -31,7 +31,7 @@ export default function MemberPredictionsView({
   return (
     <div className="flex-1 p-4 sm:p-6 md:p-8 max-w-5xl mx-auto w-full">
       <Link
-        href={`/party/${tournamentId}`}
+        href={`/turnee/${tournamentId}`}
         className="inline-flex items-center gap-2 text-sm mb-6 hover:opacity-80 transition-opacity"
         style={{ color: "rgba(255,255,255,0.5)" }}
       >

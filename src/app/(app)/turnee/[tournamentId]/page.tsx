@@ -73,7 +73,7 @@ export default async function PartyTournamentPage({
   if (!tournament) notFound();
 
   const isMember = tournament.members.some((m) => m.userId === user.id);
-  if (!isMember) redirect("/party");
+  if (!isMember) redirect("/turnee");
 
   const isCreator = tournament.creatorId === user.id;
 
@@ -268,14 +268,14 @@ export default async function PartyTournamentPage({
   return (
     <div className="flex-1 p-4 sm:p-6 md:p-8 max-w-4xl mx-auto w-full">
       <Link
-        href="/party"
+        href="/turnee"
         className="inline-flex items-center gap-2 text-sm mb-6 hover:opacity-80 transition-opacity"
         style={{ color: "rgba(255,255,255,0.5)" }}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
-        Back to Party
+        Înapoi la Turnee
       </Link>
 
       {loadError && parsedCompetition && (

@@ -57,7 +57,8 @@ export async function createTournament(
     data: { tournamentId: tournament.id, userId: user.id },
   });
 
-  revalidatePath("/party");
+  revalidatePath("/turnee");
+  revalidatePath("/turnee/clasament");
   return { inviteCode };
 }
 
@@ -82,5 +83,6 @@ export async function joinTournament(code: string): Promise<void> {
     data: { tournamentId: tournament.id, userId: user.id },
   });
 
-  revalidatePath("/party");
+  revalidatePath("/turnee");
+  revalidatePath("/turnee/clasament");
 }
