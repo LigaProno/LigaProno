@@ -374,7 +374,7 @@ export default function PartyWcDashboard({
                     try {
                       const r = await refreshTournamentBettingOdds(tournamentId);
                       setMsg(
-                        `Cote actualizate (${r.matchCount} meciuri, ${r.teamCount} echipe, model ${r.model}${r.usedGoogleSearch ? ", cu căutare Google" : ", fără căutare Google"}).`,
+                        `Cote actualizate (${r.matchCount} meciuri, ${r.teamCount} echipe, sursă ${r.oddsSource}${r.usedFallback ? ", fallback Gemini" : ""}).`,
                       );
                       router.refresh();
                     } catch (e) {

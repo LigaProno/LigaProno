@@ -10,8 +10,8 @@ export async function refreshTournamentBettingOdds(
   ok: true;
   matchCount: number;
   teamCount: number;
-  model: string;
-  usedGoogleSearch: boolean;
+  oddsSource: string;
+  usedFallback: boolean;
 }> {
   const { userId: clerkId } = await auth();
   if (!clerkId) throw new Error("Nu ești autentificat.");
@@ -40,7 +40,7 @@ export async function refreshTournamentBettingOdds(
     ok: true,
     matchCount: result.matchCount,
     teamCount: result.teamCount,
-    model: result.model,
-    usedGoogleSearch: result.usedGoogleSearch,
+    oddsSource: result.oddsSource,
+    usedFallback: result.usedFallback,
   };
 }
