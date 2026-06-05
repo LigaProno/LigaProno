@@ -1,15 +1,12 @@
 import { prisma } from "@/lib/prisma";
-import {
-  fetchWc2026NewsViaGemini,
-  isAllowedNewsArticleUrl,
-  type WcNewsItem,
-} from "@/lib/gemini-wc-news";
+import { isAllowedNewsArticleUrl, type WcNewsItem } from "@/lib/gemini-wc-news";
+import { fetchWc2026NewsViaScraper, WC_NEWS_SCRAPER_SOURCE } from "@/lib/wc-news-scraper";
 
 export type { WcNewsItem };
 
 const TARGET_COUNT = 5;
 
-/** Pe dashboard nu blocăm încărcarea cu refresh Gemini — doar cron / lipsă totală cache. */
+/** Pe dashboard nu blocăm încărcarea cu refresh RSS — doar cron / lipsă totală cache. */
 const REFRESH_ON_DASHBOARD_LOAD =
   (process.env.WC_NEWS_REFRESH_ON_LOAD ?? "false").trim().toLowerCase() === "true";
 
@@ -72,7 +69,12 @@ export type DashboardNewsResult = {
   fromCache: boolean;
 };
 
-/** Încarcă știrile: cache instant pe dashboard; fetch Gemini doar dacă nu există snapshot azi. */
+function isStaleNewsSnapshot(geminiModel: string | null | undefined): boolean {
+  const source = geminiModel?.trim() ?? "";
+  return source !== WC_NEWS_SCRAPER_SOURCE;
+}
+
+/** Încarcă știrile: cache instant pe dashboard; scraping RSS dacă lipsește snapshot azi sau e vechi (Gemini). */
 export async function getTodayWcNews(): Promise<DashboardNewsResult> {
   const dateKey = todayDateKeyUtc();
 
@@ -82,7 +84,8 @@ export async function getTodayWcNews(): Promise<DashboardNewsResult> {
 
   if (existing) {
     const cached = parseItems(existing.items);
-    if (cached.length > 0 || !REFRESH_ON_DASHBOARD_LOAD) {
+    const stale = isStaleNewsSnapshot(existing.geminiModel);
+    if (!stale && (cached.length > 0 || !REFRESH_ON_DASHBOARD_LOAD)) {
       return {
         items: cached,
         fetchedAt: existing.fetchedAt,
@@ -90,26 +93,19 @@ export async function getTodayWcNews(): Promise<DashboardNewsResult> {
         fromCache: true,
       };
     }
-  }
-
-  if (!process.env.GEMINI_API_KEY?.trim()) {
-    const latest = await prisma.dashboardNewsSnapshot.findFirst({
-      orderBy: { fetchedAt: "desc" },
-    });
-    return {
-      items: latest ? parseItems(latest.items) : [],
-      fetchedAt: latest?.fetchedAt ?? null,
-      dateKey: latest?.dateKey ?? dateKey,
-      fromCache: true,
-    };
+    if (stale) {
+      console.info(
+        "getTodayWcNews: snapshot vechi (Gemini) — reîmprospătare RSS",
+      );
+    }
   }
 
   try {
-    const { items, model } = await fetchWc2026NewsViaGemini();
+    const { items, source } = await fetchWc2026NewsViaScraper();
     const valid = items.slice(0, TARGET_COUNT);
-    if (valid.length === 0) throw new Error("Gemini: zero știri valide");
+    if (valid.length === 0) throw new Error("Scraper: zero știri valide");
 
-    const fetchedAt = await saveTodaySnapshot(dateKey, valid, model);
+    const fetchedAt = await saveTodaySnapshot(dateKey, valid, source);
 
     return {
       items: valid,
@@ -118,7 +114,7 @@ export async function getTodayWcNews(): Promise<DashboardNewsResult> {
       fromCache: false,
     };
   } catch (e) {
-    console.error("getTodayWcNews: Gemini fetch failed", e);
+    console.error("getTodayWcNews: RSS scrape failed", e);
     const latest = await prisma.dashboardNewsSnapshot.findFirst({
       orderBy: { fetchedAt: "desc" },
     });
@@ -136,16 +132,16 @@ export async function getTodayWcNews(): Promise<DashboardNewsResult> {
 export async function refreshTodayWcNews(): Promise<{
   dateKey: string;
   count: number;
-  model: string;
+  source: string;
 }> {
   const dateKey = todayDateKeyUtc();
-  const { items, model } = await fetchWc2026NewsViaGemini();
+  const { items, source } = await fetchWc2026NewsViaScraper();
   const valid = items.slice(0, TARGET_COUNT);
   if (valid.length === 0) {
-    throw new Error("Gemini nu a returnat știri valide pentru CM 2026.");
+    throw new Error("Scraper-ul nu a returnat știri valide pentru CM 2026.");
   }
 
-  await saveTodaySnapshot(dateKey, valid, model);
+  await saveTodaySnapshot(dateKey, valid, source);
 
-  return { dateKey, count: valid.length, model };
+  return { dateKey, count: valid.length, source };
 }

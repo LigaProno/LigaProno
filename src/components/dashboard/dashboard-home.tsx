@@ -309,7 +309,7 @@ export default function DashboardHome({
                 Știri de ultimă oră — CM 2026
               </h2>
               <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
-                5 articole zilnic (Gemini) ·{" "}
+                5 articole zilnic (RSS) ·{" "}
                 {ALLOWED_NEWS_PUBLISHER_LABELS.join(", ")}
                 {updatedLabel ? ` · ultima actualizare ${updatedLabel}` : ""}
               </p>
