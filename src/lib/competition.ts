@@ -1,6 +1,11 @@
 /** Valoare `Tournament.competition`: `{API_CODE}_{seasonStartYear}` (ex. `WC_2026`, `PL_2024`). */
 export const COMPETITION_WC_2026 = "WC_2026";
 
+/** Hardcoded picker option — avoids an API call on the tournaments page. */
+export const COMPETITION_PICKER_OPTIONS: FootballDataCompetitionPickerOption[] = [
+  { storageKey: COMPETITION_WC_2026, code: "WC", season: "2026", label: "FIFA World Cup (2026)" },
+];
+
 /** Opțiune pentru select la creare / setare competiție (fără dependențe server-only). */
 export type FootballDataCompetitionPickerOption = {
   storageKey: string;

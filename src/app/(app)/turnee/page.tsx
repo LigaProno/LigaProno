@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
-import { type FootballDataCompetitionPickerOption } from "@/lib/competition";
-import { getWorldCupCompetitionPickerOptions } from "@/lib/football-data";
+import { COMPETITION_PICKER_OPTIONS } from "@/lib/competition";
 import { createTranslator } from "@/lib/i18n";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
 import { pageTitle } from "@/lib/site-metadata";
@@ -15,15 +14,6 @@ export default async function TurneePage() {
   const locale = await getLocaleFromCookies();
   const t = createTranslator(locale);
   const { userId: clerkId } = await auth();
-
-  let competitionPickerOptions: FootballDataCompetitionPickerOption[] = [];
-  let competitionsLoadError: string | null = null;
-  try {
-    competitionPickerOptions = await getWorldCupCompetitionPickerOptions();
-  } catch (e) {
-    competitionsLoadError =
-      e instanceof Error ? e.message : t("tournament.create.competitionLoadError");
-  }
 
   const user = await prisma.user.findUnique({
     where: { clerkId: clerkId! },
@@ -71,8 +61,8 @@ export default async function TurneePage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
         <CreateTournamentForm
-          competitionPickerOptions={competitionPickerOptions}
-          competitionsLoadError={competitionsLoadError}
+          competitionPickerOptions={COMPETITION_PICKER_OPTIONS}
+          competitionsLoadError={null}
         />
         <JoinTournamentForm />
       </div>

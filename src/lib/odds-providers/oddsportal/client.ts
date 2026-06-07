@@ -38,6 +38,7 @@ export async function fetchOddsPortalHtml(url: string, referer?: string): Promis
       Accept: "text/html,application/xhtml+xml",
       Referer: referer ?? ODDSPORTAL_BASE,
     },
+    next: { revalidate: 86400 },
     signal: AbortSignal.timeout(45_000),
   });
   if (!res.ok) {
