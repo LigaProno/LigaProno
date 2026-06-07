@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/tournament-odds",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-scores",
+      "schedule": "0 15,18,21 * * *"
     }
   ]
 }

@@ -97,6 +97,15 @@ model TournamentMember {
   joinedAt     DateTime   @default(now())
   // Număr de salvări care au modificat pronosticul după startul competiției (10 pct fiecare).
   midCompetitionPredictionChangeCount Int @default(0)
+  // Cached scores — populated by the refresh-scores cron, read by the leaderboard.
+  cachedFg             Int       @default(0)
+  cachedPg             Int       @default(0)
+  cachedSc             Int       @default(0)
+  cachedCg             Int       @default(0)
+  cachedChampionPoints Int       @default(0)
+  cachedChangePenalty  Int       @default(0)
+  cachedTotal          Int       @default(0)
+  scoreUpdatedAt       DateTime?
 
   @@unique([tournamentId, userId])
 }

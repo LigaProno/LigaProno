@@ -155,7 +155,117 @@ function scoreUserInContext(
   };
 }
 
+// Recomputes scores for every member of every competition tournament and
+// writes the results back to TournamentMember. Called by the cron job.
+export async function refreshAllScores(): Promise<{ updated: number; errors: number }> {
+  const tournaments = await prisma.tournament.findMany({
+    where: { competition: { not: null } },
+    include: {
+      members: true,
+      bettingOdds: true,
+    },
+  });
+
+  let updated = 0;
+  let errors = 0;
+
+  for (const tournament of tournaments) {
+    if (!tournament.competition) continue;
+
+    let ctx: TournamentContext | null = null;
+    try {
+      ctx = await loadTournamentContext(
+        tournament.id,
+        tournament.name,
+        tournament.competition,
+        tournament.bettingOdds?.payload ?? null,
+      );
+    } catch {
+      errors++;
+      continue;
+    }
+    if (!ctx) continue;
+
+    const now = new Date();
+    await Promise.all(
+      tournament.members.map(async (member) => {
+        const score = scoreUserInContext(ctx!, member.userId);
+        await prisma.tournamentMember.update({
+          where: { id: member.id },
+          data: {
+            cachedFg: score.fg,
+            cachedPg: score.pg,
+            cachedSc: score.sc,
+            cachedCg: score.cg,
+            cachedChampionPoints: score.championPoints,
+            cachedChangePenalty: score.changePenalty,
+            cachedTotal: score.total,
+            scoreUpdatedAt: now,
+          },
+        });
+        updated++;
+      }),
+    );
+  }
+
+  return { updated, errors };
+}
+
+// Reads pre-computed scores from TournamentMember — instant, no API calls.
+// Falls back to real-time computation when no scores have been cached yet
+// (e.g. first deploy before the cron runs).
 export async function buildGlobalLeaderboard(): Promise<GlobalLeaderboardRow[]> {
+  const cachedCount = await prisma.tournamentMember.count({
+    where: { scoreUpdatedAt: { not: null } },
+  });
+
+  if (cachedCount === 0) {
+    return buildGlobalLeaderboardRealtime();
+  }
+
+  const members = await prisma.tournamentMember.findMany({
+    where: {
+      scoreUpdatedAt: { not: null },
+      tournament: { competition: { not: null } },
+    },
+    include: {
+      user: { select: { id: true, firstName: true, lastName: true } },
+      tournament: { select: { id: true, name: true } },
+    },
+  });
+
+  const bestByUser = new Map<string, GlobalLeaderboardRow>();
+
+  for (const member of members) {
+    const existing = bestByUser.get(member.userId);
+    if (!existing || member.cachedTotal > existing.total) {
+      bestByUser.set(member.userId, {
+        rank: 0,
+        userId: member.userId,
+        displayName: displayName(member.user.firstName, member.user.lastName),
+        bestTournamentId: member.tournament.id,
+        bestTournamentName: member.tournament.name,
+        fg: member.cachedFg,
+        pg: member.cachedPg,
+        sc: member.cachedSc,
+        cg: member.cachedCg,
+        championPoints: member.cachedChampionPoints,
+        changePenalty: member.cachedChangePenalty,
+        total: member.cachedTotal,
+      });
+    }
+  }
+
+  const rows = [...bestByUser.values()];
+  rows.sort((a, b) => {
+    if (b.total !== a.total) return b.total - a.total;
+    return a.displayName.localeCompare(b.displayName, "ro");
+  });
+  rows.forEach((r, i) => { r.rank = i + 1; });
+  return rows;
+}
+
+async function buildGlobalLeaderboardRealtime(): Promise<GlobalLeaderboardRow[]> {
   const tournaments = await prisma.tournament.findMany({
     where: { competition: { not: null } },
     include: {
@@ -168,14 +278,10 @@ export async function buildGlobalLeaderboard(): Promise<GlobalLeaderboardRow[]> 
     },
   });
 
-  const bestByUser = new Map<
-    string,
-    GlobalLeaderboardRow & { rank?: number }
-  >();
+  const bestByUser = new Map<string, GlobalLeaderboardRow>();
 
   for (const tournament of tournaments) {
     if (!tournament.competition) continue;
-
     const ctx = await loadTournamentContext(
       tournament.id,
       tournament.name,
@@ -188,7 +294,6 @@ export async function buildGlobalLeaderboard(): Promise<GlobalLeaderboardRow[]> 
       const score = scoreUserInContext(ctx, member.userId);
       const name = displayName(member.user.firstName, member.user.lastName);
       const existing = bestByUser.get(member.userId);
-
       if (!existing || score.total > existing.total) {
         bestByUser.set(member.userId, {
           rank: 0,
@@ -205,9 +310,6 @@ export async function buildGlobalLeaderboard(): Promise<GlobalLeaderboardRow[]> 
     if (b.total !== a.total) return b.total - a.total;
     return a.displayName.localeCompare(b.displayName, "ro");
   });
-  rows.forEach((r, i) => {
-    r.rank = i + 1;
-  });
-
+  rows.forEach((r, i) => { r.rank = i + 1; });
   return rows;
 }

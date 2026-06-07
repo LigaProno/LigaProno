@@ -82,6 +82,17 @@ export default function Sidebar() {
       ),
     },
     {
+      href: "/matches",
+      labelKey: "nav.matches",
+      match: (p) => p === "/matches" || p.startsWith("/matches/"),
+      icon: (
+        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <path strokeLinecap="round" d="M16 2v4M8 2v4M3 10h18" />
+        </svg>
+      ),
+    },
+    {
       href: "/turnee",
       labelKey: "nav.tournaments",
       match: (p) =>

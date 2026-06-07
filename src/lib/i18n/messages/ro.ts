@@ -4,6 +4,7 @@ export const ro: Messages = {
   "nav.dashboard": "Acasă",
   "nav.tournaments": "Turnee",
   "nav.globalLeaderboard": "Clasament global",
+  "nav.matches": "Program & meciuri",
   "nav.account": "Cont",
   "nav.openMenu": "Deschide meniul",
   "common.copy": "Copiază",

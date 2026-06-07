@@ -4,6 +4,7 @@ export const en: Messages = {
   "nav.dashboard": "Dashboard",
   "nav.tournaments": "Tournaments",
   "nav.globalLeaderboard": "Global leaderboard",
+  "nav.matches": "Schedule & matches",
   "nav.account": "Account",
   "nav.openMenu": "Open menu",
   "common.copy": "Copy",

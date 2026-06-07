@@ -7,6 +7,7 @@ export type MessageKey =
   | "nav.dashboard"
   | "nav.tournaments"
   | "nav.globalLeaderboard"
+  | "nav.matches"
   | "nav.account"
   | "nav.openMenu"
   | "common.copy"
