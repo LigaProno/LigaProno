@@ -81,7 +81,11 @@ function venueLabel(m: FootballDataMatch): string | null {
 
 export { venueLabel };
 
-async function fdFetch<T>(path: string, searchParams?: Record<string, string>): Promise<T> {
+async function fdFetch<T>(
+  path: string,
+  searchParams?: Record<string, string>,
+  options?: { fresh?: boolean },
+): Promise<T> {
   const url = new URL(path.startsWith("http") ? path : `${BASE_URL}${path}`);
   if (searchParams) {
     for (const [k, v] of Object.entries(searchParams)) {
@@ -89,12 +93,17 @@ async function fdFetch<T>(path: string, searchParams?: Record<string, string>): 
     }
   }
 
+  const revalidateSeconds =
+    process.env.WC_LIVE_MODE === "true" ? 300 : 900;
+
   const res = await fetch(url.toString(), {
     headers: {
       "X-Auth-Token": getFootballDataToken(),
       Accept: "application/json",
     },
-    next: { revalidate: 900 },
+    ...(options?.fresh ?
+      { cache: "no-store" as const }
+    : { next: { revalidate: revalidateSeconds } }),
   });
 
   const text = await res.text();
@@ -136,6 +145,47 @@ export async function fetchCompetitionMatches(
       limit: String(limit),
       offset: String(offset),
     });
+
+    const batch = data.matches ?? [];
+    collected.push(...batch);
+
+    const total = data.resultSet?.count;
+    if (batch.length < limit) break;
+    if (total !== undefined && collected.length >= total) break;
+    if (batch.length === 0) break;
+
+    offset += limit;
+  }
+
+  collected.sort(
+    (a, b) =>
+      new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime(),
+  );
+
+  return collected;
+}
+
+/** Meciuri fără cache HTTP — pentru actualizare bracket KO după grupe. */
+export async function fetchCompetitionMatchesFresh(
+  competitionCode: string,
+  season: string,
+): Promise<FootballDataMatch[]> {
+  const code = competitionCode.trim().toUpperCase();
+  const path = `/competitions/${code}/matches`;
+  const collected: FootballDataMatch[] = [];
+  let offset = 0;
+  const limit = 100;
+
+  while (true) {
+    const data = await fdFetch<MatchesEnvelope>(
+      path,
+      {
+        season: season.trim(),
+        limit: String(limit),
+        offset: String(offset),
+      },
+      { fresh: true },
+    );
 
     const batch = data.matches ?? [];
     collected.push(...batch);
@@ -205,6 +255,13 @@ export const getFootballDataCompetitionPickerOptions = cache(
 
     out.sort((a, b) => a.label.localeCompare(b.label, "en"));
     return out;
+  },
+);
+
+export const getWorldCupCompetitionPickerOptions = cache(
+  async (): Promise<FootballDataCompetitionPickerOption[]> => {
+    const all = await getFootballDataCompetitionPickerOptions();
+    return all.filter((o) => o.code.toUpperCase() === WC_COMPETITION_CODE);
   },
 );
 

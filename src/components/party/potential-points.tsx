@@ -5,6 +5,7 @@ import {
   lookupCorrectScoreOdd,
   type MatchOddsRow,
 } from "@/lib/betting-odds";
+import { useLocale } from "@/components/i18n/locale-provider";
 import {
   POINTS_HT_BASE,
   POINTS_FT_BASE,
@@ -29,6 +30,7 @@ export function PotentialPoints({
   ag: string;
   matchOdds: MatchOddsRow | null | undefined;
 }) {
+  const { t } = useLocale();
   const hasAny = ht || ft || (hg !== "" && ag !== "");
   if (!hasAny) return null;
 
@@ -58,31 +60,34 @@ export function PotentialPoints({
     >
       {htPts != null && (
         <span className="text-xs" style={{ color: MUTED }}>
-          HT <span className="text-white font-medium">{ht}</span>
+          {t("potentialPoints.halfTime")}{" "}
+          <span className="text-white font-medium">{ht}</span>
           {!noOdds && <span style={{ color: CYAN }}> ×{htOdd?.toFixed(2)}</span>}
-          <span style={{ color: LIME }}> = {htPts}pts</span>
+          <span style={{ color: LIME }}> = {htPts} {t("potentialPoints.pointsShort")}</span>
         </span>
       )}
       {ftPts != null && (
         <span className="text-xs" style={{ color: MUTED }}>
-          FT <span className="text-white font-medium">{ft}</span>
+          {t("potentialPoints.fullTime")}{" "}
+          <span className="text-white font-medium">{ft}</span>
           {!noOdds && <span style={{ color: CYAN }}> ×{ftOdd?.toFixed(2)}</span>}
-          <span style={{ color: LIME }}> = {ftPts}pts</span>
+          <span style={{ color: LIME }}> = {ftPts} {t("potentialPoints.pointsShort")}</span>
         </span>
       )}
       {csPts != null && (
         <span className="text-xs" style={{ color: MUTED }}>
-          Scor <span className="text-white font-medium">{hg}-{ag}</span>
+          {t("potentialPoints.score")}{" "}
+          <span className="text-white font-medium">{hg}-{ag}</span>
           {!noOdds && <span style={{ color: CYAN }}> ×{csOdd?.toFixed(2)}</span>}
-          <span style={{ color: LIME }}> = {csPts}pts</span>
+          <span style={{ color: LIME }}> = {csPts} {t("potentialPoints.pointsShort")}</span>
         </span>
       )}
       <span className="text-xs font-bold ml-auto" style={{ color: LIME }}>
-        {total} pts potențial
+        {t("potentialPoints.potentialTotal", { total })}
       </span>
       {noOdds && (
         <span className="text-xs w-full" style={{ color: "rgba(251,146,60,0.7)" }}>
-          Cote indisponibile (×1). Actualizează cotele pentru multiplicatori reali.
+          {t("potentialPoints.oddsUnavailable")}
         </span>
       )}
     </div>

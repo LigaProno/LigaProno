@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useLocale } from "@/components/i18n/locale-provider";
+import { LeaderboardTh } from "@/components/ui/column-header-tip";
 import type { GlobalLeaderboardRow } from "@/lib/global-leaderboard";
 
 export default function GlobalLeaderboardTable({
@@ -8,6 +12,8 @@ export default function GlobalLeaderboardTable({
   rows: GlobalLeaderboardRow[];
   currentUserId?: string;
 }) {
+  const { t } = useLocale();
+
   if (rows.length === 0) {
     return (
       <div
@@ -15,7 +21,7 @@ export default function GlobalLeaderboardTable({
         style={{ borderColor: "rgba(255,255,255,0.06)", borderStyle: "dashed" }}
       >
         <p style={{ color: "rgba(255,255,255,0.25)" }} className="text-sm">
-          Niciun utilizator în clasament încă. Creează un turneu și fă pronosticuri pentru a apărea aici.
+          {t("globalLb.empty")}
         </p>
       </div>
     );
@@ -29,36 +35,20 @@ export default function GlobalLeaderboardTable({
       <table className="w-full text-sm min-w-[640px]">
         <thead>
           <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-            <th className="text-left py-3 px-2 text-xs font-semibold" style={{ color: "rgba(255,255,255,0.45)" }}>
-              #
-            </th>
-            <th className="text-left py-3 px-2 text-xs font-semibold min-w-[6rem]" style={{ color: "rgba(255,255,255,0.45)" }}>
-              Utilizator
-            </th>
-            <th className="text-left py-3 px-2 text-xs font-semibold min-w-[5rem]" style={{ color: "rgba(255,255,255,0.45)" }}>
-              Turneu (cel mai bun)
-            </th>
-            <th className="text-right py-3 px-1 text-xs font-semibold tabular-nums" style={{ color: "rgba(255,255,255,0.45)" }} title="Final ghicit">
-              FG
-            </th>
-            <th className="text-right py-3 px-1 text-xs font-semibold tabular-nums" style={{ color: "rgba(255,255,255,0.45)" }} title="Pauză ghicită">
-              PG
-            </th>
-            <th className="text-right py-3 px-1 text-xs font-semibold tabular-nums" style={{ color: "rgba(255,255,255,0.45)" }} title="Scor corect">
-              SC
-            </th>
-            <th className="text-right py-3 px-1 text-xs font-semibold tabular-nums" style={{ color: "rgba(255,255,255,0.45)" }} title="Calificări">
-              CG
-            </th>
-            <th className="text-right py-3 px-1 text-xs font-semibold hidden md:table-cell tabular-nums" style={{ color: "rgba(255,255,255,0.45)" }} title="Campion">
-              CH
-            </th>
-            <th className="text-right py-3 px-1 text-xs font-semibold tabular-nums" style={{ color: "rgba(255,255,255,0.45)" }} title="Penalizare">
-              Pen
-            </th>
-            <th className="text-right py-3 px-2 text-xs font-semibold tabular-nums" style={{ color: "rgba(255,255,255,0.45)" }}>
-              Total
-            </th>
+            <LeaderboardTh label={t("party.lb.rank")} tip={t("party.lb.rankTip")} className="px-2" />
+            <LeaderboardTh label={t("globalLb.user")} tip={t("globalLb.userTip")} className="px-2 min-w-[6rem]" />
+            <LeaderboardTh
+              label={t("globalLb.bestTournament")}
+              tip={t("globalLb.bestTournamentTip")}
+              className="px-2 min-w-[5rem]"
+            />
+            <LeaderboardTh label={t("party.lb.fg")} tip={t("party.lb.fgTip")} align="right" />
+            <LeaderboardTh label={t("party.lb.pg")} tip={t("party.lb.pgTip")} align="right" />
+            <LeaderboardTh label={t("party.lb.sc")} tip={t("party.lb.scTip")} align="right" />
+            <LeaderboardTh label={t("party.lb.cg")} tip={t("party.lb.cgTip")} align="right" />
+            <LeaderboardTh label={t("party.lb.ch")} tip={t("party.lb.chTip")} align="right" hiddenMd />
+            <LeaderboardTh label={t("party.lb.pen")} tip={t("party.lb.penTip")} align="right" />
+            <LeaderboardTh label={t("party.lb.total")} tip={t("party.lb.totalTip")} align="right" className="px-2" />
           </tr>
         </thead>
         <tbody>

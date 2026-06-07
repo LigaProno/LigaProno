@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "icons": "node scripts/generate-icons.mjs",
+    "hero-video": "node scripts/download-hero-video.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.3.2",
@@ -23,7 +25,9 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "png-to-ico": "^3.0.1",
     "prisma": "^6.19.3",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

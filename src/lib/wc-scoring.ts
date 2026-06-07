@@ -261,6 +261,34 @@ export function computeChampionPoints(
   return roundPoints(POINTS_CHAMPION_BASE * odd);
 }
 
+/** Puncte potențiale dacă echipa aleasă câștigă turneul. */
+export function computePotentialChampionPoints(
+  predictedChampionId: number | null | undefined,
+  oddsMaps?: TournamentOddsMaps | null,
+): number | null {
+  if (predictedChampionId == null || predictedChampionId <= 0) return null;
+  const odd =
+    oddsMaps ? lookupTeamOutrightOdd(oddsMaps, predictedChampionId) : 1;
+  return roundPoints(POINTS_CHAMPION_BASE * odd);
+}
+
+/** Puncte potențiale dacă toate echipele alese se califică din grupe. */
+export function computePotentialQualifierPoints(
+  predictedIds: number[],
+  oddsMaps?: TournamentOddsMaps | null,
+): number | null {
+  if (predictedIds.length === 0) return null;
+  let sum = 0;
+  const seen = new Set<number>();
+  for (const id of predictedIds) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const odd = oddsMaps ? lookupTeamQualifyOdd(oddsMaps, id) : 1;
+    sum += POINTS_QUALIFIER_TEAM_BASE * odd;
+  }
+  return roundPoints(sum);
+}
+
 export type UserWcTotals = {
   /** Full-time outcome points (FG). */
   fullTimeGuessPoints: number;

@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { pageTitle } from "@/lib/site-metadata";
+
+export const metadata = pageTitle("Pronosticuri sportive");
 
 export default async function HomePage() {
   const { userId } = await auth();

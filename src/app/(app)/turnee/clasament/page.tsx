@@ -3,9 +3,16 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import GlobalLeaderboardTable from "@/components/turnee/global-leaderboard-table";
 import { buildGlobalLeaderboard, type GlobalLeaderboardRow } from "@/lib/global-leaderboard";
+import { createTranslator } from "@/lib/i18n";
+import { getLocaleFromCookies } from "@/lib/i18n/server";
+import { pageTitle } from "@/lib/site-metadata";
 import { prisma } from "@/lib/prisma";
 
+export const metadata = pageTitle("Clasament global");
+
 export default async function GlobalLeaderboardPage() {
+  const locale = await getLocaleFromCookies();
+  const t = createTranslator(locale);
   const { userId: clerkId } = await auth();
   if (!clerkId) redirect("/sign-in");
 
@@ -18,7 +25,7 @@ export default async function GlobalLeaderboardPage() {
     rows = await buildGlobalLeaderboard();
   } catch (e) {
     loadError =
-      e instanceof Error ? e.message : "Nu s-a putut încărca clasamentul.";
+      e instanceof Error ? e.message : t("errors.generic");
   }
 
   return (
@@ -31,14 +38,13 @@ export default async function GlobalLeaderboardPage() {
         <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
-        Înapoi la Turnee
+        {t("leaderboard.page.back")}
       </Link>
 
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">Clasament global</h1>
+        <h1 className="text-2xl font-bold text-white">{t("leaderboard.page.title")}</h1>
         <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>
-          Toți utilizatorii înscriși — se afișează cel mai bun scor al fiecăruia, indiferent câte turnee a
-          creat sau a joinat.
+          {t("leaderboard.page.subtitle")}
         </p>
       </div>
 

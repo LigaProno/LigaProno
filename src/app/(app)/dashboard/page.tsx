@@ -1,11 +1,8 @@
-import type { Metadata } from "next";
 import DashboardHome from "@/components/dashboard/dashboard-home";
 import { getTodayWcNews } from "@/lib/wc-dashboard-news";
+import { pageTitle } from "@/lib/site-metadata";
 
-export const metadata: Metadata = {
-  title: "Dashboard | PronoHub",
-  description: "Evenimente, Cupa Mondială 2026 și știri zilnice de fotbal.",
-};
+export const metadata = pageTitle("Acasă");
 
 export const dynamic = "force-dynamic";
 

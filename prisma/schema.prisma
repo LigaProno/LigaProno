@@ -36,6 +36,7 @@ model Tournament {
   wcMatchPredictions   WcMatchPrediction[]
   wcExtraPredictions   WcExtraPrediction[]
   bettingOdds          TournamentBettingOdds?
+  lastManualOddsRefreshAt DateTime?
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
 }

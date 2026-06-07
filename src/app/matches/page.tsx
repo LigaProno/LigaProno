@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { Suspense } from "react";
 import {
   createEmptyWcGroupStandings,
@@ -13,31 +12,24 @@ import {
 } from "@/lib/football-data";
 import { enrichWorldCupMatchesWithSchedule } from "@/lib/wc-match-schedule-scraper";
 import { Cm2026FootballDataClient } from "./cm2026-client";
+import { LocaleProvider } from "@/components/i18n/locale-provider";
+import { MatchesLoading } from "@/components/matches/matches-loading";
+import { createTranslator } from "@/lib/i18n";
+import { getLocaleFromCookies } from "@/lib/i18n/server";
+import Link from "next/link";
+import { pageTitle } from "@/lib/site-metadata";
 
-export const metadata: Metadata = {
-  title: "Program CM 2026 | PronoHub",
-  description:
-    "Clasament grupe și program meciuri Cupa Mondială 2026 — stadion, locație, ora României.",
-};
+export const metadata = pageTitle("Program și clasament");
 
 export const dynamic = "force-dynamic";
-
-function MatchesLoading() {
-  return (
-    <div
-      className="min-h-[40vh] flex items-center justify-center text-sm"
-      style={{ color: "rgba(255,255,255,0.45)" }}
-    >
-      Loading…
-    </div>
-  );
-}
 
 export default async function MatchesPage({
   searchParams,
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
+  const locale = await getLocaleFromCookies();
+  const t = createTranslator(locale);
   const sp = await searchParams;
   const initialTab =
     sp.tab === "matches" ? ("matches" as const) : ("standings" as const);
@@ -51,7 +43,7 @@ export default async function MatchesPage({
     matches = await enrichWorldCupMatchesWithSchedule(matches);
   } catch (e) {
     loadError =
-      e instanceof Error ? e.message : "Nu s-au putut încărca meciurile.";
+      e instanceof Error ? e.message : t("matches.loadErrorDefault");
   }
 
   if (!loadError) {
@@ -85,49 +77,53 @@ export default async function MatchesPage({
 
   if (loadError) {
     return (
-      <main
-        className="min-h-screen p-6 sm:p-10 lg:p-14 flex flex-col items-center justify-center"
-        style={{ backgroundColor: "#0F172A" }}
-      >
-        <div className="mx-auto max-w-lg w-full">
-          <div
-            className="rounded-2xl border p-6"
-            style={{
-              borderColor: "rgba(248,113,113,0.45)",
-              backgroundColor: "rgba(248,113,113,0.08)",
-              color: "#FECACA",
-            }}
-            role="alert"
-          >
-            <p className="font-bold mb-2">Eroare la încărcare</p>
-            <p className="text-sm mb-6">{loadError}</p>
-            <a
-              href="/"
-              className="inline-flex px-4 py-2 rounded-xl text-sm font-bold border"
-              style={{ borderColor: "rgba(255,255,255,0.25)", color: "#BEF264" }}
+      <LocaleProvider initialLocale={locale}>
+        <main
+          className="min-h-screen p-6 sm:p-10 lg:p-14 flex flex-col items-center justify-center"
+          style={{ backgroundColor: "#0F172A" }}
+        >
+          <div className="mx-auto max-w-lg w-full">
+            <div
+              className="rounded-2xl border p-6"
+              style={{
+                borderColor: "rgba(248,113,113,0.45)",
+                backgroundColor: "rgba(248,113,113,0.08)",
+                color: "#FECACA",
+              }}
+              role="alert"
             >
-              ← Acasă
-            </a>
+              <p className="font-bold mb-2">{t("matches.loadErrorTitle")}</p>
+              <p className="text-sm mb-6">{loadError}</p>
+              <Link
+                href="/dashboard"
+                className="inline-flex px-4 py-2 rounded-xl text-sm font-bold border"
+                style={{ borderColor: "rgba(255,255,255,0.25)", color: "#BEF264" }}
+              >
+                {t("matches.backHome")}
+              </Link>
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
+      </LocaleProvider>
     );
   }
 
   return (
-    <main
-      className="min-h-screen p-6 sm:p-10 lg:p-14 pb-24"
-      style={{ backgroundColor: "#0F172A" }}
-    >
-      <Suspense fallback={<MatchesLoading />}>
-        <Cm2026FootballDataClient
-          initialTab={initialTab}
-          standings={standings}
-          groupKeysOrdered={groupKeysOrdered}
-          groupMatches={groupMatches}
-          knockoutBlocks={knockoutBlocks}
-        />
-      </Suspense>
-    </main>
+    <LocaleProvider initialLocale={locale}>
+      <main
+        className="min-h-screen p-6 sm:p-10 lg:p-14 pb-24"
+        style={{ backgroundColor: "#0F172A" }}
+      >
+        <Suspense fallback={<MatchesLoading />}>
+          <Cm2026FootballDataClient
+            initialTab={initialTab}
+            standings={standings}
+            groupKeysOrdered={groupKeysOrdered}
+            groupMatches={groupMatches}
+            knockoutBlocks={knockoutBlocks}
+          />
+        </Suspense>
+      </main>
+    </LocaleProvider>
   );
 }

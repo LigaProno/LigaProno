@@ -2,6 +2,8 @@ import { currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import Sidebar from "@/components/Sidebar";
 import PageWrapper from "@/components/PageWrapper";
+import { LocaleProvider } from "@/components/i18n/locale-provider";
+import { getLocaleFromCookies } from "@/lib/i18n/server";
 
 async function syncUser() {
   const clerkUser = await currentUser();
@@ -24,14 +26,17 @@ async function syncUser() {
 }
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const locale = await getLocaleFromCookies();
   await syncUser();
 
   return (
-    <div className="flex flex-col md:flex-row h-screen overflow-hidden" style={{ backgroundColor: "#0F172A" }}>
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto min-h-0 flex flex-col">
-        <PageWrapper>{children}</PageWrapper>
-      </main>
-    </div>
+    <LocaleProvider initialLocale={locale}>
+      <div className="flex flex-col md:flex-row h-screen overflow-hidden" style={{ backgroundColor: "#0F172A" }}>
+        <Sidebar />
+        <main className="flex-1 overflow-y-auto min-h-0 flex flex-col">
+          <PageWrapper>{children}</PageWrapper>
+        </main>
+      </div>
+    </LocaleProvider>
   );
 }

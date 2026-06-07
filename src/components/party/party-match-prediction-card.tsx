@@ -7,15 +7,24 @@ import { venueLabel } from "@/lib/football-data";
 import { formatMatchKickoff } from "@/lib/match-datetime";
 import type { MatchOddsRow } from "@/lib/betting-odds";
 import { saveWcMatchPrediction } from "@/app/actions/wc-predictions";
+import { useLocale } from "@/components/i18n/locale-provider";
+import { formatCaughtError } from "@/lib/i18n/errors";
 import { POINTS_PER_PREDICTION_CHANGE_AFTER_START } from "@/lib/prediction-window";
+import {
+  getPredictionLockMessage,
+  type PredictionLockedReason,
+} from "@/lib/knockout-predictions";
 import { computeMatchPoints } from "@/lib/wc-scoring";
 import { PotentialPoints } from "@/components/party/potential-points";
-
-const NAVY = "#0F172A";
-const CYAN = "#22D3EE";
-const LIME = "#BEF264";
-const MUTED = "rgba(255,255,255,0.45)";
-const BORDER = "rgba(255,255,255,0.08)";
+import {
+  WC_BORDER,
+  WC_CARD_GRADIENT,
+  WC_CYAN,
+  WC_LIME,
+  WC_MUTED,
+  WC_NAVY,
+  WC_TOP_BORDER_GRADIENT,
+} from "@/components/world-cup/wc-theme";
 
 export type MatchPredState = {
   htOutcome: string;
@@ -59,17 +68,60 @@ export function predFromSaved(
 }
 
 const OUTCOMES: { val: string; label: string }[] = [
-  { val: "HOME", label: "H" },
-  { val: "DRAW", label: "D" },
-  { val: "AWAY", label: "A" },
+  { val: "HOME", label: "1" },
+  { val: "DRAW", label: "X" },
+  { val: "AWAY", label: "2" },
 ];
+
+function OutcomeButtons({
+  label,
+  prefix,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  prefix: string;
+  value: string;
+  onChange: (val: string) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: WC_MUTED }}>
+        {label}
+      </span>
+      <div className="grid grid-cols-3 gap-2">
+        {OUTCOMES.map((o) => (
+          <button
+            key={`${prefix}-${o.val}`}
+            type="button"
+            disabled={disabled}
+            onClick={() => onChange(value === o.val ? "" : o.val)}
+            className="px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+            style={{
+              backgroundColor: value === o.val ? WC_CYAN : "rgba(255,255,255,0.08)",
+              color: value === o.val ? WC_NAVY : WC_MUTED,
+              border:
+                value === o.val ?
+                  "1px solid rgba(34,211,238,0.5)"
+                : "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function PartyMatchPredictionCard({
   m,
   tournamentId,
   matchOddsRow,
   initial,
-  predictionsReadOnly = false,
+  predictionLockedReason = null,
   midCompetitionPenaltyMode = false,
   onSaved,
   onError,
@@ -78,15 +130,16 @@ export function PartyMatchPredictionCard({
   tournamentId: string;
   matchOddsRow: MatchOddsRow | null;
   initial: MatchPredState;
-  predictionsReadOnly?: boolean;
+  predictionLockedReason?: PredictionLockedReason | null;
   midCompetitionPenaltyMode?: boolean;
   onSaved: () => void;
   onError: (msg: string) => void;
 }) {
+  const { t } = useLocale();
   const [p, setP] = useState<MatchPredState>(initial);
   const [pending, startTransition] = useTransition();
   const finished = m.status === "FINISHED";
-  const formLocked = finished || predictionsReadOnly;
+  const formLocked = finished || predictionLockedReason != null;
 
   useEffect(() => {
     setP(initial);
@@ -132,168 +185,243 @@ export function PartyMatchPredictionCard({
         });
         onSaved();
       } catch (e) {
-        onError(e instanceof Error ? e.message : "Something went wrong");
+        onError(formatCaughtError(e, t));
       }
     });
   }
 
   return (
     <div
-      className="rounded-xl border p-3 flex flex-col gap-2"
-      style={{ backgroundColor: NAVY, borderColor: BORDER }}
+      className="rounded-2xl border overflow-hidden relative"
+      style={{
+        borderColor: "rgba(34,211,238,0.18)",
+        background: WC_CARD_GRADIENT,
+      }}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          {hl ?
-            <Image
-              src={hl}
-              alt=""
-              width={28}
-              height={28}
-              className="rounded-md bg-white/90 p-0.5 object-contain shrink-0"
-              unoptimized
-            />
-          : null}
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-semibold text-white truncate">{home}</span>
-              <span className="text-xs" style={{ color: MUTED }}>vs</span>
-              <span className="text-sm font-semibold text-white truncate">{away}</span>
-            </div>
-            <div className="text-xs mt-0.5" style={{ color: MUTED }}>
-              {venue ? `${venue} · ` : ""}
-              {when}
-            </div>
-          </div>
-          {al ?
-            <Image
-              src={al}
-              alt=""
-              width={28}
-              height={28}
-              className="rounded-md bg-white/90 p-0.5 object-contain shrink-0 ml-auto"
-              unoptimized
-            />
-          : null}
-        </div>
-        <div className="text-right shrink-0">
-          {finished && ft?.home != null && ft?.away != null ?
-            <div className="font-bold text-white text-sm">
-              {ft.home}–{ft.away}
-              {ht?.home != null && ht?.away != null ?
-                <span className="ml-1 text-xs" style={{ color: MUTED }}>
-                  ({ht.home}–{ht.away})
-                </span>
-              : null}
-            </div>
-          : null}
-        </div>
-      </div>
-
-      <PotentialPoints
-        ht={p.htOutcome}
-        ft={p.ftOutcome}
-        hg={p.predHomeGoals}
-        ag={p.predAwayGoals}
-        matchOdds={matchOddsRow}
+      <div
+        className="absolute inset-x-0 top-0 h-px opacity-70"
+        style={{ background: WC_TOP_BORDER_GRADIENT }}
       />
 
-      {!formLocked && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex gap-1">
-            <span className="text-xs self-center" style={{ color: MUTED }}>HT</span>
-            {OUTCOMES.map((o) => (
-              <button
-                key={`ht-${o.val}`}
-                type="button"
-                onClick={() =>
-                  setP((s) => ({ ...s, htOutcome: s.htOutcome === o.val ? "" : o.val }))
-                }
-                className="px-2 py-0.5 rounded text-xs font-medium transition-all cursor-pointer"
-                style={{
-                  backgroundColor: p.htOutcome === o.val ? CYAN : "rgba(255,255,255,0.08)",
-                  color: p.htOutcome === o.val ? NAVY : MUTED,
-                }}
-              >
-                {o.label}
-              </button>
-            ))}
+      <div className="px-4 py-5 sm:px-6 sm:py-6 flex flex-col gap-5">
+        <div className="grid grid-cols-[1fr_minmax(7rem,1.1fr)_1fr] gap-3 sm:gap-5 items-stretch">
+          <div className="flex flex-col items-center justify-center gap-2.5 text-center min-w-0 px-2 py-2">
+            {hl ?
+              <Image
+                src={hl}
+                alt=""
+                width={52}
+                height={52}
+                className="rounded-xl bg-white/90 p-1 object-contain shrink-0"
+                unoptimized
+              />
+            : (
+              <div
+                className="w-[52px] h-[52px] rounded-xl shrink-0"
+                style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+              />
+            )}
+            <span className="font-bold text-white text-sm sm:text-base leading-snug break-words">
+              {home}
+            </span>
           </div>
-          <div className="flex gap-1">
-            <span className="text-xs self-center" style={{ color: MUTED }}>FT</span>
-            {OUTCOMES.map((o) => (
-              <button
-                key={`ft-${o.val}`}
-                type="button"
-                onClick={() =>
-                  setP((s) => ({ ...s, ftOutcome: s.ftOutcome === o.val ? "" : o.val }))
-                }
-                className="px-2 py-0.5 rounded text-xs font-medium transition-all cursor-pointer"
-                style={{
-                  backgroundColor: p.ftOutcome === o.val ? CYAN : "rgba(255,255,255,0.08)",
-                  color: p.ftOutcome === o.val ? NAVY : MUTED,
-                }}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-1">
-            <input
-              value={p.predHomeGoals}
-              onChange={(e) =>
-                setP((s) => ({ ...s, predHomeGoals: e.target.value.replace(/\D/g, "") }))
-              }
-              maxLength={2}
-              placeholder="H"
-              className="w-8 text-center text-xs rounded border py-0.5 outline-none"
-              style={{ backgroundColor: NAVY, borderColor: BORDER, color: "#fff" }}
-            />
-            <span style={{ color: MUTED }}>–</span>
-            <input
-              value={p.predAwayGoals}
-              onChange={(e) =>
-                setP((s) => ({ ...s, predAwayGoals: e.target.value.replace(/\D/g, "") }))
-              }
-              maxLength={2}
-              placeholder="A"
-              className="w-8 text-center text-xs rounded border py-0.5 outline-none"
-              style={{ backgroundColor: NAVY, borderColor: BORDER, color: "#fff" }}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={pending}
-            className="px-3 py-0.5 rounded text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer hover:opacity-90 active:scale-95 ml-auto"
-            style={{ backgroundColor: LIME, color: NAVY }}
+
+          <div
+            className="flex flex-col items-center justify-center text-center px-3 py-4 rounded-xl min-h-[5.5rem]"
+            style={{
+              backgroundColor: "rgba(0,0,0,0.28)",
+              border: `1px solid ${WC_BORDER}`,
+            }}
           >
-            {pending ? "…" : "Salvează"}
-          </button>
+            {finished && ft?.home != null && ft?.away != null ?
+              <div className="font-black text-white text-xl tabular-nums">
+                {ft.home}–{ft.away}
+                {ht?.home != null && ht?.away != null ?
+                  <span className="block text-xs font-medium mt-1" style={{ color: WC_MUTED }}>
+                    HT {ht.home}–{ht.away}
+                  </span>
+                : null}
+              </div>
+            : (
+              <>
+                <span
+                  className="text-[11px] sm:text-xs font-semibold leading-snug line-clamp-3 px-1"
+                  style={{ color: "#67E8F9" }}
+                >
+                  {venue ?? "Stadion de confirmat"}
+                </span>
+                <span
+                  className="text-[10px] mt-2 font-medium tabular-nums"
+                  style={{ color: WC_LIME }}
+                >
+                  {when} · ora României
+                </span>
+              </>
+            )}
+          </div>
+
+          <div className="flex flex-col items-center justify-center gap-2.5 text-center min-w-0 px-2 py-2">
+            {al ?
+              <Image
+                src={al}
+                alt=""
+                width={52}
+                height={52}
+                className="rounded-xl bg-white/90 p-1 object-contain shrink-0"
+                unoptimized
+              />
+            : (
+              <div
+                className="w-[52px] h-[52px] rounded-xl shrink-0"
+                style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+              />
+            )}
+            <span className="font-bold text-white text-sm sm:text-base leading-snug break-words">
+              {away}
+            </span>
+          </div>
         </div>
-      )}
 
-      {formLocked && !finished && (
-        <p className="text-xs text-amber-200/90">
-          Pronosticurile sunt blocate după startul competiției.
-        </p>
-      )}
+        {predictionLockedReason === "ko_pending" && (
+          <div
+            className="rounded-xl border px-4 py-3 text-sm flex items-start gap-3"
+            style={{
+              borderColor: "rgba(251,191,36,0.35)",
+              backgroundColor: "rgba(120,53,15,0.22)",
+              color: "rgba(254,243,199,0.95)",
+            }}
+          >
+            <span className="text-lg shrink-0" aria-hidden>
+              🔒
+            </span>
+            <p>{getPredictionLockMessage("ko_pending")}</p>
+          </div>
+        )}
 
-      {!finished && !predictionsReadOnly && midCompetitionPenaltyMode && (
-        <p className="text-[11px]" style={{ color: "rgba(253,224,71,0.88)" }}>
-          O schimbare față de pronosticul salvat costă {POINTS_PER_PREDICTION_CHANGE_AFTER_START} puncte.
-        </p>
-      )}
+        {predictionLockedReason && predictionLockedReason !== "ko_pending" && (
+          <p className="text-sm text-amber-200/90">
+            {getPredictionLockMessage(predictionLockedReason)}
+          </p>
+        )}
 
-      {finished && (
-        <p className="text-xs" style={{ color: MUTED }}>
-          Puncte:{" "}
-          <span className="font-bold" style={{ color: LIME }}>
-            {breakdown.total}
-          </span>{" "}
-          (HT {breakdown.halfTime}, FT {breakdown.fullTime}, scor {breakdown.correctScore})
-        </p>
-      )}
+        {!formLocked && (
+          <>
+            <PotentialPoints
+              ht={p.htOutcome}
+              ft={p.ftOutcome}
+              hg={p.predHomeGoals}
+              ag={p.predAwayGoals}
+              matchOdds={matchOddsRow}
+            />
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <OutcomeButtons
+                label={t("party.match.halfTime")}
+                prefix="ht"
+                value={p.htOutcome}
+                disabled={pending}
+                onChange={(val) => setP((s) => ({ ...s, htOutcome: val }))}
+              />
+              <OutcomeButtons
+                label={t("party.match.fullTime")}
+                prefix="ft"
+                value={p.ftOutcome}
+                disabled={pending}
+                onChange={(val) => setP((s) => ({ ...s, ftOutcome: val }))}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: WC_MUTED }}>
+                {t("party.exactScore")}
+              </span>
+              <div className="flex items-center justify-center gap-4">
+                <div className="flex flex-col items-center gap-1.5">
+                  <span className="text-[10px]" style={{ color: WC_MUTED }}>
+                    {t("party.match.home")}
+                  </span>
+                  <input
+                    value={p.predHomeGoals}
+                    onChange={(e) =>
+                      setP((s) => ({
+                        ...s,
+                        predHomeGoals: e.target.value.replace(/\D/g, ""),
+                      }))
+                    }
+                    maxLength={2}
+                    placeholder="0"
+                    className="w-12 h-12 text-lg text-center rounded-xl border outline-none font-bold"
+                    style={{
+                      backgroundColor: WC_NAVY,
+                      borderColor: WC_BORDER,
+                      color: "#fff",
+                    }}
+                  />
+                </div>
+                <span className="text-xl font-bold mt-5" style={{ color: WC_MUTED }}>
+                  –
+                </span>
+                <div className="flex flex-col items-center gap-1.5">
+                  <span className="text-[10px]" style={{ color: WC_MUTED }}>
+                    {t("party.match.away")}
+                  </span>
+                  <input
+                    value={p.predAwayGoals}
+                    onChange={(e) =>
+                      setP((s) => ({
+                        ...s,
+                        predAwayGoals: e.target.value.replace(/\D/g, ""),
+                      }))
+                    }
+                    maxLength={2}
+                    placeholder="0"
+                    className="w-12 h-12 text-lg text-center rounded-xl border outline-none font-bold"
+                    style={{
+                      backgroundColor: WC_NAVY,
+                      borderColor: WC_BORDER,
+                      color: "#fff",
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={pending}
+              className="w-full sm:w-auto sm:self-end px-8 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50 cursor-pointer hover:opacity-90 active:scale-[0.98]"
+              style={{ backgroundColor: WC_LIME, color: WC_NAVY }}
+            >
+              {pending ? t("party.savingPrediction") : t("party.savePrediction")}
+            </button>
+
+            {midCompetitionPenaltyMode && (
+              <p className="text-[11px]" style={{ color: "rgba(253,224,71,0.88)" }}>
+                {t("party.match.changePenaltyHint", {
+                  points: POINTS_PER_PREDICTION_CHANGE_AFTER_START,
+                })}
+              </p>
+            )}
+          </>
+        )}
+
+        {finished && (
+          <p className="text-sm" style={{ color: WC_MUTED }}>
+            {t("party.match.points")}:{" "}
+            <span className="font-bold" style={{ color: WC_LIME }}>
+              {breakdown.total}
+            </span>{" "}
+            {t("party.match.pointsDetail", {
+              htLabel: t("party.lb.ht"),
+              halfTime: breakdown.halfTime,
+              ftLabel: t("party.lb.ft"),
+              fullTime: breakdown.fullTime,
+              correctScore: breakdown.correctScore,
+            })}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

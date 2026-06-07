@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { getLocaleFromCookies } from "@/lib/i18n/server";
+import { buildRootMetadata } from "@/lib/site-metadata";
 import "./globals.css";
 
 const montserrat = Montserrat({
@@ -10,19 +12,18 @@ const montserrat = Montserrat({
   weight: ["400", "500", "600", "700", "800"],
 });
 
-export const metadata: Metadata = {
-  title: "PronoHub",
-  description: "Your ultimate sports prediction hub",
-};
+export const metadata: Metadata = buildRootMetadata();
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocaleFromCookies();
+
   return (
     <ClerkProvider>
-      <html lang="ro" className={`${montserrat.variable} h-full antialiased`}>
+      <html lang={locale} className={`${montserrat.variable} h-full antialiased`}>
         <body className={`${montserrat.className} min-h-full flex flex-col`}>
           {children}
         </body>

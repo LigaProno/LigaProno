@@ -9,17 +9,16 @@ import {
   createEmptyWcGroupStandings,
   fetchCompetitionMatches,
   fetchPartyStandings,
-  getFootballDataCompetitionPickerOptions,
+  venueLabel,
   type FootballDataMatch,
   type GroupStanding,
 } from "@/lib/football-data";
 import {
   isWorldCup2026Storage,
   parseStoredCompetition,
-  type FootballDataCompetitionPickerOption,
 } from "@/lib/competition";
+import { canManualRefreshOddsToday } from "@/lib/odds-refresh-limit";
 import { prisma } from "@/lib/prisma";
-import { formatMatchKickoff } from "@/lib/match-datetime";
 import {
   championLabelFromTeams,
   fixtureTlaPair,
@@ -37,6 +36,8 @@ import {
   computeUserWcTotals,
   type MatchPredictionInput,
 } from "@/lib/wc-scoring";
+import { createTranslator } from "@/lib/i18n";
+import { getLocaleFromCookies } from "@/lib/i18n/server";
 
 function displayName(first?: string | null, last?: string | null): string {
   const s = `${first ?? ""} ${last ?? ""}`.trim();
@@ -49,6 +50,8 @@ export default async function PartyTournamentPage({
   params: Promise<{ tournamentId: string }>;
 }) {
   const { tournamentId } = await params;
+  const locale = await getLocaleFromCookies();
+  const t = createTranslator(locale);
 
   const { userId: clerkId } = await auth();
   if (!clerkId) redirect("/sign-in");
@@ -115,13 +118,9 @@ export default async function PartyTournamentPage({
       collectTeamsFromMatches(matches)
     : [];
 
-  let competitionPickerOptions: FootballDataCompetitionPickerOption[] = [];
-  try {
-    competitionPickerOptions =
-      await getFootballDataCompetitionPickerOptions();
-  } catch {
-    competitionPickerOptions = [];
-  }
+  const canManualRefreshOddsTodayFlag = canManualRefreshOddsToday(
+    tournament.lastManualOddsRefreshAt,
+  );
 
   const wcMatchPreds = await prisma.wcMatchPrediction.findMany({
     where: { tournamentId },
@@ -156,8 +155,18 @@ export default async function PartyTournamentPage({
 
   const nextThreeMemberPreds: NextThreeMatchPreds[] = nextThree.map((nm) => ({
     matchId: nm.id,
-    fixture: fixtureTlaPair(nm),
-    kickoff: formatMatchKickoff(nm.utcDate),
+    utcDate: nm.utcDate,
+    homeTeam: {
+      name: nm.homeTeam.name ?? nm.homeTeam.shortName ?? "—",
+      shortName: nm.homeTeam.tla ?? nm.homeTeam.shortName ?? undefined,
+      crest: nm.homeTeam.crest,
+    },
+    awayTeam: {
+      name: nm.awayTeam.name ?? nm.awayTeam.shortName ?? "—",
+      shortName: nm.awayTeam.tla ?? nm.awayTeam.shortName ?? undefined,
+      crest: nm.awayTeam.crest,
+    },
+    venue: venueLabel(nm),
     rows: tournament.members
       .map((m) => ({
         userId: m.userId,
@@ -275,7 +284,7 @@ export default async function PartyTournamentPage({
         <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
-        Înapoi la Turnee
+        {t("party.backToTournaments")}
       </Link>
 
       {loadError && parsedCompetition && (
@@ -300,7 +309,6 @@ export default async function PartyTournamentPage({
         }
         competitionUnderway={competitionUnderway}
         myMidCompetitionChangeCount={myMidCompetitionChangeCount}
-        competitionPickerOptions={competitionPickerOptions}
         showDevClSimulator={process.env.NODE_ENV === "development"}
         isCreator={isCreator}
         currentUserId={user.id}
@@ -311,7 +319,10 @@ export default async function PartyTournamentPage({
         myExtra={myExtra}
         allTeams={allTeams}
         bettingOddsByMatchId={oddsPayload?.matches ?? {}}
+        bettingOddsByTeamId={oddsPayload?.teams ?? {}}
         bettingOddsFetchedAt={tournament.bettingOdds?.fetchedAt?.toISOString() ?? null}
+        lastManualOddsRefreshAt={tournament.lastManualOddsRefreshAt?.toISOString() ?? null}
+        canManualRefreshOddsToday={canManualRefreshOddsTodayFlag}
         nextThreeMemberPreds={nextThreeMemberPreds}
       />
     </div>

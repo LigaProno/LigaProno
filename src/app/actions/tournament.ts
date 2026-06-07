@@ -1,18 +1,24 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { getFootballDataCompetitionPickerOptions } from "@/lib/football-data";
+import { getWorldCupCompetitionPickerOptions } from "@/lib/football-data";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { I18nError } from "@/lib/i18n/errors";
 
-async function resolveValidatedCompetition(
+async function resolveValidatedWorldCupCompetition(
   token: string | null | undefined,
-): Promise<string | null> {
-  if (token == null || token === "" || token === "__none__") return null;
+): Promise<string> {
+  if (token == null || token === "" || token === "__none__") {
+    throw new I18nError("errors.competitionRequired");
+  }
   const t = token.trim();
-  const opts = await getFootballDataCompetitionPickerOptions();
+  const opts = await getWorldCupCompetitionPickerOptions();
+  if (opts.length === 0) {
+    throw new I18nError("errors.worldCupNotAvailable");
+  }
   if (!opts.some((o) => o.storageKey === t)) {
-    throw new Error("Invalid competition selection.");
+    throw new I18nError("errors.invalidCompetition");
   }
   return t;
 }
@@ -29,17 +35,17 @@ export async function createTournament(
   allowPredictionChangesDuringCompetition = false,
 ): Promise<{ inviteCode: string }> {
   const { userId: clerkId } = await auth();
-  if (!clerkId) throw new Error("Not authenticated");
+  if (!clerkId) throw new I18nError("errors.notAuthenticated");
 
   const user = await prisma.user.findUnique({ where: { clerkId } });
-  if (!user) throw new Error("User not found");
+  if (!user) throw new I18nError("errors.userNotFound");
 
   let inviteCode = customCode?.trim().toUpperCase() || generateInviteCode();
 
   const taken = await prisma.tournament.findUnique({ where: { inviteCode } });
-  if (taken) throw new Error("That invite code is already taken, try another");
+  if (taken) throw new I18nError("errors.inviteCodeTaken");
 
-  const competition = await resolveValidatedCompetition(competitionStorage);
+  const competition = await resolveValidatedWorldCupCompetition(competitionStorage);
 
   const tournament = await prisma.tournament.create({
     data: {
@@ -64,20 +70,20 @@ export async function createTournament(
 
 export async function joinTournament(code: string): Promise<void> {
   const { userId: clerkId } = await auth();
-  if (!clerkId) throw new Error("Not authenticated");
+  if (!clerkId) throw new I18nError("errors.notAuthenticated");
 
   const user = await prisma.user.findUnique({ where: { clerkId } });
-  if (!user) throw new Error("User not found");
+  if (!user) throw new I18nError("errors.userNotFound");
 
   const tournament = await prisma.tournament.findUnique({
     where: { inviteCode: code.trim().toUpperCase() },
   });
-  if (!tournament) throw new Error("Invalid invite code");
+  if (!tournament) throw new I18nError("errors.invalidInviteCode");
 
   const existing = await prisma.tournamentMember.findUnique({
     where: { tournamentId_userId: { tournamentId: tournament.id, userId: user.id } },
   });
-  if (existing) throw new Error("You are already in this tournament");
+  if (existing) throw new I18nError("errors.alreadyInTournament");
 
   await prisma.tournamentMember.create({
     data: { tournamentId: tournament.id, userId: user.id },

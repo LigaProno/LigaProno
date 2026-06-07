@@ -1,11 +1,15 @@
-import type { FootballDataMatch } from "@/lib/football-data";
+"use client";
+
 import { venueLabel } from "@/lib/football-data";
+import type { FootballDataMatch } from "@/lib/football-data";
 import { formatMatchKickoff } from "@/lib/match-datetime";
+import { useLocale } from "@/components/i18n/locale-provider";
 import Image from "next/image";
 
 export function FootballDataMatchCard({ m }: { m: FootballDataMatch }) {
+  const { t, dateLocale } = useLocale();
   const venue = venueLabel(m);
-  const when = formatMatchKickoff(m.utcDate);
+  const when = formatMatchKickoff(m.utcDate, dateLocale);
   const home = m.homeTeam.name ?? m.homeTeam.shortName ?? "—";
   const away = m.awayTeam.name ?? m.awayTeam.shortName ?? "—";
   const hl = m.homeTeam.crest;
@@ -61,13 +65,13 @@ export function FootballDataMatchCard({ m }: { m: FootballDataMatch }) {
               className="text-[11px] sm:text-xs font-semibold leading-snug line-clamp-4 px-1"
               style={{ color: "#67E8F9" }}
             >
-              {venue ?? "Stadion de confirmat"}
+              {venue ?? t("matches.stadiumTbd")}
             </span>
             <span
               className="text-[10px] mt-2 font-medium tabular-nums"
               style={{ color: "#BEF264" }}
             >
-              {when} · ora României
+              {when} {t("matches.romaniaTimeSuffix")}
             </span>
           </div>
 

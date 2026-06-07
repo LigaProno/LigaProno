@@ -1,14 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type {
   FootballDataMatch,
   GroupStanding,
 } from "@/lib/football-data";
 import { FootballDataMatchCard } from "@/components/world-cup/football-data-match-card";
-import Image from "next/image";
+import { LanguageSwitcher } from "@/components/i18n/language-switcher";
+import { useLocale } from "@/components/i18n/locale-provider";
 
 type TabId = "standings" | "matches";
 
@@ -29,15 +31,16 @@ export function Cm2026FootballDataClient(props: {
     knockoutBlocks,
   } = props;
 
+  const { t } = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [tab, setTabState] = useState<TabId>(initialTab);
 
   useEffect(() => {
-    const t = searchParams.get("tab");
-    if (t === "matches" || t === "standings") {
-      setTabState(t);
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "matches" || tabParam === "standings") {
+      setTabState(tabParam);
     }
   }, [searchParams]);
 
@@ -63,25 +66,28 @@ export function Cm2026FootballDataClient(props: {
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-8">
         <div>
           <p className="text-sm font-medium mb-1" style={{ color: "#22D3EE" }}>
-            Cupa Mondială 2026
+            {t("dashboard.hero.badge")}
           </p>
           <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-            Program & clasament
+            {t("matches.page.title")}
           </h1>
           <p
             className="mt-2 text-sm max-w-xl"
             style={{ color: "rgba(255,255,255,0.5)" }}
           >
-            Stadion, locație și ora de start în fusul României (Europe/Bucharest).
+            {t("matches.page.subtitle")}
           </p>
         </div>
-        <Link
-          href="/"
-          className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-sm font-bold border transition-all hover:bg-white/5 self-start"
-          style={{ borderColor: "rgba(255,255,255,0.2)", color: "#BEF264" }}
-        >
-          ← Acasă
-        </Link>
+        <div className="flex flex-col items-end gap-3 self-start">
+          <LanguageSwitcher compact />
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-sm font-bold border transition-all hover:bg-white/5"
+            style={{ borderColor: "rgba(255,255,255,0.2)", color: "#BEF264" }}
+          >
+            {t("matches.backHome")}
+          </Link>
+        </div>
       </header>
 
       <div
@@ -97,7 +103,7 @@ export function Cm2026FootballDataClient(props: {
           role="tab"
           aria-selected={tab === "standings"}
           onClick={() => setTab("standings")}
-          className="flex-1 rounded-xl py-3 px-4 text-sm font-bold transition-all"
+          className="flex-1 rounded-xl py-3 px-4 text-sm font-bold transition-all cursor-pointer"
           style={
             tab === "standings"
               ? {
@@ -111,14 +117,14 @@ export function Cm2026FootballDataClient(props: {
                 }
           }
         >
-          Clasament grupe
+          {t("matches.tab.standings")}
         </button>
         <button
           type="button"
           role="tab"
           aria-selected={tab === "matches"}
           onClick={() => setTab("matches")}
-          className="flex-1 rounded-xl py-3 px-4 text-sm font-bold transition-all"
+          className="flex-1 rounded-xl py-3 px-4 text-sm font-bold transition-all cursor-pointer"
           style={
             tab === "matches"
               ? {
@@ -132,13 +138,13 @@ export function Cm2026FootballDataClient(props: {
                 }
           }
         >
-          Toate meciurile{" "}
+          {t("matches.tab.allMatches")}{" "}
           <span className="opacity-60 font-normal">({totalMatches})</span>
         </button>
       </div>
 
       {tab === "standings" ? (
-        <section className="space-y-10" aria-label="Standings">
+        <section className="space-y-10" aria-label={t("matches.tab.standings")}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {standings.map((g) => (
               <div key={`stand-${g.letter}`}>
@@ -166,28 +172,28 @@ export function Cm2026FootballDataClient(props: {
                       <tr style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
                         <th className="px-3 py-3 w-8 font-bold text-white">#</th>
                         <th className="px-3 py-3 font-bold text-white text-center">
-                          Team
+                          {t("matches.standings.team")}
                         </th>
                         <th className="px-2 py-3 font-bold text-center text-white/80">
-                          MP
+                          {t("matches.standings.played")}
                         </th>
                         <th className="px-2 py-3 font-bold text-center text-white/80">
-                          W
+                          {t("matches.standings.won")}
                         </th>
                         <th className="px-2 py-3 font-bold text-center text-white/80">
-                          D
+                          {t("matches.standings.draw")}
                         </th>
                         <th className="px-2 py-3 font-bold text-center text-white/80">
-                          L
+                          {t("matches.standings.lost")}
                         </th>
                         <th className="px-2 py-3 font-bold text-center text-white/80">
-                          GF
+                          {t("matches.standings.goalsFor")}
                         </th>
                         <th className="px-2 py-3 font-bold text-center text-white/80">
-                          GA
+                          {t("matches.standings.goalsAgainst")}
                         </th>
                         <th className="px-3 py-3 font-bold text-right text-[#BEF264]">
-                          Pts
+                          {t("matches.standings.points")}
                         </th>
                       </tr>
                     </thead>
@@ -199,7 +205,7 @@ export function Cm2026FootballDataClient(props: {
                             className="px-4 py-6 text-center text-sm"
                             style={{ color: "rgba(255,255,255,0.45)" }}
                           >
-                            Nu există date de clasament pentru această grupă.
+                            {t("matches.standings.noData")}
                           </td>
                         </tr>
                       ) : (
@@ -264,14 +270,14 @@ export function Cm2026FootballDataClient(props: {
           </div>
         </section>
       ) : (
-        <section className="space-y-12" aria-label="Matches">
+        <section className="space-y-12" aria-label={t("matches.tab.allMatches")}>
           {groupKeysOrdered.length > 0 ? (
             <div>
               <h2
                 className="text-xl font-black mb-6 pb-2 border-b"
                 style={{ color: "#fff", borderColor: "rgba(34,211,238,0.35)" }}
               >
-                Faza grupelor
+                {t("matches.groupStage")}
               </h2>
               <div className="space-y-10">
                 {groupKeysOrdered.map((key) => {
@@ -292,7 +298,7 @@ export function Cm2026FootballDataClient(props: {
                           className="text-sm text-center py-4 max-w-xl mx-auto"
                           style={{ color: "rgba(255,255,255,0.4)" }}
                         >
-                          Nu există meciuri pentru această grupă.
+                          {t("matches.noGroupMatches")}
                         </p>
                       ) : (
                         <div className="flex flex-col gap-3">
@@ -314,7 +320,7 @@ export function Cm2026FootballDataClient(props: {
                 className="text-xl font-black mb-6 pb-2 border-b"
                 style={{ color: "#fff", borderColor: "rgba(34,211,238,0.35)" }}
               >
-                Faza eliminatorie
+                {t("matches.knockoutStage")}
               </h2>
               <div className="space-y-10">
                 {knockoutBlocks.map(({ stageLabel, matches: ms }) => (
@@ -341,7 +347,7 @@ export function Cm2026FootballDataClient(props: {
 
           {groupKeysOrdered.length === 0 && knockoutBlocks.length === 0 ? (
             <p style={{ color: "rgba(255,255,255,0.55)" }}>
-              Nu există meciuri disponibile.
+              {t("matches.noMatchesAvailable")}
             </p>
           ) : null}
         </section>

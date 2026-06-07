@@ -7,22 +7,34 @@ import {
   buildTeamIdToGroupKeyFromStandings,
   collectTeamsFromMatches,
   fetchCompetitionMatches,
+  fetchCompetitionMatchesFresh,
   fetchPartyStandings,
-  getFootballDataCompetitionPickerOptions,
+  getWorldCupCompetitionPickerOptions,
 } from "@/lib/football-data";
 import { parseStoredCompetition } from "@/lib/competition";
+import {
+  getMatchPredictionLockReason,
+  getPredictionLockMessage,
+  isGroupStageMatchPredictable,
+  isKnockoutMatchPredictable,
+  isKnockoutStage,
+} from "@/lib/knockout-predictions";
 import { isCompetitionUnderway } from "@/lib/prediction-window";
 import { outcomeFromScores } from "@/lib/wc-scoring";
+import { I18nError } from "@/lib/i18n/errors";
 
 function validOutcome(v: unknown): v is "HOME" | "AWAY" | "DRAW" | "" {
   return v === "HOME" || v === "AWAY" || v === "DRAW" || v === "";
 }
 
-async function assertCompetitionPickerValue(storageKey: string): Promise<string> {
+async function assertWorldCupPickerValue(storageKey: string): Promise<string> {
   const t = storageKey.trim();
-  const opts = await getFootballDataCompetitionPickerOptions();
+  const opts = await getWorldCupCompetitionPickerOptions();
+  if (opts.length === 0) {
+    throw new I18nError("errors.worldCupNotAvailable");
+  }
   if (!opts.some((o) => o.storageKey === t)) {
-    throw new Error("Invalid competition selection.");
+    throw new I18nError("errors.invalidCompetition");
   }
   return t;
 }
@@ -32,23 +44,27 @@ export async function setTournamentCompetition(
   competition: string | null,
 ): Promise<void> {
   const { userId: clerkId } = await auth();
-  if (!clerkId) throw new Error("Not authenticated.");
+  if (!clerkId) throw new I18nError("errors.notAuthenticated");
 
   const user = await prisma.user.findUnique({ where: { clerkId } });
-  if (!user) throw new Error("User not found.");
+  if (!user) throw new I18nError("errors.userNotFound");
 
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
   });
-  if (!tournament) throw new Error("Turneu negăsit.");
+  if (!tournament) throw new I18nError("errors.tournamentNotFound");
   if (tournament.creatorId !== user.id) {
-    throw new Error("Doar creatorul turneului poate schimba competiția.");
+    throw new I18nError("errors.onlyCreatorCompetition");
+  }
+
+  if (tournament.competition != null && tournament.competition.trim() !== "") {
+    throw new I18nError("errors.competitionImmutable");
   }
 
   const next =
     competition == null || competition.trim() === "" ?
       null
-    : await assertCompetitionPickerValue(competition);
+    : await assertWorldCupPickerValue(competition);
 
   await prisma.tournament.update({
     where: { id: tournamentId },
@@ -129,11 +145,40 @@ export async function saveWcMatchPrediction(
 
   await assertMember(tournamentId, user.id);
 
-  const underway = await isCompetitionUnderwayForStorage(tournament.competition);
-  if (underway && !(tournament.allowPredictionChangesDuringCompetition ?? false)) {
-    throw new Error(
-      "Competiția a început. În acest turneu pronosticurile nu mai pot fi modificate.",
-    );
+  const parsed = parseStoredCompetition(tournament.competition ?? null);
+  if (!parsed) {
+    throw new Error("Acest turneu nu are competiție activă pentru pronosticuri.");
+  }
+
+  const matches = await fetchCompetitionMatches(parsed.code, parsed.season);
+  const match = matches.find((m) => m.id === matchId);
+  if (!match) {
+    throw new Error("Meciul nu a fost găsit în programul competiției.");
+  }
+
+  const allowChanges = tournament.allowPredictionChangesDuringCompetition ?? false;
+  const underway = isCompetitionUnderway(matches);
+  const isKO = isKnockoutStage(match.stage);
+
+  if (isKO) {
+    if (!isKnockoutMatchPredictable(match)) {
+      const reason = getMatchPredictionLockReason(match, underway, allowChanges);
+      throw new Error(
+        getPredictionLockMessage(reason ?? "ko_pending"),
+      );
+    }
+  } else {
+    if (underway && !allowChanges) {
+      throw new Error(
+        "Competiția a început. În acest turneu pronosticurile nu mai pot fi modificate.",
+      );
+    }
+    if (!isGroupStageMatchPredictable(match, underway, allowChanges)) {
+      const reason = getMatchPredictionLockReason(match, underway, allowChanges);
+      throw new Error(
+        getPredictionLockMessage(reason ?? "competition"),
+      );
+    }
   }
 
   const ht =
@@ -484,4 +529,34 @@ export async function simulateRandomClPredictionsForMe(
   revalidatePath(`/turnee/${tournamentId}/member/${user.id}`);
 
   return { matchCount: matches.length, advancingCount: advancing.length };
+}
+
+/** Reîncarcă meciurile din API (fără cache) și invalidează pagina turneului. */
+export async function refreshTournamentMatches(
+  tournamentId: string,
+): Promise<{ matchCount: number }> {
+  const { userId: clerkId } = await auth();
+  if (!clerkId) throw new Error("Not authenticated.");
+
+  const user = await prisma.user.findUnique({ where: { clerkId } });
+  if (!user) throw new Error("User not found.");
+
+  await assertMember(tournamentId, user.id);
+
+  const tournament = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+  });
+  if (!tournament) throw new Error("Turneu negăsit.");
+
+  const parsed = parseStoredCompetition(tournament.competition ?? null);
+  if (!parsed) {
+    throw new Error("Acest turneu nu are competiție activă.");
+  }
+
+  const matches = await fetchCompetitionMatchesFresh(parsed.code, parsed.season);
+
+  revalidatePath(`/turnee/${tournamentId}`);
+  revalidatePath(`/turnee/${tournamentId}/member/${user.id}`);
+
+  return { matchCount: matches.length };
 }

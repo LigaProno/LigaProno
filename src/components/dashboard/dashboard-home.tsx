@@ -1,5 +1,7 @@
-import Image from "next/image";
+"use client";
+
 import Link from "next/link";
+import { useMemo } from "react";
 import type { WcNewsItem } from "@/lib/wc-dashboard-news";
 import {
   ALLOWED_NEWS_PUBLISHER_LABELS,
@@ -7,17 +9,28 @@ import {
   resolveNewsImageUrl,
 } from "@/lib/gemini-wc-news";
 import NewsCardImage from "@/components/dashboard/news-card-image";
+import { useLocale } from "@/components/i18n/locale-provider";
+import {
+  WC_CYAN,
+  WC_GOLD,
+  WC_GREEN,
+  WC_LIME,
+  WC_NAVY,
+} from "@/components/world-cup/wc-theme";
 
-const HERO_IMAGE =
-  "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=1920&q=80";
-const WC_BADGE =
-  "https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=800&q=80";
+const WC2026_EMBLEM = "/wc2026-emblem.svg";
+const WC2026_HERO_VIDEO = "/wc2026-hero.mp4";
 
-function formatNewsDate(iso: string | undefined, fallback: Date | null): string {
+function formatNewsDate(
+  iso: string | undefined,
+  fallback: Date | null,
+  dateLocale: string,
+  todayLabel: string,
+): string {
   if (iso) {
     const d = new Date(iso);
     if (!Number.isNaN(d.getTime())) {
-      return d.toLocaleDateString("ro-RO", {
+      return d.toLocaleDateString(dateLocale, {
         day: "numeric",
         month: "short",
         year: "numeric",
@@ -25,13 +38,13 @@ function formatNewsDate(iso: string | undefined, fallback: Date | null): string 
     }
   }
   if (fallback) {
-    return fallback.toLocaleDateString("ro-RO", {
+    return fallback.toLocaleDateString(dateLocale, {
       day: "numeric",
       month: "long",
       year: "numeric",
     });
   }
-  return "Astăzi";
+  return todayLabel;
 }
 
 function NewsCard({
@@ -39,11 +52,15 @@ function NewsCard({
   index,
   fetchedAt,
   featured = false,
+  dateLocale,
+  todayLabel,
 }: {
   item: WcNewsItem;
   index: number;
   fetchedAt: Date | null;
   featured?: boolean;
+  dateLocale: string;
+  todayLabel: string;
 }) {
   const thumb = resolveNewsImageUrl(item, index);
   const fallback = NEWS_FALLBACK_IMAGES[index % NEWS_FALLBACK_IMAGES.length];
@@ -63,16 +80,16 @@ function NewsCard({
     >
       <div
         className={
-          featured
-            ? "flex flex-col md:flex-row md:min-h-[220px]"
-            : "flex flex-col h-full"
+          featured ?
+            "flex flex-col md:flex-row md:min-h-[220px]"
+          : "flex flex-col h-full"
         }
       >
         <div
           className={`relative shrink-0 overflow-hidden bg-slate-800/80 ${
-            featured
-              ? "w-full md:w-[42%] aspect-[16/10] md:aspect-auto md:min-h-[220px]"
-              : "w-full aspect-[16/10]"
+            featured ?
+              "w-full md:w-[42%] aspect-[16/10] md:aspect-auto md:min-h-[220px]"
+            : "w-full aspect-[16/10]"
           }`}
         >
           <NewsCardImage
@@ -93,7 +110,7 @@ function NewsCard({
             className="absolute top-3 left-3 text-xs font-bold px-2.5 py-1 rounded-lg"
             style={{
               backgroundColor: "rgba(15,23,42,0.75)",
-              color: "#22D3EE",
+              color: WC_CYAN,
               backdropFilter: "blur(8px)",
             }}
           >
@@ -105,12 +122,12 @@ function NewsCard({
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <span
               className="text-xs font-semibold uppercase tracking-wide"
-              style={{ color: "#BEF264" }}
+              style={{ color: WC_LIME }}
             >
               {item.source}
             </span>
             <span className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>
-              · {formatNewsDate(item.publishedAt, fetchedAt)}
+              · {formatNewsDate(item.publishedAt, fetchedAt, dateLocale, todayLabel)}
             </span>
           </div>
           <h3
@@ -121,21 +138,14 @@ function NewsCard({
           >
             {item.title}
           </h3>
-          <p
-            className={`text-sm leading-relaxed ${featured ? "line-clamp-3" : "line-clamp-2"}`}
-            style={{ color: "rgba(255,255,255,0.55)" }}
-          >
-            {item.summary}
-          </p>
-          <span
-            className="inline-flex items-center gap-1 mt-4 text-xs font-semibold"
-            style={{ color: "#22D3EE" }}
-          >
-            Citește articolul
-            <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
-              →
-            </span>
-          </span>
+          {item.summary ?
+            <p
+              className="text-sm leading-relaxed line-clamp-3"
+              style={{ color: "rgba(255,255,255,0.5)" }}
+            >
+              {item.summary}
+            </p>
+          : null}
         </div>
       </div>
     </a>
@@ -153,8 +163,10 @@ export default function DashboardHome({
   newsFetchedAt,
   newsDateKey,
 }: DashboardHomeProps) {
+  const { t, dateLocale } = useLocale();
+
   const updatedLabel = newsFetchedAt
-    ? newsFetchedAt.toLocaleString("ro-RO", {
+    ? newsFetchedAt.toLocaleString(dateLocale, {
         day: "numeric",
         month: "short",
         hour: "2-digit",
@@ -162,156 +174,106 @@ export default function DashboardHome({
       })
     : null;
 
+  const newsSourcesLine = useMemo(
+    () =>
+      t("dashboard.news.sources", {
+        sources: ALLOWED_NEWS_PUBLISHER_LABELS.join(", "),
+      }),
+    [t],
+  );
+
   return (
     <div className="flex-1 min-h-0 overflow-y-auto">
-      {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0">
-          <Image
-            src={HERO_IMAGE}
-            alt="Stadion de fotbal"
-            fill
-            priority
-            className="object-cover"
-            sizes="100vw"
-          />
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(105deg, rgba(15,23,42,0.97) 0%, rgba(15,23,42,0.75) 45%, rgba(15,23,42,0.55) 100%)",
-            }}
+      <section
+        className="relative overflow-hidden min-h-[min(88vh,780px)] flex items-center"
+        style={{ backgroundColor: WC_NAVY }}
+      >
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          aria-hidden
+          className="absolute inset-0 w-full h-full object-cover motion-reduce:hidden"
+          poster={WC2026_EMBLEM}
+        >
+          <source src={WC2026_HERO_VIDEO} type="video/mp4" />
+        </video>
+
+        <div
+          className="absolute inset-0 motion-reduce:block hidden"
+          style={{
+            background:
+              "linear-gradient(160deg, rgba(15,23,42,0.98) 0%, rgba(22,101,52,0.25) 50%, rgba(15,23,42,0.98) 100%)",
+          }}
+        />
+
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(to bottom, rgba(15,23,42,0.45) 0%, rgba(15,23,42,0.25) 40%, rgba(15,23,42,0.75) 100%)",
+          }}
+        />
+
+        <div className="absolute top-5 left-5 sm:top-7 sm:left-8 lg:top-8 lg:left-10 z-20 pointer-events-none">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={WC2026_EMBLEM}
+            alt="FIFA World Cup 2026"
+            width={96}
+            height={148}
+            className="w-14 sm:w-16 md:w-20 h-auto drop-shadow-[0_4px_24px_rgba(0,0,0,0.65)]"
           />
         </div>
 
-        <div className="relative z-10 px-6 sm:px-10 lg:px-14 pt-10 sm:pt-14 pb-16 sm:pb-20 max-w-6xl">
+        <div className="relative z-10 w-full px-6 sm:px-10 lg:px-14 py-16 sm:py-20 max-w-6xl mx-auto flex flex-col items-center justify-center text-center min-h-[inherit]">
           <p
-            className="text-xs sm:text-sm font-semibold uppercase tracking-[0.2em] mb-3"
-            style={{ color: "#BEF264" }}
+            className="text-base sm:text-lg max-w-xl mb-8 sm:mb-10 leading-relaxed"
+            style={{ color: "rgba(255,255,255,0.82)" }}
           >
-            Bine ai venit pe PronoHub
+            {t("dashboard.hero.subtitle")}
           </p>
-          <h1 className="text-3xl sm:text-5xl font-extrabold text-white leading-tight max-w-2xl mb-4">
-            Prezice. Concurează.{" "}
-            <span style={{ color: "#22D3EE" }}>Câștigă.</span>
-          </h1>
-          <p
-            className="text-base sm:text-lg max-w-xl mb-8 leading-relaxed"
-            style={{ color: "rgba(255,255,255,0.7)" }}
-          >
-            Platforma ta de pronosticuri cu prietenii — clasamente live, turnee private
-            și evenimente majore de fotbal.
-          </p>
-          <div className="flex flex-wrap gap-3">
+
+          <div className="flex flex-wrap gap-3 justify-center">
             <Link
               href="/turnee"
-              className="px-6 py-3 rounded-xl font-bold text-sm sm:text-base shadow-lg transition active:scale-[0.98]"
-              style={{ backgroundColor: "#22D3EE", color: "#0F172A" }}
+              className="px-7 py-3.5 rounded-xl font-bold text-sm sm:text-base shadow-lg transition hover:brightness-110 active:scale-[0.98]"
+              style={{ backgroundColor: WC_CYAN, color: WC_NAVY }}
             >
-              Intră în Turnee
+              {t("dashboard.hero.createTournament")}
             </Link>
             <Link
               href="/matches"
-              className="px-6 py-3 rounded-xl font-bold text-sm sm:text-base border transition active:scale-[0.98]"
-              style={{
-                borderColor: "rgba(190,242,100,0.5)",
-                color: "#BEF264",
-                backgroundColor: "rgba(190,242,100,0.08)",
-              }}
+              className="px-7 py-3.5 rounded-xl font-bold text-sm sm:text-base shadow-lg transition hover:brightness-110 active:scale-[0.98]"
+              style={{ backgroundColor: WC_LIME, color: WC_NAVY }}
             >
-              Program CM 2026
+              {t("dashboard.hero.scheduleStandings")}
             </Link>
           </div>
         </div>
+
+        <div
+          className="absolute bottom-0 left-0 right-0 h-1 opacity-80 pointer-events-none"
+          style={{
+            background: `linear-gradient(90deg, transparent, ${WC_GREEN}, ${WC_GOLD}, ${WC_CYAN}, transparent)`,
+          }}
+        />
       </section>
 
-      <div className="px-6 sm:px-10 lg:px-14 pb-16 max-w-6xl mx-auto space-y-12 mt-4 relative z-20">
-        {/* Eveniment principal */}
-        <section>
-          
-
-          <article
-            className="rounded-3xl border overflow-hidden grid md:grid-cols-[1.1fr_1fr]"
-            style={{
-              borderColor: "rgba(255,255,255,0.12)",
-              backgroundColor: "rgba(255,255,255,0.03)",
-            }}
-          >
-            <div className="relative min-h-[220px] md:min-h-[320px]">
-              <Image
-                src={WC_BADGE}
-                alt="Fotbal — Cupa Mondială"
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 100vw, 50vw"
-              />
-              <div
-                className="absolute inset-0 md:hidden"
-                style={{
-                  background:
-                    "linear-gradient(to top, rgba(15,23,42,0.95) 0%, transparent 60%)",
-                }}
-              />
-            </div>
-
-            <div className="p-6 sm:p-8 flex flex-col justify-center">
-              <div className="flex items-center gap-3 mb-3">
-                <div>
-
-                  <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
-                    FIFA World Cup 2026
-                  </h2>
-                </div>
-              </div>
-              <p className="text-sm sm:text-base leading-relaxed mb-6" style={{ color: "rgba(255,255,255,0.6)" }}>
-                SUA, Canada și Mexic găzduiesc cel mai mare turneu din fotbal. Urmărește clasamentele
-                și meciurile, creează un turneu și pune pronosticuri pe fiecare fază — de la grupe până la finală.
-              </p>
-              <ul className="space-y-2 mb-6 text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>
-                <li className="flex items-center gap-2">
-                  <span style={{ color: "#22D3EE" }}>✓</span> Clasament live + program cu stadion (ora RO)
-                </li>
-                <li className="flex items-center gap-2">
-                  <span style={{ color: "#22D3EE" }}>✓</span> Turnee private cu clasament
-                </li>
-                <li className="flex items-center gap-2">
-                  <span style={{ color: "#22D3EE" }}>✓</span> Pronosticuri meci + calificări & campion
-                </li>
-              </ul>
-              <div className="flex flex-wrap gap-3">
-                <Link
-                  href="/matches"
-                  className="inline-flex px-5 py-2.5 rounded-xl text-sm font-bold"
-                  style={{ backgroundColor: "#22D3EE", color: "#0F172A" }}
-                >
-                  Vezi CM 2026
-                </Link>
-                <Link
-                  href="/turnee"
-                  className="inline-flex px-5 py-2.5 rounded-xl text-sm font-bold border"
-                  style={{
-                    borderColor: "rgba(255,255,255,0.2)",
-                    color: "rgba(255,255,255,0.85)",
-                  }}
-                >
-                  Creează turneu
-                </Link>
-              </div>
-            </div>
-          </article>
-        </section>
-
-        {/* Știri */}
+      <div className="px-6 sm:px-10 lg:px-14 pb-16 max-w-6xl mx-auto space-y-12 mt-8">
         <section>
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
             <div>
               <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">
-                Știri de ultimă oră — CM 2026
+                {t("dashboard.news.title")}
               </h2>
               <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
-                5 articole zilnic (RSS) ·{" "}
-                {ALLOWED_NEWS_PUBLISHER_LABELS.join(", ")}
-                {updatedLabel ? ` · ultima actualizare ${updatedLabel}` : ""}
+                {newsSourcesLine}
+                {updatedLabel ?
+                  t("dashboard.news.lastUpdate", { date: updatedLabel })
+                : ""}
               </p>
             </div>
             <span
@@ -325,7 +287,7 @@ export default function DashboardHome({
             </span>
           </div>
 
-          {news.length === 0 ? (
+          {news.length === 0 ?
             <div
               className="rounded-2xl border p-8 text-center text-sm"
               style={{
@@ -333,13 +295,12 @@ export default function DashboardHome({
                 color: "rgba(255,255,255,0.45)",
               }}
             >
-              <p className="mb-2">Știrile se încarcă la prima vizită a zilei sau la cron-ul zilnic.</p>
+              <p className="mb-2">{t("dashboard.news.emptyHint")}</p>
               <p>
-                Asigură-te că <code className="text-[#22D3EE]">GEMINI_API_KEY</code> este setat în mediul
-                de rulare.
+                <code className="text-[#22D3EE]">GEMINI_API_KEY</code> — {t("dashboard.news.geminiHint")}
               </p>
             </div>
-          ) : (
+          : (
             <div className="grid gap-4 sm:grid-cols-2">
               {news.map((item, i) => (
                 <NewsCard
@@ -348,50 +309,12 @@ export default function DashboardHome({
                   index={i}
                   fetchedAt={newsFetchedAt}
                   featured={i === 0}
+                  dateLocale={dateLocale}
+                  todayLabel={t("common.today")}
                 />
               ))}
             </div>
           )}
-        </section>
-
-        {/* Features rapide */}
-        <section className="grid sm:grid-cols-3 gap-4">
-          {[
-            {
-              title: "Turnee",
-              desc: "Invită prietenii cu cod unic și urmăriți clasamentul împreună.",
-              href: "/turnee",
-              accent: "#22D3EE",
-            },
-            {
-              title: "Pronosticuri",
-              desc: "Meciuri, calificări din grupe și campion — punctaj cu cote Gemini.",
-              href: "/turnee",
-              accent: "#BEF264",
-            },
-            {
-              title: "CM 2026 Hub",
-              desc: "Clasament grupe, program cu stadion/locație și eliminări.",
-              href: "/matches",
-              accent: "#F472B6",
-            },
-          ].map((card) => (
-            <Link
-              key={card.title}
-              href={card.href}
-              className="rounded-2xl border p-5 transition hover:bg-white/[0.03]"
-              style={{ borderColor: "rgba(255,255,255,0.08)" }}
-            >
-              <div
-                className="w-10 h-1 rounded-full mb-4"
-                style={{ backgroundColor: card.accent }}
-              />
-              <h3 className="font-bold text-white mb-2">{card.title}</h3>
-              <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.5)" }}>
-                {card.desc}
-              </p>
-            </Link>
-          ))}
         </section>
       </div>
     </div>

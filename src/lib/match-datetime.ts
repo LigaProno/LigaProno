@@ -1,7 +1,7 @@
-export function formatMatchKickoff(isoUtc: string): string {
+export function formatMatchKickoff(isoUtc: string, locale = "ro-RO"): string {
   try {
     const d = new Date(isoUtc);
-    return new Intl.DateTimeFormat("ro-RO", {
+    return new Intl.DateTimeFormat(locale, {
       timeZone: "Europe/Bucharest",
       weekday: "short",
       day: "numeric",
