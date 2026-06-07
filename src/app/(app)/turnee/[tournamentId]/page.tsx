@@ -56,23 +56,46 @@ export default async function PartyTournamentPage({
   const { userId: clerkId } = await auth();
   if (!clerkId) redirect("/sign-in");
 
-  const user = await prisma.user.findUnique({ where: { clerkId } });
-  if (!user) redirect("/sign-in");
-
-  const tournament = await prisma.tournament.findUnique({
-    where: { id: tournamentId },
-    include: {
-      members: {
+  // Batch 1: user, tournament, matches, and predictions all run in parallel.
+  // Standings must wait for matches, so it runs in batch 2.
+  const [user, tournament, matchesRaw, wcMatchPreds, wcExtras] =
+    await Promise.all([
+      prisma.user.findUnique({ where: { clerkId } }),
+      prisma.tournament.findUnique({
+        where: { id: tournamentId },
         include: {
-          user: {
-            select: { id: true, firstName: true, lastName: true },
+          members: {
+            include: {
+              user: { select: { id: true, firstName: true, lastName: true } },
+            },
           },
+          bettingOdds: true,
         },
-      },
-      bettingOdds: true,
-    },
-  });
+      }),
+      (async (): Promise<{ matches: FootballDataMatch[]; error: string | null }> => {
+        const parsed = parseStoredCompetition(
+          // competition isn't available yet — re-parse after tournament loads,
+          // so we speculatively fetch WC 2026 (the only supported competition).
+          "WC_2026",
+        );
+        if (!parsed) return { matches: [], error: null };
+        try {
+          return {
+            matches: await fetchCompetitionMatches(parsed.code, parsed.season),
+            error: null,
+          };
+        } catch (e) {
+          return {
+            matches: [],
+            error: e instanceof Error ? e.message : "Could not load matches.",
+          };
+        }
+      })(),
+      prisma.wcMatchPrediction.findMany({ where: { tournamentId } }),
+      prisma.wcExtraPrediction.findMany({ where: { tournamentId } }),
+    ]);
 
+  if (!user) redirect("/sign-in");
   if (!tournament) notFound();
 
   const isMember = tournament.members.some((m) => m.userId === user.id);
@@ -82,21 +105,25 @@ export default async function PartyTournamentPage({
 
   const parsedCompetition = parseStoredCompetition(tournament.competition);
 
-  let matches: FootballDataMatch[] = [];
-  let loadError: string | null = null;
+  // Use speculatively-fetched matches only if the tournament is WC 2026.
+  let matches: FootballDataMatch[] =
+    isWorldCup2026Storage(tournament.competition) ? matchesRaw.matches : [];
+  let loadError: string | null =
+    isWorldCup2026Storage(tournament.competition) ? matchesRaw.error : null;
 
-  if (parsedCompetition) {
+  // If tournament uses a different competition, fetch it now (rare path).
+  if (parsedCompetition && !isWorldCup2026Storage(tournament.competition)) {
     try {
       matches = await fetchCompetitionMatches(
         parsedCompetition.code,
         parsedCompetition.season,
       );
     } catch (e) {
-      loadError =
-        e instanceof Error ? e.message : "Could not load matches.";
+      loadError = e instanceof Error ? e.message : "Could not load matches.";
     }
   }
 
+  // Batch 2: standings needs matches from batch 1.
   let standings: GroupStanding[] = [];
   if (parsedCompetition && !loadError) {
     try {
@@ -121,14 +148,6 @@ export default async function PartyTournamentPage({
   const canManualRefreshOddsTodayFlag = canManualRefreshOddsToday(
     tournament.lastManualOddsRefreshAt,
   );
-
-  const wcMatchPreds = await prisma.wcMatchPrediction.findMany({
-    where: { tournamentId },
-  });
-
-  const wcExtras = await prisma.wcExtraPrediction.findMany({
-    where: { tournamentId },
-  });
 
   const predsByUser = new Map<string, Map<number, MatchPredictionInput>>();
   for (const p of wcMatchPreds) {
