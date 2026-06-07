@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -11,6 +11,363 @@ import type {
 import { FootballDataMatchCard } from "@/components/world-cup/football-data-match-card";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { useLocale } from "@/components/i18n/locale-provider";
+
+// ---------------------------------------------------------------------------
+// Knockout bracket carousel
+// ---------------------------------------------------------------------------
+
+const KNOCKOUT_SHORT: Record<string, string> = {
+  "Round of 32": "R32",
+  "Round of 16": "R16",
+  "Quarter-finals": "QF",
+  "Semi-finals": "SF",
+  "Final": "Final",
+  "Third place": "3rd Place",
+};
+
+// Card height: active round gets full size, adjacent rounds get smaller cards
+const BK_CARD_H_MAIN = 72;
+const BK_CARD_H_SIDE = 52;
+// Slot height for the base (first/most-matches) round — card + gap
+const BK_SLOT = 84;
+// Gap between columns (space between active and adjacent round)
+const BK_COL_GAP = 28;
+// Previous rounds slide fully off-screen; active starts at left edge
+const BK_PEEK_L = 0;
+// Right margin — next-next round peeks this many pixels from the right edge
+const BK_PEEK_R = 12;
+
+function BracketMatchCard({
+  m,
+  width,
+  cardH,
+}: {
+  m: FootballDataMatch;
+  width: number;
+  cardH: number;
+}) {
+  const ft = m.score?.fullTime;
+  const winner = m.score?.winner;
+  const homeGoals = ft?.home;
+  const awayGoals = ft?.away;
+  const homeWon = winner === "HOME_TEAM";
+  const awayWon = winner === "AWAY_TEAM";
+  const hasResult = homeGoals != null && awayGoals != null;
+  const homeName =
+    m.homeTeam.shortName ?? m.homeTeam.tla ?? m.homeTeam.name ?? "TBD";
+  const awayName =
+    m.awayTeam.shortName ?? m.awayTeam.tla ?? m.awayTeam.name ?? "TBD";
+
+  const rowStyle = (dimmed: boolean): React.CSSProperties => ({
+    flex: 1,
+    display: "flex",
+    alignItems: "center",
+    padding: "0 10px",
+    gap: 6,
+    opacity: dimmed ? 0.38 : 1,
+    minWidth: 0,
+  });
+
+  return (
+    <div
+      style={{
+        width,
+        height: cardH,
+        backgroundColor: "#1E293B",
+        border: "1px solid rgba(255,255,255,0.1)",
+        borderRadius: 8,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <div style={rowStyle(hasResult && awayWon)}>
+        {m.homeTeam.crest ? (
+          <Image
+            src={m.homeTeam.crest}
+            alt=""
+            width={16}
+            height={16}
+            unoptimized
+            style={{ objectFit: "contain", flexShrink: 0 }}
+          />
+        ) : (
+          <div style={{ width: 16, height: 16, flexShrink: 0 }} />
+        )}
+        <span
+          style={{
+            flex: 1,
+            fontSize: 12,
+            fontWeight: 600,
+            color: "white",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {homeName}
+        </span>
+        {homeGoals != null && (
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 800,
+              fontVariantNumeric: "tabular-nums",
+              flexShrink: 0,
+              color: homeWon ? "#BEF264" : "rgba(255,255,255,0.6)",
+            }}
+          >
+            {homeGoals}
+          </span>
+        )}
+      </div>
+      <div
+        style={{ height: 1, backgroundColor: "rgba(255,255,255,0.08)", flexShrink: 0 }}
+      />
+      <div style={rowStyle(hasResult && homeWon)}>
+        {m.awayTeam.crest ? (
+          <Image
+            src={m.awayTeam.crest}
+            alt=""
+            width={16}
+            height={16}
+            unoptimized
+            style={{ objectFit: "contain", flexShrink: 0 }}
+          />
+        ) : (
+          <div style={{ width: 16, height: 16, flexShrink: 0 }} />
+        )}
+        <span
+          style={{
+            flex: 1,
+            fontSize: 12,
+            fontWeight: 600,
+            color: "white",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {awayName}
+        </span>
+        {awayGoals != null && (
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 800,
+              fontVariantNumeric: "tabular-nums",
+              flexShrink: 0,
+              color: awayWon ? "#BEF264" : "rgba(255,255,255,0.6)",
+            }}
+          >
+            {awayGoals}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function KnockoutCarousel({
+  blocks,
+}: {
+  blocks: { stageLabel: string; matches: FootballDataMatch[] }[];
+}) {
+  const thirdPlace = blocks.find((b) => b.stageLabel === "Third place");
+  const mainBlocks = blocks.filter((b) => b.stageLabel !== "Third place");
+  const [activeIdx, setActiveIdx] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerW, setContainerW] = useState(640);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(([entry]) =>
+      setContainerW(entry.contentRect.width),
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  if (mainBlocks.length === 0) return null;
+
+  const baseMatchCount = mainBlocks[0].matches.length;
+  // Full bracket height — used for the track so all bracket-spaced rounds fit inside it
+  const totalH = baseMatchCount * BK_SLOT;
+  // Compact container height — active round's matches at tight BK_SLOT spacing
+  const activeMatchCount = mainBlocks[activeIdx]?.matches.length ?? 1;
+  const containerH = activeMatchCount * BK_SLOT;
+
+  // Two columns must fit: BK_PEEK_L + colW + BK_COL_GAP + colW + BK_PEEK_R = containerW
+  const colW = Math.max(140, Math.floor(
+    (containerW - BK_PEEK_L - 2 * BK_COL_GAP - BK_PEEK_R) / 2,
+  ));
+  const colStep = colW + BK_COL_GAP;
+
+  // Translate track so active column starts at BK_PEEK_L from left
+  const trackX = BK_PEEK_L - activeIdx * colStep;
+
+  return (
+    <div>
+      {/* Round tabs */}
+      <div className="flex flex-wrap gap-2 mb-5">
+        {mainBlocks.map((block, i) => {
+          const isActive = i === activeIdx;
+          return (
+            <button
+              key={block.stageLabel}
+              type="button"
+              onClick={() => setActiveIdx(i)}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold tracking-wide transition-all cursor-pointer"
+              style={{
+                backgroundColor: isActive
+                  ? "rgba(34,211,238,0.15)"
+                  : "rgba(255,255,255,0.06)",
+                color: isActive ? "#22D3EE" : "rgba(255,255,255,0.45)",
+                border: isActive
+                  ? "1px solid rgba(34,211,238,0.35)"
+                  : "1px solid transparent",
+              }}
+            >
+              {KNOCKOUT_SHORT[block.stageLabel] ?? block.stageLabel}
+              <span className="ml-1.5 opacity-50 font-normal text-[10px]">
+                {block.matches.length}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Bracket container — height = active round compact height, clips overflow */}
+      <div
+        ref={containerRef}
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          height: containerH,
+          transition: "height 0.45s cubic-bezier(0.4,0,0.2,1)",
+        }}
+      >
+        {/* Right edge fade — softens the next-round peek */}
+        <div
+          className="pointer-events-none absolute inset-y-0 right-0 z-10"
+          style={{
+            width: 18,
+            background: "linear-gradient(to left, #0F172A 60%, transparent)",
+          }}
+        />
+
+        {/* Sliding track — moves horizontally to show active round */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: mainBlocks.length * colStep,
+            // Track must be tall enough for all bracket-spaced rounds
+            height: totalH,
+            transform: `translateX(${trackX}px)`,
+            transition: "transform 0.45s cubic-bezier(0.4,0,0.2,1)",
+          }}
+        >
+          {/* Connector SVGs — one per gap, visible only for active→next */}
+          {mainBlocks.slice(0, -1).map((block, ri) => {
+            const colX = ri * colStep;
+            const isActive = ri === activeIdx;
+            const pairCount = Math.floor(block.matches.length / 2);
+            const juncX = BK_COL_GAP / 2;
+            const CONN = "rgba(34,211,238,0.35)";
+            return (
+              <svg
+                key={`conn-${ri}`}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: colX + colW,
+                  width: BK_COL_GAP,
+                  height: totalH,
+                  pointerEvents: "none",
+                  opacity: isActive ? 1 : 0,
+                  transition: "opacity 0.3s ease",
+                }}
+              >
+                {Array.from({ length: pairCount }, (_, k) => {
+                  // Active round is compact (BK_SLOT), next uses 2×BK_SLOT
+                  // → next match k center = (2k+1)*BK_SLOT = pair midpoint ✓
+                  const topY = (2 * k + 0.5) * BK_SLOT;
+                  const botY = (2 * k + 1.5) * BK_SLOT;
+                  const midY = (2 * k + 1) * BK_SLOT;
+                  return (
+                    <g key={k} stroke={CONN} strokeWidth={1} fill="none">
+                      <line x1={0} y1={topY} x2={juncX} y2={topY} />
+                      <line x1={0} y1={botY} x2={juncX} y2={botY} />
+                      <line x1={juncX} y1={topY} x2={juncX} y2={botY} />
+                      <line x1={juncX} y1={midY} x2={BK_COL_GAP} y2={midY} />
+                    </g>
+                  );
+                })}
+              </svg>
+            );
+          })}
+
+          {/* Cards for every round */}
+          {mainBlocks.map((block, ri) => {
+            const colX = ri * colStep;
+            const offset = ri - activeIdx;
+            const cardH = offset === 0 ? BK_CARD_H_MAIN : BK_CARD_H_SIDE;
+            // Previous rounds off-screen (opacity 0), next round dimmed
+            const opacity = offset < 0 || offset > 1 ? 0 : offset === 0 ? 1 : 0.65;
+            // Active: compact (BK_SLOT). Next: 2×BK_SLOT so match k sits at
+            // midpoint of active pair k — enables clean ⌐ connectors.
+            // Previous: compact (BK_SLOT), cards off-screen to the left.
+            const slotH = BK_SLOT * Math.pow(2, Math.max(0, offset));
+
+            return block.matches.map((m, mi) => {
+              const cardTop = mi * slotH + (slotH - cardH) / 2;
+
+              return (
+                <div
+                  key={m.id}
+                  style={{
+                    position: "absolute",
+                    top: cardTop,
+                    left: colX,
+                    opacity,
+                    transition:
+                      "top 0.45s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease",
+                  }}
+                >
+                  <BracketMatchCard m={m} width={colW} cardH={cardH} />
+                </div>
+              );
+            });
+          })}
+        </div>
+      </div>
+
+      {/* 3rd place — shown only alongside the Final tab, visually secondary */}
+      {thirdPlace && thirdPlace.matches.length > 0 &&
+        activeIdx === mainBlocks.length - 1 && (
+          <div className="mt-5" style={{ opacity: 0.55 }}>
+            <p
+              className="text-[10px] font-bold uppercase tracking-widest mb-2"
+              style={{ color: "#fb923c" }}
+            >
+              Finala mică
+            </p>
+            {thirdPlace.matches.map((m) => (
+              <BracketMatchCard
+                key={m.id}
+                m={m}
+                width={colW}
+                cardH={BK_CARD_H_SIDE}
+              />
+            ))}
+          </div>
+        )}
+    </div>
+  );
+}
 
 type TabId = "standings" | "matches";
 
@@ -36,6 +393,9 @@ export function Cm2026FootballDataClient(props: {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [tab, setTabState] = useState<TabId>(initialTab);
+  const [matchSubTab, setMatchSubTab] = useState<string>(
+    () => groupKeysOrdered[0] ?? "__knockout__",
+  );
 
   useEffect(() => {
     const tabParam = searchParams.get("tab");
@@ -270,86 +630,77 @@ export function Cm2026FootballDataClient(props: {
           </div>
         </section>
       ) : (
-        <section className="space-y-12" aria-label={t("matches.tab.allMatches")}>
-          {groupKeysOrdered.length > 0 ? (
-            <div>
-              <h2
-                className="text-xl font-black mb-6 pb-2 border-b"
-                style={{ color: "#fff", borderColor: "rgba(34,211,238,0.35)" }}
+        <section aria-label="Matches">
+          {/* Sub-tab pills */}
+          <div className="flex gap-1.5 flex-wrap mb-8">
+            {groupKeysOrdered.map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setMatchSubTab(key)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                style={{
+                  backgroundColor: matchSubTab === key ? "rgba(34,211,238,0.18)" : "rgba(255,255,255,0.06)",
+                  color: matchSubTab === key ? "#22D3EE" : "rgba(255,255,255,0.5)",
+                  border: matchSubTab === key ? "1px solid rgba(34,211,238,0.3)" : "1px solid transparent",
+                }}
               >
-                {t("matches.groupStage")}
-              </h2>
-              <div className="space-y-10">
-                {groupKeysOrdered.map((key) => {
-                  const list = groupMatches[key] ?? [];
-                  return (
-                    <div key={`match-${key}`}>
-                      <h3
-                        className="text-base font-bold mb-4 text-center lg:text-left"
-                        style={{ color: "#BEF264" }}
-                      >
-                        {key}{" "}
-                        <span className="text-xs font-normal opacity-50">
-                          ({list.length})
-                        </span>
-                      </h3>
-                      {list.length === 0 ? (
-                        <p
-                          className="text-sm text-center py-4 max-w-xl mx-auto"
-                          style={{ color: "rgba(255,255,255,0.4)" }}
-                        >
-                          {t("matches.noGroupMatches")}
-                        </p>
-                      ) : (
-                        <div className="flex flex-col gap-3">
-                          {list.map((m) => (
-                            <FootballDataMatchCard key={m.id} m={m} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
+                {key}
+              </button>
+            ))}
+            {knockoutBlocks.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setMatchSubTab("__knockout__")}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                style={{
+                  backgroundColor: matchSubTab === "__knockout__" ? "rgba(190,242,100,0.15)" : "rgba(255,255,255,0.06)",
+                  color: matchSubTab === "__knockout__" ? "#BEF264" : "rgba(255,255,255,0.5)",
+                  border: matchSubTab === "__knockout__" ? "1px solid rgba(190,242,100,0.3)" : "1px solid transparent",
+                }}
+              >
+                Knockout
+              </button>
+            )}
+          </div>
 
-          {knockoutBlocks.length > 0 ? (
-            <div>
-              <h2
-                className="text-xl font-black mb-6 pb-2 border-b"
-                style={{ color: "#fff", borderColor: "rgba(34,211,238,0.35)" }}
-              >
-                {t("matches.knockoutStage")}
-              </h2>
-              <div className="space-y-10">
-                {knockoutBlocks.map(({ stageLabel, matches: ms }) => (
-                  <div key={stageLabel}>
-                    <h3
-                      className="text-base font-bold mb-4 text-center lg:text-left"
-                      style={{ color: "#22D3EE" }}
-                    >
-                      {stageLabel}{" "}
-                      <span className="text-xs font-normal opacity-50">
-                        ({ms.length})
-                      </span>
-                    </h3>
-                    <div className="flex flex-col gap-3">
-                      {ms.map((m) => (
-                        <FootballDataMatchCard key={m.id} m={m} />
-                      ))}
-                    </div>
+          {/* Group matches */}
+          {matchSubTab !== "__knockout__" && (() => {
+            const list = groupMatches[matchSubTab] ?? [];
+            return (
+              <div>
+                <h3
+                  className="text-base font-bold mb-4"
+                  style={{ color: "#BEF264" }}
+                >
+                  {matchSubTab}{" "}
+                  <span className="text-xs font-normal opacity-50">({list.length})</span>
+                </h3>
+                {list.length === 0 ? (
+                  <p className="text-sm py-4" style={{ color: "rgba(255,255,255,0.4)" }}>
+                    Nu există meciuri pentru această grupă.
+                  </p>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {list.map((m) => (
+                      <FootballDataMatchCard key={m.id} m={m} />
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            </div>
-          ) : null}
+            );
+          })()}
 
-          {groupKeysOrdered.length === 0 && knockoutBlocks.length === 0 ? (
+          {/* Knockout carousel */}
+          {matchSubTab === "__knockout__" && (
+            <KnockoutCarousel blocks={knockoutBlocks} />
+          )}
+
+          {groupKeysOrdered.length === 0 && knockoutBlocks.length === 0 && (
             <p style={{ color: "rgba(255,255,255,0.55)" }}>
               {t("matches.noMatchesAvailable")}
             </p>
-          ) : null}
+          )}
         </section>
       )}
     </div>
