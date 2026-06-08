@@ -1,5 +1,5 @@
 /**
- * Descarcă hero dashboard (720p max de pe YouTube) și  upscale la 1080p cu ffmpeg.
+ * Descarcă hero dashboard (720p max de pe YouTube) și   upscale la 1080p cu ffmpeg.
  *
  * Usage: npm run hero-video
  */
