@@ -11,7 +11,7 @@ import {
   fetchPartyStandings,
   getWorldCupCompetitionPickerOptions,
 } from "@/lib/football-data";
-import { parseStoredCompetition } from "@/lib/competition";
+import { parseStoredCompetition, isWorldCup2026Storage } from "@/lib/competition";
 import {
   getMatchPredictionLockReason,
   getPredictionLockMessage,
@@ -20,7 +20,7 @@ import {
   isKnockoutStage,
 } from "@/lib/knockout-predictions";
 import { isCompetitionUnderway } from "@/lib/prediction-window";
-import { outcomeFromScores } from "@/lib/wc-scoring";
+import { outcomeFromScores, validateWcAdvancingTeamIds } from "@/lib/wc-scoring";
 import { I18nError } from "@/lib/i18n/errors";
 
 function validOutcome(v: unknown): v is "HOME" | "AWAY" | "DRAW" | "" {
@@ -309,6 +309,7 @@ export async function saveWcExtraPrediction(
   }
 
   let teamToGroup = new Map<number, string>();
+  let groupKeys: string[] = [];
   try {
     const matches = await fetchCompetitionMatches(parsed.code, parsed.season);
     const standings = await fetchPartyStandings(
@@ -317,6 +318,7 @@ export async function saveWcExtraPrediction(
       matches,
     );
     teamToGroup = buildTeamIdToGroupKeyFromStandings(standings);
+    groupKeys = standings.map((g) => g.groupKey);
   } catch {
     /* If fixture data is unavailable, skip server-side per-group cap. */
   }
@@ -330,6 +332,22 @@ export async function saveWcExtraPrediction(
     for (const c of perGroup.values()) {
       if (c > 3) {
         throw new Error("You can save at most 3 teams from the same group.");
+      }
+    }
+
+    if (isWorldCup2026Storage(tournament.competition) && groupKeys.length > 0) {
+      const wcError = validateWcAdvancingTeamIds(clean, teamToGroup, groupKeys);
+      if (wcError === "max_per_group") {
+        throw new Error("You can save at most 3 teams from the same group.");
+      }
+      if (wcError === "min_per_group") {
+        throw new Error("You must pick at least 2 teams from each group.");
+      }
+      if (wcError === "max_total") {
+        throw new Error("You can pick at most 32 teams in total.");
+      }
+      if (wcError === "exact_total") {
+        throw new Error("You must pick exactly 32 teams in total.");
       }
     }
   }

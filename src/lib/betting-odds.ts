@@ -1,5 +1,8 @@
 export const BETTING_ODDS_SCHEMA_VERSION = 1 as const;
 
+/** Cotă folosită când scorul exact nu e în tabel (ex. 7-2); piețele listeză doar liniile uzuale. */
+export const CORRECT_SCORE_OTHER_ODD = 20;
+
 export type Odds1x2Outcome = "HOME" | "DRAW" | "AWAY";
 
 /** Cote 1X2 la pauză / final pentru un meci (format zecimal). */
@@ -153,19 +156,21 @@ export function scorelineKey(home: number, away: number): string {
   return `${home}-${away}`;
 }
 
-/** Cotă pentru scor exact: încearcă mai multe variații de cheie. */
+/** Cotă pentru scor exact: linie din tabel sau {@link CORRECT_SCORE_OTHER_ODD} dacă lipsește. */
 export function lookupCorrectScoreOdd(
   row: MatchOddsRow | null | undefined,
   home: number,
   away: number,
 ): number {
   if (!row) return 1;
+  const table = row.correctScore;
+  if (Object.keys(table).length === 0) return 1;
+
   const keys = [
     scorelineKey(home, away),
     `${home} - ${away}`,
     `${home}:${away}`,
   ].map((k) => k.replace(/\s+/g, "").toLowerCase());
-  const table = row.correctScore;
   for (const k of keys) {
     const v = table[k] ?? table[k.replace(/-/g, "—")];
     if (typeof v === "number" && Number.isFinite(v)) return clampOdd(v);
@@ -176,7 +181,7 @@ export function lookupCorrectScoreOdd(
       return clampOdd(v);
     }
   }
-  return 1;
+  return CORRECT_SCORE_OTHER_ODD;
 }
 
 export function lookup1x2Odd(

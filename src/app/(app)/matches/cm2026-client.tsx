@@ -11,6 +11,11 @@ import type {
 import { FootballDataMatchCard } from "@/components/world-cup/football-data-match-card";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { ThirdPlaceRankingTable } from "@/components/world-cup/third-place-ranking";
+import {
+  buildBestThirdPlacesRanking,
+  getStandingsQualificationMarks,
+} from "@/lib/wc-scoring";
 
 // ---------------------------------------------------------------------------
 // Knockout bracket carousel
@@ -421,6 +426,16 @@ export function Cm2026FootballDataClient(props: {
     [groupMatches, knockoutBlocks],
   );
 
+  const thirdPlaceRanking = useMemo(
+    () => buildBestThirdPlacesRanking(standings),
+    [standings],
+  );
+
+  const { directQualifyIds, thirdPlaceQualifyIds } = useMemo(
+    () => getStandingsQualificationMarks(standings),
+    [standings],
+  );
+
   return (
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-8">
@@ -505,6 +520,16 @@ export function Cm2026FootballDataClient(props: {
 
       {tab === "standings" ? (
         <section className="space-y-10" aria-label={t("matches.tab.standings")}>
+          <div className="flex flex-wrap gap-4 text-xs mb-2">
+            <span className="inline-flex items-center gap-2">
+              <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: "rgba(190,242,100,0.35)" }} />
+              {t("matches.standings.legendDirect")}
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: "rgba(34,211,238,0.25)" }} />
+              {t("matches.standings.legendThird")}
+            </span>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {standings.map((g) => (
               <div key={`stand-${g.letter}`}>
@@ -569,14 +594,27 @@ export function Cm2026FootballDataClient(props: {
                           </td>
                         </tr>
                       ) : (
-                        g.rows.map((row) => (
+                        g.rows.map((row) => {
+                          const teamId = row.team.id;
+                          const isDirect =
+                            teamId != null && directQualifyIds.has(teamId);
+                          const isThirdQualify =
+                            teamId != null && thirdPlaceQualifyIds.has(teamId);
+                          return (
                           <tr
                             key={
                               row.team.id ??
                               `${g.letter}-${row.position}-${row.team.name}`
                             }
                             className="border-t"
-                            style={{ borderColor: "rgba(255,255,255,0.06)" }}
+                            style={{
+                              borderColor: "rgba(255,255,255,0.06)",
+                              backgroundColor: isDirect
+                                ? "rgba(190,242,100,0.06)"
+                                : isThirdQualify
+                                  ? "rgba(34,211,238,0.06)"
+                                  : undefined,
+                            }}
                           >
                             <td className="px-3 py-3 tabular-nums text-white/60 align-middle">
                               {row.position}
@@ -620,7 +658,8 @@ export function Cm2026FootballDataClient(props: {
                               {row.points}
                             </td>
                           </tr>
-                        ))
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -628,6 +667,9 @@ export function Cm2026FootballDataClient(props: {
               </div>
             ))}
           </div>
+          {thirdPlaceRanking.length > 0 ?
+            <ThirdPlaceRankingTable entries={thirdPlaceRanking} />
+          : null}
         </section>
       ) : (
         <section aria-label="Matches">

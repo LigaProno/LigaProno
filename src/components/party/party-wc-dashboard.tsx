@@ -31,6 +31,12 @@ import {
   isKnockoutMatchPredictable,
 } from "@/lib/knockout-predictions";
 import { POINTS_PER_PREDICTION_CHANGE_AFTER_START } from "@/lib/prediction-window";
+import {
+  validateWcAdvancingTeamIds,
+  WC_QUALIFIERS_MAX_PER_GROUP,
+  WC_QUALIFIERS_MIN_PER_GROUP,
+  WC_QUALIFIERS_TOTAL,
+} from "@/lib/wc-scoring";
 import { PartyChampionSection } from "@/components/party/party-champion-section";
 import {
   PartyMatchPredictionCard,
@@ -174,6 +180,11 @@ export default function PartyWcDashboard({
     [standings],
   );
 
+  const groupKeys = useMemo(
+    () => standings.map((g) => g.groupKey),
+    [standings],
+  );
+
   const { groupBlocks, knockoutBlocks } = useMemo(() => {
     const { groups, knockoutByStageLabel } = partitionFootballDataMatches(matches);
     let groupKeysOrdered: string[];
@@ -310,11 +321,62 @@ export default function PartyWcDashboard({
     setChampionId(myExtra?.championTeamId != null ? String(myExtra.championTeamId) : "");
   }, [extraSyncKey]);
 
-  function toggleTeam(id: number) {
+  const advancingCount = advancing.size;
+
+  const qualifiersValidationError = useMemo(() => {
+    if (!wc2026Mode || groupKeys.length === 0) return null;
+    return validateWcAdvancingTeamIds(
+      [...advancing],
+      teamIdToGroupKey,
+      groupKeys,
+    );
+  }, [advancing, teamIdToGroupKey, groupKeys, wc2026Mode]);
+
+  const qualifiersSaveDisabled =
+    predictionsReadOnly ||
+    (wc2026Mode && qualifiersValidationError != null);
+
+  function qualifiersErrorMessage(
+    code: NonNullable<typeof qualifiersValidationError>,
+  ): string {
+    switch (code) {
+      case "max_per_group":
+        return t("party.qualifiers.error.maxPerGroup");
+      case "min_per_group":
+        return t("party.qualifiers.error.minPerGroup");
+      case "max_total":
+        return t("party.qualifiers.error.maxTotal");
+      case "exact_total":
+        return t("party.qualifiers.error.exactTotal");
+    }
+  }
+
+  function countInGroup(teamIds: Set<number>, groupKey: string): number {
+    let n = 0;
+    for (const tid of teamIds) {
+      if (teamIdToGroupKey.get(tid) === groupKey) n += 1;
+    }
+    return n;
+  }
+
+  function toggleTeam(id: number, groupKey: string) {
     setAdvancing((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      const inGroup = countInGroup(prev, groupKey);
+      if (next.has(id)) {
+        if (wc2026Mode && inGroup <= WC_QUALIFIERS_MIN_PER_GROUP) {
+          return prev;
+        }
+        next.delete(id);
+      } else {
+        if (wc2026Mode) {
+          if (inGroup >= WC_QUALIFIERS_MAX_PER_GROUP) return prev;
+          if (next.size >= WC_QUALIFIERS_TOTAL) return prev;
+        } else if (inGroup >= WC_QUALIFIERS_MAX_PER_GROUP) {
+          return prev;
+        }
+        next.add(id);
+      }
       return next;
     });
   }
@@ -367,7 +429,19 @@ export default function PartyWcDashboard({
           : null}
         </div>
         {competitionActive && wc2026Mode ?
-          <button
+          <div className="flex flex-col sm:flex-row gap-2 shrink-0 self-start">
+            <Link
+              href="/matches"
+              className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-xs font-bold border transition-opacity hover:opacity-90"
+              style={{
+                borderColor: "rgba(190,242,100,0.35)",
+                color: "#BEF264",
+                backgroundColor: "rgba(190,242,100,0.08)",
+              }}
+            >
+              {t("party.scheduleStandings")}
+            </Link>
+            <button
             type="button"
             disabled={pending}
             onClick={() => {
@@ -392,6 +466,7 @@ export default function PartyWcDashboard({
           >
             {t("party.refreshMatches")}
           </button>
+          </div>
         : null}
       </header>
 
@@ -750,8 +825,33 @@ export default function PartyWcDashboard({
                     <div>
                       <h3 className="text-lg font-bold text-white mb-1">{t("party.qualifiers.title")}</h3>
                       <p className="text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>
-                        {t("party.qualifiers.hint")}
+                        {wc2026Mode
+                          ? t("party.qualifiers.hintWc")
+                          : t("party.qualifiers.hint")}
                       </p>
+                      {wc2026Mode ?
+                        <p
+                          className="text-sm mt-2 font-semibold tabular-nums"
+                          style={{
+                            color:
+                              advancingCount === WC_QUALIFIERS_TOTAL
+                                ? "#BEF264"
+                                : advancingCount > WC_QUALIFIERS_TOTAL
+                                  ? "#f87171"
+                                  : "#22D3EE",
+                          }}
+                        >
+                          {t("party.qualifiers.selectedCount", {
+                            count: advancingCount,
+                            total: WC_QUALIFIERS_TOTAL,
+                          })}
+                        </p>
+                      : null}
+                      {wc2026Mode && qualifiersValidationError ?
+                        <p className="text-sm mt-1 text-amber-200/95">
+                          {qualifiersErrorMessage(qualifiersValidationError)}
+                        </p>
+                      : null}
                     </div>
                     {predictionsReadOnly ?
                       <p className="text-sm text-amber-200/95">
@@ -760,21 +860,52 @@ export default function PartyWcDashboard({
                     : null}
                     <div className="flex flex-col gap-6">
                       {standings.map((g) => {
-                        let selectedInGroup = 0;
-                        for (const tid of advancing) {
-                          if (teamIdToGroupKey.get(tid) === g.groupKey) selectedInGroup += 1;
-                        }
+                        const selectedInGroup = countInGroup(advancing, g.groupKey);
                         return (
                           <div key={g.groupKey}>
-                            <h4 className="text-white text-sm font-semibold mb-2">{g.groupKey}</h4>
+                            <div className="flex items-baseline justify-between gap-2 mb-2">
+                              <h4 className="text-white text-sm font-semibold">{g.groupKey}</h4>
+                              {wc2026Mode ?
+                                <span
+                                  className="text-[10px] font-bold tabular-nums"
+                                  style={{
+                                    color:
+                                      selectedInGroup < WC_QUALIFIERS_MIN_PER_GROUP
+                                        ? "rgba(251,191,36,0.95)"
+                                        : selectedInGroup > WC_QUALIFIERS_MAX_PER_GROUP
+                                          ? "#f87171"
+                                          : "rgba(255,255,255,0.45)",
+                                  }}
+                                >
+                                  {t("party.qualifiers.groupCount", {
+                                    count: selectedInGroup,
+                                    min: WC_QUALIFIERS_MIN_PER_GROUP,
+                                    max: WC_QUALIFIERS_MAX_PER_GROUP,
+                                  })}
+                                </span>
+                              : null}
+                            </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                               {g.rows.map((row) => {
                                 const id = row.team?.id;
                                 if (id === undefined) return null;
                                 const name = row.team.name ?? row.team.shortName ?? `#${id}`;
                                 const checked = advancing.has(id);
-                                const cannotAddMore = !checked && selectedInGroup >= 3;
-                                const checkboxDisabled = predictionsReadOnly || cannotAddMore;
+                                const pos = row.position ?? 0;
+                                const cannotAddMore =
+                                  !checked &&
+                                  (selectedInGroup >= WC_QUALIFIERS_MAX_PER_GROUP ||
+                                    (wc2026Mode && advancingCount >= WC_QUALIFIERS_TOTAL));
+                                const cannotRemove =
+                                  checked &&
+                                  wc2026Mode &&
+                                  selectedInGroup <= WC_QUALIFIERS_MIN_PER_GROUP;
+                                const checkboxDisabled =
+                                  predictionsReadOnly || cannotAddMore || cannotRemove;
+                                let title: string | undefined;
+                                if (cannotAddMore) title = t("party.qualifiers.maxPerGroup");
+                                else if (cannotRemove) title = t("party.qualifiers.minPerGroup");
+                                else if (wc2026Mode && pos <= 2) title = t("party.qualifiers.autoQualify");
                                 return (
                                   <label
                                     key={id}
@@ -789,15 +920,28 @@ export default function PartyWcDashboard({
                                       cursor: checkboxDisabled ? "not-allowed" : "pointer",
                                       opacity: checkboxDisabled ? 0.45 : 1,
                                     }}
-                                    title={cannotAddMore ? t("party.qualifiers.maxPerGroup") : undefined}
+                                    title={title}
                                   >
                                     <input
                                       type="checkbox"
                                       checked={checked}
                                       disabled={checkboxDisabled}
-                                      onChange={() => toggleTeam(id)}
+                                      onChange={() => toggleTeam(id, g.groupKey)}
                                       className="rounded border-gray-500 disabled:cursor-not-allowed w-4 h-4"
                                     />
+                                    <span
+                                      className="text-xs font-bold tabular-nums w-5 shrink-0 text-center"
+                                      style={{
+                                        color:
+                                          pos <= 2
+                                            ? "#BEF264"
+                                            : pos === 3
+                                              ? "#22D3EE"
+                                              : "rgba(255,255,255,0.35)",
+                                      }}
+                                    >
+                                      {pos || "—"}
+                                    </span>
                                     {row.team.crest ?
                                       <Image
                                         src={row.team.crest}
@@ -824,7 +968,7 @@ export default function PartyWcDashboard({
                     />
                     <button
                       type="button"
-                      disabled={pending || predictionsReadOnly}
+                      disabled={pending || qualifiersSaveDisabled}
                       onClick={() => {
                         setErr(null);
                         setMsg(null);

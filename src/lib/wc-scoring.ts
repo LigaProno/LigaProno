@@ -26,6 +26,14 @@ export const POINTS_FT_BASE = 1;
 export const POINTS_CORRECT_SCORE_BASE = 3;
 /** Punctaj de bază per echipă ghicită calificată din grupe. */
 export const POINTS_QUALIFIER_TEAM_BASE = 2.5;
+/** Total echipe calificate din faza grupelor la CM 2026. */
+export const WC_QUALIFIERS_TOTAL = 32;
+/** Minim echipe alese per grupă la pronosticul de calificare (loc 1 + 2). */
+export const WC_QUALIFIERS_MIN_PER_GROUP = 2;
+/** Maxim echipe alese per grupă (loc 1 + 2 + eventual loc 3). */
+export const WC_QUALIFIERS_MAX_PER_GROUP = 3;
+/** Cele mai bune locuri 3 care trec în optimi. */
+export const WC_BEST_THIRD_PLACES_COUNT = 8;
 /** Punctaj de bază pentru campion ghicit. */
 export const POINTS_CHAMPION_BASE = 12;
 
@@ -61,8 +69,22 @@ export function getFinalWinnerFromMatches(
   return finalWinnerTeamId(fin);
 }
 
+export type ThirdPlaceRankingEntry = {
+  rank: number;
+  qualifies: boolean;
+  groupLetter: string;
+  groupKey: string;
+  row: StandingTableRow;
+};
+
+export type WcQualifierValidationError =
+  | "max_per_group"
+  | "min_per_group"
+  | "max_total"
+  | "exact_total";
+
 /** Compară două rânduri de clasament (ex. locul 3 între grupe). */
-function compareRowsForCrossGroupRanking(
+export function compareRowsForCrossGroupRanking(
   a: StandingTableRow,
   b: StandingTableRow,
 ): number {
@@ -78,6 +100,92 @@ function compareRowsForCrossGroupRanking(
   const idA = a.team?.id ?? 0;
   const idB = b.team?.id ?? 0;
   return idA - idB;
+}
+
+/** Clasamentul celor 12 locuri 3; primele 8 trec în optimi. */
+export function buildBestThirdPlacesRanking(
+  standings: GroupStanding[],
+): ThirdPlaceRankingEntry[] {
+  const thirdPlaceRows: { group: GroupStanding; row: StandingTableRow }[] = [];
+
+  for (const g of standings) {
+    const rows = [...g.rows].sort(
+      (a, b) => (a.position ?? 999) - (b.position ?? 999),
+    );
+    if (rows.length >= 3) {
+      thirdPlaceRows.push({ group: g, row: rows[2]! });
+    }
+  }
+
+  thirdPlaceRows.sort((a, b) =>
+    compareRowsForCrossGroupRanking(a.row, b.row),
+  );
+
+  return thirdPlaceRows.map((entry, i) => ({
+    rank: i + 1,
+    qualifies: i < WC_BEST_THIRD_PLACES_COUNT,
+    groupLetter: entry.group.letter,
+    groupKey: entry.group.groupKey,
+    row: entry.row,
+  }));
+}
+
+/** ID-uri calificate direct (loc 1–2) și prin locul 3 (top 8). */
+export function getStandingsQualificationMarks(standings: GroupStanding[]): {
+  directQualifyIds: Set<number>;
+  thirdPlaceQualifyIds: Set<number>;
+} {
+  const directQualifyIds = new Set<number>();
+  for (const g of standings) {
+    const rows = [...g.rows].sort(
+      (a, b) => (a.position ?? 999) - (b.position ?? 999),
+    );
+    for (let i = 0; i < Math.min(2, rows.length); i++) {
+      const id = rows[i]?.team?.id;
+      if (id !== undefined) directQualifyIds.add(id);
+    }
+  }
+
+  const thirdPlaceQualifyIds = new Set<number>();
+  for (const entry of buildBestThirdPlacesRanking(standings)) {
+    if (!entry.qualifies) continue;
+    const id = entry.row.team?.id;
+    if (id !== undefined) thirdPlaceQualifyIds.add(id);
+  }
+
+  return { directQualifyIds, thirdPlaceQualifyIds };
+}
+
+/**
+ * Validare pronostic calificări CM 2026: 2–3 echipe/grupă, exact 32 în total.
+ * Returnează null dacă e valid, altfel codul erorii.
+ */
+export function validateWcAdvancingTeamIds(
+  teamIds: number[],
+  teamToGroup: Map<number, string>,
+  groupKeys: string[],
+): WcQualifierValidationError | null {
+  const perGroup = new Map<string, number>();
+  for (const gk of groupKeys) perGroup.set(gk, 0);
+
+  const seen = new Set<number>();
+  for (const id of teamIds) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const gk = teamToGroup.get(id);
+    if (!gk) continue;
+    perGroup.set(gk, (perGroup.get(gk) ?? 0) + 1);
+  }
+
+  if (seen.size > WC_QUALIFIERS_TOTAL) return "max_total";
+  if (seen.size !== WC_QUALIFIERS_TOTAL) return "exact_total";
+
+  for (const c of perGroup.values()) {
+    if (c > WC_QUALIFIERS_MAX_PER_GROUP) return "max_per_group";
+    if (c < WC_QUALIFIERS_MIN_PER_GROUP) return "min_per_group";
+  }
+
+  return null;
 }
 
 function collectLast32TeamIds(matches: FootballDataMatch[]): Set<number> {
@@ -119,12 +227,12 @@ function qualifiedSetFromStandings(
       if (id !== undefined) qualified.add(id);
     }
     if (rows.length >= 3) {
-      thirdPlaceRows.push(rows[2]);
+      thirdPlaceRows.push(rows[2]!);
     }
   }
 
   thirdPlaceRows.sort(compareRowsForCrossGroupRanking);
-  for (const row of thirdPlaceRows.slice(0, 8)) {
+  for (const row of thirdPlaceRows.slice(0, WC_BEST_THIRD_PLACES_COUNT)) {
     const id = row.team?.id;
     if (id !== undefined) qualified.add(id);
   }
