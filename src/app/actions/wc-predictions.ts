@@ -20,8 +20,14 @@ import {
   isKnockoutStage,
 } from "@/lib/knockout-predictions";
 import { isCompetitionUnderway } from "@/lib/prediction-window";
-import { outcomeFromScores, validateWcAdvancingTeamIds } from "@/lib/wc-scoring";
+import {
+  outcomeFromScores,
+  validateWcAdvancingTeamIds,
+  type WcQualifierValidationError,
+} from "@/lib/wc-scoring";
 import { I18nError } from "@/lib/i18n/errors";
+
+export type WcExtraSaveScope = "qualifiers" | "champion";
 
 function validOutcome(v: unknown): v is "HOME" | "AWAY" | "DRAW" | "" {
   return v === "HOME" || v === "AWAY" || v === "DRAW" || v === "";
@@ -98,6 +104,36 @@ async function isCompetitionUnderwayForStorage(
 
 function sortedTeamIds(ids: number[]): number[] {
   return [...ids].sort((a, b) => a - b);
+}
+
+function throwWcQualifierError(code: WcQualifierValidationError): never {
+  switch (code) {
+    case "max_per_group":
+      throw new Error("You can save at most 3 teams from the same group.");
+    case "min_per_group":
+      throw new Error("You must pick at least 2 teams from each group.");
+    case "max_total":
+      throw new Error("You can pick at most 32 teams in total.");
+    case "exact_total":
+      throw new Error("You must pick exactly 32 teams in total.");
+  }
+}
+
+function assertMaxThreePerGroup(
+  teamIds: number[],
+  teamToGroup: Map<number, string>,
+): void {
+  const perGroup = new Map<string, number>();
+  for (const id of teamIds) {
+    const gk = teamToGroup.get(id);
+    if (!gk) continue;
+    perGroup.set(gk, (perGroup.get(gk) ?? 0) + 1);
+  }
+  for (const c of perGroup.values()) {
+    if (c > 3) {
+      throw new Error("You can save at most 3 teams from the same group.");
+    }
+  }
 }
 
 function wcExtraPredictionChanged(
@@ -274,6 +310,7 @@ export async function saveWcExtraPrediction(
   tournamentId: string,
   advancingTeamIds: number[],
   championTeamId: number | null,
+  saveScope: WcExtraSaveScope = "qualifiers",
 ): Promise<void> {
   const { userId: clerkId } = await auth();
   if (!clerkId) throw new Error("Not authenticated.");
@@ -308,6 +345,12 @@ export async function saveWcExtraPrediction(
     clean.push(n);
   }
 
+  const existingExtra = await prisma.wcExtraPrediction.findUnique({
+    where: {
+      tournamentId_userId: { tournamentId, userId: user.id },
+    },
+  });
+
   let teamToGroup = new Map<number, string>();
   let groupKeys: string[] = [];
   try {
@@ -322,32 +365,30 @@ export async function saveWcExtraPrediction(
   } catch {
     /* If fixture data is unavailable, skip server-side per-group cap. */
   }
-  if (teamToGroup.size > 0) {
-    const perGroup = new Map<string, number>();
-    for (const id of clean) {
-      const gk = teamToGroup.get(id);
-      if (!gk) continue;
-      perGroup.set(gk, (perGroup.get(gk) ?? 0) + 1);
-    }
-    for (const c of perGroup.values()) {
-      if (c > 3) {
-        throw new Error("You can save at most 3 teams from the same group.");
-      }
-    }
 
-    if (isWorldCup2026Storage(tournament.competition) && groupKeys.length > 0) {
-      const wcError = validateWcAdvancingTeamIds(clean, teamToGroup, groupKeys);
-      if (wcError === "max_per_group") {
-        throw new Error("You can save at most 3 teams from the same group.");
+  let advancingToSave = clean;
+  if (teamToGroup.size > 0) {
+    const wcRulesApply =
+      isWorldCup2026Storage(tournament.competition) && groupKeys.length > 0;
+
+    if (saveScope === "qualifiers") {
+      assertMaxThreePerGroup(clean, teamToGroup);
+      if (wcRulesApply) {
+        const wcError = validateWcAdvancingTeamIds(clean, teamToGroup, groupKeys);
+        if (wcError != null) throwWcQualifierError(wcError);
       }
-      if (wcError === "min_per_group") {
-        throw new Error("You must pick at least 2 teams from each group.");
-      }
-      if (wcError === "max_total") {
-        throw new Error("You can pick at most 32 teams in total.");
-      }
-      if (wcError === "exact_total") {
-        throw new Error("You must pick exactly 32 teams in total.");
+    } else {
+      const cleanValid =
+        !wcRulesApply ||
+        validateWcAdvancingTeamIds(clean, teamToGroup, groupKeys) == null;
+
+      if (cleanValid && clean.length > 0) {
+        assertMaxThreePerGroup(clean, teamToGroup);
+        advancingToSave = clean;
+      } else if (existingExtra?.advancingTeamIds?.length) {
+        advancingToSave = existingExtra.advancingTeamIds;
+      } else {
+        advancingToSave = [];
       }
     }
   }
@@ -359,13 +400,7 @@ export async function saveWcExtraPrediction(
       championTeamId
     : null;
 
-  const existingExtra = await prisma.wcExtraPrediction.findUnique({
-    where: {
-      tournamentId_userId: { tournamentId, userId: user.id },
-    },
-  });
-
-  const nextExtra = { advancingTeamIds: clean, championTeamId: champ };
+  const nextExtra = { advancingTeamIds: advancingToSave, championTeamId: champ };
   const changed =
     !!existingExtra &&
     wcExtraPredictionChanged(
@@ -389,11 +424,11 @@ export async function saveWcExtraPrediction(
       create: {
         tournamentId,
         userId: user.id,
-        advancingTeamIds: clean,
+        advancingTeamIds: advancingToSave,
         championTeamId: champ,
       },
       update: {
-        advancingTeamIds: clean,
+        advancingTeamIds: advancingToSave,
         championTeamId: champ,
       },
     });

@@ -144,7 +144,7 @@ export const ro: Messages = {
   "party.champion.locked": "Pronosticul de campion este blocat după startul competiției.",
   "party.champion.savePenalty": "Salvarea dacă schimbă selecția costă {points} puncte.",
   "party.champion.saveButton": "Salvează campionul",
-  "party.champion.saved": "Campion și calificări salvate.",
+  "party.champion.saved": "Campion salvat.",
   "party.qualifiers.title": "Calificări în optimi",
   "party.qualifiers.hint": "Alege echipele care trec în faza eliminatorie. Maxim 3 din aceeași grupă.",
   "party.qualifiers.hintWc":

@@ -143,7 +143,7 @@ export const en: Messages = {
   "party.champion.locked": "Champion pick is locked after competition start.",
   "party.champion.savePenalty": "Saving a changed selection costs {points} points.",
   "party.champion.saveButton": "Save champion",
-  "party.champion.saved": "Champion and qualifiers saved.",
+  "party.champion.saved": "Champion saved.",
   "party.qualifiers.title": "Round of 16 qualifiers",
   "party.qualifiers.hint": "Pick teams that advance to knockout stage. Max 3 from the same group.",
   "party.qualifiers.hintWc":

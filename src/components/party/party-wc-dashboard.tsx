@@ -804,6 +804,7 @@ export default function PartyWcDashboard({
                               tournamentId,
                               [...advancing],
                               championId ? Number(championId) : null,
+                              "champion",
                             );
                             setMsg(t("party.champion.saved"));
                             router.refresh();
