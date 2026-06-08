@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { refreshOddsForTournament } from "@/lib/refresh-tournament-odds";
+import { refreshOddsForCompetition } from "@/lib/refresh-competition-odds";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -21,30 +21,35 @@ export async function GET(req: NextRequest) {
     where: {
       competition: { not: null },
     },
-    select: { id: true, competition: true, name: true },
+    select: { competition: true },
   });
 
+  const competitions = [
+    ...new Set(
+      tournaments
+        .map((t) => t.competition)
+        .filter((c): c is string => typeof c === "string" && c.length > 0),
+    ),
+  ];
+
   const results: {
-    tournamentId: string;
-    name: string;
+    competition: string;
     ok: boolean;
     matchCount?: number;
     error?: string;
   }[] = [];
 
-  for (const t of tournaments) {
-    const r = await refreshOddsForTournament(t.id);
+  for (const competition of competitions) {
+    const r = await refreshOddsForCompetition(competition);
     if (r.ok) {
       results.push({
-        tournamentId: t.id,
-        name: t.name,
+        competition,
         ok: true,
         matchCount: r.matchCount,
       });
     } else {
       results.push({
-        tournamentId: t.id,
-        name: t.name,
+        competition,
         ok: false,
         error: r.error,
       });

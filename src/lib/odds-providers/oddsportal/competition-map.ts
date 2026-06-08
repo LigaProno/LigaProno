@@ -49,4 +49,11 @@ export const TEAM_NAME_ALIASES: Record<string, string> = {
   "democratic republic of the congo": "d.r. congo",
   "congo dr": "d.r. congo",
   curacao: "curaçao",
+  "ir iran": "iran",
+  "iran ir": "iran",
+  "cape verde islands": "cape verde",
+  turkiye: "turkey",
+  "türkiye": "turkey",
+  "korea dpr": "north korea",
+  "dpr korea": "north korea",
 };

@@ -17,6 +17,10 @@ function isGoogleSearchGroundingEnabled(): boolean {
   return v !== "0" && v !== "false" && v !== "no" && v !== "off";
 }
 
+export function isGeminiApiKeyConfigured(): boolean {
+  return Boolean(process.env.GEMINI_API_KEY?.trim());
+}
+
 export function getGeminiApiKey(): string {
   const k = process.env.GEMINI_API_KEY?.trim();
   if (!k) {
@@ -135,14 +139,14 @@ Competition: ${competitionLabel}
 Teams (Football-Data numeric id TAB name):
 ${lines}
 
-You have access to Google Search. You MUST run web searches now (bookmakers, odds portals, sports news with betting lines) and base every numeric odd on what you find online for this competition. If sources disagree slightly, pick a sensible consensus decimal line.
+You have access to Google Search. Search for "to qualify from group" / "reach round of 32" / "group winner" style markets for this competition, plus outright winner odds.
 
 Return this exact shape:
 {
   "schemaVersion": ${BETTING_ODDS_SCHEMA_VERSION},
   "teams": {
     "<teamId as string>": {
-      "toQualifyFromGroup": <decimal odds for team to reach knockout from group stage, or null if not a group team>,
+      "toQualifyFromGroup": <decimal odds to reach knockout from group stage>,
       "outrightWinner": <decimal odds to win the whole competition>
     }
   },
@@ -151,6 +155,8 @@ Return this exact shape:
 
 Rules:
 - European decimal odds (e.g. 2.10). Each odds must be >= 1.01.
+- CRITICAL: every team in the list is a group-stage team. "toQualifyFromGroup" MUST be a number >= 1.01 for EVERY team id — never null.
+- If you cannot find an exact qualify market, estimate from outright winner and group strength (favorites ~1.05–1.40, mid-tier ~1.80–3.50, outsiders ~4–12).
 - Include every team id from the list in "teams".
 - "matches" must be an empty object {}.
 `;
@@ -241,15 +247,53 @@ export type FetchBettingOddsResult = {
   usedGoogleSearch: boolean;
 };
 
-/**
- * Construiește un snapshot de cote pentru competiție via Gemini.
- * Implicit folosește Grounding with Google Search ca modelul să poată căuta cote online.
- * Dezactivează cu GEMINI_ODDS_USE_GOOGLE_SEARCH=false dacă întâmpini erori de API sau limite de cost.
- */
-export async function fetchBettingOddsViaGemini(
+/** Doar cote echipă (calificare + campion) — un singur apel Gemini. */
+export async function fetchTeamOddsViaGemini(
+  competitionLabel: string,
+  teams: { id: number; name: string }[],
+  options?: { model?: string; googleSearch?: boolean },
+): Promise<FetchBettingOddsResult> {
+  const apiKey = getGeminiApiKey();
+  const model = (
+    options?.model ?? (process.env.GEMINI_ODDS_MODEL?.trim() || DEFAULT_MODEL)
+  ).trim();
+  const googleSearch =
+    options?.googleSearch ?? isGoogleSearchGroundingEnabled();
+
+  let payload: BettingOddsPayload = {
+    schemaVersion: BETTING_ODDS_SCHEMA_VERSION,
+    matches: {},
+    teams: {},
+  };
+
+  if (teams.length > 0) {
+    const raw = await callGeminiJson(apiKey, model, teamListPrompt(teams, competitionLabel), {
+      googleSearch,
+      timeoutMs: 120_000,
+    });
+    payload = mergePayload(payload, coercePayload(raw));
+
+    const missingQualify = teams.some(
+      (t) => payload.teams[String(t.id)]?.toQualifyFromGroup == null,
+    );
+    if (missingQualify && googleSearch) {
+      const rawRetry = await callGeminiJson(
+        apiKey,
+        model,
+        teamListPrompt(teams, competitionLabel),
+        { googleSearch: false, timeoutMs: 120_000 },
+      );
+      payload = mergePayload(payload, coercePayload(rawRetry));
+    }
+  }
+
+  return { payload, model, usedGoogleSearch: googleSearch };
+}
+
+/** Doar cote meci — batch-uri Gemini pentru lista dată. */
+export async function fetchMatchOddsViaGemini(
   competitionLabel: string,
   matches: FootballDataMatch[],
-  teams: { id: number; name: string }[],
   options?: { model?: string; googleSearch?: boolean },
 ): Promise<FetchBettingOddsResult> {
   const apiKey = getGeminiApiKey();
@@ -265,13 +309,6 @@ export async function fetchBettingOddsViaGemini(
     teams: {},
   };
 
-  if (teams.length > 0) {
-    const raw = await callGeminiJson(apiKey, model, teamListPrompt(teams, competitionLabel), {
-      googleSearch,
-    });
-    acc = mergePayload(acc, coercePayload(raw));
-  }
-
   for (let i = 0; i < matches.length; i += MATCH_BATCH) {
     const chunk = matches.slice(i, i + MATCH_BATCH);
     const raw = await callGeminiJson(
@@ -284,4 +321,26 @@ export async function fetchBettingOddsViaGemini(
   }
 
   return { payload: acc, model, usedGoogleSearch: googleSearch };
+}
+
+/**
+ * Construiește un snapshot de cote pentru competiție via Gemini.
+ * Implicit folosește Grounding with Google Search ca modelul să poată căuta cote online.
+ * Dezactivează cu GEMINI_ODDS_USE_GOOGLE_SEARCH=false dacă întâmpini erori de API sau limite de cost.
+ */
+export async function fetchBettingOddsViaGemini(
+  competitionLabel: string,
+  matches: FootballDataMatch[],
+  teams: { id: number; name: string }[],
+  options?: { model?: string; googleSearch?: boolean },
+): Promise<FetchBettingOddsResult> {
+  const teamResult = await fetchTeamOddsViaGemini(competitionLabel, teams, options);
+  const matchResult = await fetchMatchOddsViaGemini(competitionLabel, matches, options);
+  const payload = mergePayload(teamResult.payload, matchResult.payload);
+
+  return {
+    payload,
+    model: teamResult.model,
+    usedGoogleSearch: teamResult.usedGoogleSearch,
+  };
 }

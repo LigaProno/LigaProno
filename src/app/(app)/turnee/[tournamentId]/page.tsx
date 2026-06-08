@@ -17,6 +17,8 @@ import {
   isWorldCup2026Storage,
   parseStoredCompetition,
 } from "@/lib/competition";
+import { loadCompetitionOddsSnapshot } from "@/lib/competition-odds";
+import { loadMatchesWithCompetitionVenues } from "@/lib/competition-match-venues";
 import { canManualRefreshOddsToday } from "@/lib/odds-refresh-limit";
 import { prisma } from "@/lib/prisma";
 import {
@@ -27,10 +29,7 @@ import {
   matchResultHtFt,
 } from "@/lib/wc-pred-display";
 import type { NextThreeMatchPreds } from "@/components/party/next-three-predictions-panel";
-import {
-  parseBettingOddsPayload,
-  payloadToOddsMaps,
-} from "@/lib/betting-odds";
+import { payloadToOddsMaps } from "@/lib/betting-odds";
 import { isCompetitionUnderway } from "@/lib/prediction-window";
 import {
   computeUserWcTotals,
@@ -69,7 +68,6 @@ export default async function PartyTournamentPage({
               user: { select: { id: true, firstName: true, lastName: true } },
             },
           },
-          bettingOdds: true,
         },
       }),
       (async (): Promise<{ matches: FootballDataMatch[]; error: string | null }> => {
@@ -123,6 +121,13 @@ export default async function PartyTournamentPage({
     }
   }
 
+  if (parsedCompetition && !loadError && matches.length > 0) {
+    matches = await loadMatchesWithCompetitionVenues(
+      tournament.competition!,
+      matches,
+    );
+  }
+
   // Batch 2: standings needs matches from batch 1.
   let standings: GroupStanding[] = [];
   if (parsedCompetition && !loadError) {
@@ -145,8 +150,13 @@ export default async function PartyTournamentPage({
       collectTeamsFromMatches(matches)
     : [];
 
+  const competitionOddsSnapshot =
+    tournament.competition ?
+      await loadCompetitionOddsSnapshot(tournament.competition)
+    : null;
+
   const canManualRefreshOddsTodayFlag = canManualRefreshOddsToday(
-    tournament.lastManualOddsRefreshAt,
+    competitionOddsSnapshot?.lastManualRefreshAt,
   );
 
   const predsByUser = new Map<string, Map<number, MatchPredictionInput>>();
@@ -195,10 +205,7 @@ export default async function PartyTournamentPage({
       .sort((a, b) => a.displayName.localeCompare(b.displayName, "ro")),
   }));
 
-  const oddsPayload =
-    tournament.bettingOdds?.payload != null ?
-      parseBettingOddsPayload(tournament.bettingOdds.payload)
-    : null;
+  const oddsPayload = competitionOddsSnapshot?.payload ?? null;
   const oddsMaps = payloadToOddsMaps(oddsPayload);
 
   const competitionUnderway =
@@ -339,8 +346,10 @@ export default async function PartyTournamentPage({
         allTeams={allTeams}
         bettingOddsByMatchId={oddsPayload?.matches ?? {}}
         bettingOddsByTeamId={oddsPayload?.teams ?? {}}
-        bettingOddsFetchedAt={tournament.bettingOdds?.fetchedAt?.toISOString() ?? null}
-        lastManualOddsRefreshAt={tournament.lastManualOddsRefreshAt?.toISOString() ?? null}
+        bettingOddsFetchedAt={competitionOddsSnapshot?.fetchedAt?.toISOString() ?? null}
+        lastManualOddsRefreshAt={
+          competitionOddsSnapshot?.lastManualRefreshAt?.toISOString() ?? null
+        }
         canManualRefreshOddsToday={canManualRefreshOddsTodayFlag}
         nextThreeMemberPreds={nextThreeMemberPreds}
       />

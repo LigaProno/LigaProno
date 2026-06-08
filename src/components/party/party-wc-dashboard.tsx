@@ -32,6 +32,7 @@ import {
 } from "@/lib/knockout-predictions";
 import { POINTS_PER_PREDICTION_CHANGE_AFTER_START } from "@/lib/prediction-window";
 import {
+  countCompleteQualifierGroups,
   validateWcAdvancingTeamIds,
   WC_QUALIFIERS_MAX_PER_GROUP,
   WC_QUALIFIERS_MIN_PER_GROUP,
@@ -323,6 +324,15 @@ export default function PartyWcDashboard({
 
   const advancingCount = advancing.size;
 
+  const completeGroupsCount = useMemo(() => {
+    if (!wc2026Mode || groupKeys.length === 0) return 0;
+    return countCompleteQualifierGroups(
+      [...advancing],
+      teamIdToGroupKey,
+      groupKeys,
+    );
+  }, [advancing, teamIdToGroupKey, groupKeys, wc2026Mode]);
+
   const qualifiersValidationError = useMemo(() => {
     if (!wc2026Mode || groupKeys.length === 0) return null;
     return validateWcAdvancingTeamIds(
@@ -359,24 +369,11 @@ export default function PartyWcDashboard({
     return n;
   }
 
-  function toggleTeam(id: number, groupKey: string) {
+  function toggleTeam(id: number) {
     setAdvancing((prev) => {
       const next = new Set(prev);
-      const inGroup = countInGroup(prev, groupKey);
-      if (next.has(id)) {
-        if (wc2026Mode && inGroup <= WC_QUALIFIERS_MIN_PER_GROUP) {
-          return prev;
-        }
-        next.delete(id);
-      } else {
-        if (wc2026Mode) {
-          if (inGroup >= WC_QUALIFIERS_MAX_PER_GROUP) return prev;
-          if (next.size >= WC_QUALIFIERS_TOTAL) return prev;
-        } else if (inGroup >= WC_QUALIFIERS_MAX_PER_GROUP) {
-          return prev;
-        }
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }
@@ -835,7 +832,8 @@ export default function PartyWcDashboard({
                           className="text-sm mt-2 font-semibold tabular-nums"
                           style={{
                             color:
-                              advancingCount === WC_QUALIFIERS_TOTAL
+                              advancingCount === WC_QUALIFIERS_TOTAL &&
+                              completeGroupsCount === groupKeys.length
                                 ? "#BEF264"
                                 : advancingCount > WC_QUALIFIERS_TOTAL
                                   ? "#f87171"
@@ -845,6 +843,11 @@ export default function PartyWcDashboard({
                           {t("party.qualifiers.selectedCount", {
                             count: advancingCount,
                             total: WC_QUALIFIERS_TOTAL,
+                          })}
+                          {" · "}
+                          {t("party.qualifiers.completeGroupsCount", {
+                            count: completeGroupsCount,
+                            total: groupKeys.length,
                           })}
                         </p>
                       : null}
@@ -893,20 +896,11 @@ export default function PartyWcDashboard({
                                 const name = row.team.name ?? row.team.shortName ?? `#${id}`;
                                 const checked = advancing.has(id);
                                 const pos = row.position ?? 0;
-                                const cannotAddMore =
-                                  !checked &&
-                                  (selectedInGroup >= WC_QUALIFIERS_MAX_PER_GROUP ||
-                                    (wc2026Mode && advancingCount >= WC_QUALIFIERS_TOTAL));
-                                const cannotRemove =
-                                  checked &&
-                                  wc2026Mode &&
-                                  selectedInGroup <= WC_QUALIFIERS_MIN_PER_GROUP;
-                                const checkboxDisabled =
-                                  predictionsReadOnly || cannotAddMore || cannotRemove;
-                                let title: string | undefined;
-                                if (cannotAddMore) title = t("party.qualifiers.maxPerGroup");
-                                else if (cannotRemove) title = t("party.qualifiers.minPerGroup");
-                                else if (wc2026Mode && pos <= 2) title = t("party.qualifiers.autoQualify");
+                                const checkboxDisabled = predictionsReadOnly;
+                                const title =
+                                  wc2026Mode && pos <= 2
+                                    ? t("party.qualifiers.autoQualify")
+                                    : undefined;
                                 return (
                                   <label
                                     key={id}
@@ -927,7 +921,7 @@ export default function PartyWcDashboard({
                                       type="checkbox"
                                       checked={checked}
                                       disabled={checkboxDisabled}
-                                      onChange={() => toggleTeam(id, g.groupKey)}
+                                      onChange={() => toggleTeam(id)}
                                       className="rounded border-gray-500 disabled:cursor-not-allowed w-4 h-4"
                                     />
                                     <span

@@ -156,6 +156,7 @@ export const ro: Messages = {
   "party.qualifiers.minPerGroup": "Minim 2 echipe per grupă (locurile 1 și 2).",
   "party.qualifiers.autoQualify": "Calificare directă (loc 1 sau 2).",
   "party.qualifiers.selectedCount": "{count} / {total} echipe alese",
+  "party.qualifiers.completeGroupsCount": "{count} / {total} grupe complete",
   "party.qualifiers.groupCount": "{count} / {min}–{max}",
   "party.qualifiers.error.maxPerGroup": "Maxim 3 echipe per grupă.",
   "party.qualifiers.error.minPerGroup": "Minim 2 echipe per grupă.",

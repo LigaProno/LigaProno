@@ -60,6 +60,15 @@ export default async function PartyMemberPredictionsPage({
       parsedCompetition.code,
       parsedCompetition.season,
     );
+    if (tournament.competition) {
+      const { loadMatchesWithCompetitionVenues } = await import(
+        "@/lib/competition-match-venues"
+      );
+      matches = await loadMatchesWithCompetitionVenues(
+        tournament.competition,
+        matches,
+      );
+    }
   } catch (e) {
     loadError = e instanceof Error ? e.message : "Could not load matches.";
   }

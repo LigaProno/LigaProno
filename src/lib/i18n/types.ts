@@ -138,6 +138,7 @@ export type MessageKey =
   | "party.qualifiers.minPerGroup"
   | "party.qualifiers.autoQualify"
   | "party.qualifiers.selectedCount"
+  | "party.qualifiers.completeGroupsCount"
   | "party.qualifiers.groupCount"
   | "party.qualifiers.error.maxPerGroup"
   | "party.qualifiers.error.minPerGroup"

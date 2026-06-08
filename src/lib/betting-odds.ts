@@ -68,6 +68,39 @@ function normalizeCorrectScore(src: unknown): Record<string, number> {
   return out;
 }
 
+/**
+ * Estimează cota de calificare din grupe pornind de la cota de campion.
+ * OddsPortal nu publică piața de calificare; Gemini o lasă des null.
+ */
+export function estimateQualifyOddFromOutright(outrightWinner: number): number {
+  const o = Math.max(1.01, outrightWinner);
+  return clampOdd(Math.max(1.03, Math.min(15, Math.pow(o, 0.38))));
+}
+
+/** Completează toQualifyFromGroup lipsă folosind outrightWinner (sau o cotă implicită). */
+export function fillEstimatedQualifyOdds(
+  payload: BettingOddsPayload,
+  defaultQualifyOdd = 3.5,
+): BettingOddsPayload {
+  const teams: Record<string, TeamOddsRow> = {};
+  for (const [id, row] of Object.entries(payload.teams)) {
+    if (row.toQualifyFromGroup != null) {
+      teams[id] = row;
+      continue;
+    }
+    const estimated =
+      row.outrightWinner != null
+        ? estimateQualifyOddFromOutright(row.outrightWinner)
+        : defaultQualifyOdd;
+    teams[id] = { ...row, toQualifyFromGroup: estimated };
+  }
+  return { ...payload, teams };
+}
+
+export function countTeamsWithQualifyOdds(payload: BettingOddsPayload): number {
+  return Object.values(payload.teams).filter((r) => r.toQualifyFromGroup != null).length;
+}
+
 function normalizeTeamRow(src: unknown): TeamOddsRow {
   if (!src || typeof src !== "object") {
     return { toQualifyFromGroup: null, outrightWinner: null };
@@ -118,6 +151,67 @@ export function parseBettingOddsPayload(raw: unknown): BettingOddsPayload | null
 }
 
 /** Normalizează toate valorile numerice după un răspuns Gemini. */
+function allOutcomesAreOne(row: Record<Odds1x2Outcome, number>): boolean {
+  return row.HOME === 1 && row.DRAW === 1 && row.AWAY === 1;
+}
+
+/** True dacă rândul pare să vină dintr-o sursă reală (nu doar fallback ×1). */
+export function hasUsableMatchOdds(row: MatchOddsRow | null | undefined): boolean {
+  if (!row) return false;
+  if (!allOutcomesAreOne(row.ft1x2)) return true;
+  if (!allOutcomesAreOne(row.ht1x2)) return true;
+  return Object.keys(row.correctScore).length >= 3;
+}
+
+function mergeTeamOddsRow(preferred: TeamOddsRow, fallback?: TeamOddsRow): TeamOddsRow {
+  const fb = fallback ?? { toQualifyFromGroup: null, outrightWinner: null };
+  return {
+    toQualifyFromGroup: preferred.toQualifyFromGroup ?? fb.toQualifyFromGroup,
+    outrightWinner: preferred.outrightWinner ?? fb.outrightWinner,
+  };
+}
+
+/**
+ * Combină două snapshot-uri: valorile din `preferred` au prioritate când sunt utilizabile,
+ * altfel se păstrează `fallback` (util la refresh parțial OddsPortal + completare Gemini).
+ */
+export function mergeBettingPayloads(
+  preferred: BettingOddsPayload,
+  fallback: BettingOddsPayload,
+): BettingOddsPayload {
+  const matchIds = new Set([
+    ...Object.keys(preferred.matches),
+    ...Object.keys(fallback.matches),
+  ]);
+  const matches: Record<string, MatchOddsRow> = {};
+  for (const id of matchIds) {
+    const p = preferred.matches[id];
+    const f = fallback.matches[id];
+    if (p && hasUsableMatchOdds(p)) matches[id] = p;
+    else if (f && hasUsableMatchOdds(f)) matches[id] = f;
+    else if (p) matches[id] = p;
+    else if (f) matches[id] = f;
+  }
+
+  const teamIds = new Set([
+    ...Object.keys(preferred.teams),
+    ...Object.keys(fallback.teams),
+  ]);
+  const teams: Record<string, TeamOddsRow> = {};
+  for (const id of teamIds) {
+    teams[id] = mergeTeamOddsRow(
+      preferred.teams[id] ?? { toQualifyFromGroup: null, outrightWinner: null },
+      fallback.teams[id],
+    );
+  }
+
+  return {
+    schemaVersion: BETTING_ODDS_SCHEMA_VERSION,
+    matches,
+    teams,
+  };
+}
+
 export function sanitizeBettingPayload(input: BettingOddsPayload): BettingOddsPayload {
   const matches: Record<string, MatchOddsRow> = {};
   for (const [k, v] of Object.entries(input.matches)) {

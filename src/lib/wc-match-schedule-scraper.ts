@@ -59,15 +59,13 @@ export function enrichMatchesWithScrapedSchedule(
   });
 }
 
+/** @deprecated Folosește loadMatchesWithCompetitionVenues (cache DB, un singur scrape). */
 export async function enrichWorldCupMatchesWithSchedule(
   matches: FootballDataMatch[],
 ): Promise<FootballDataMatch[]> {
-  try {
-    const fixtures = await fetchWc2026ScheduleFixtures();
-    if (fixtures.length === 0) return matches;
-    return enrichMatchesWithScrapedSchedule(matches, fixtures);
-  } catch (e) {
-    console.warn("enrichWorldCupMatchesWithSchedule:", e);
-    return matches;
-  }
+  const { COMPETITION_WC_2026 } = await import("@/lib/competition");
+  const { loadMatchesWithCompetitionVenues } = await import(
+    "@/lib/competition-match-venues"
+  );
+  return loadMatchesWithCompetitionVenues(COMPETITION_WC_2026, matches);
 }

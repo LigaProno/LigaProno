@@ -155,6 +155,7 @@ export const en: Messages = {
   "party.qualifiers.minPerGroup": "Minimum 2 teams per group (places 1 and 2).",
   "party.qualifiers.autoQualify": "Direct qualification (place 1 or 2).",
   "party.qualifiers.selectedCount": "{count} / {total} teams selected",
+  "party.qualifiers.completeGroupsCount": "{count} / {total} complete groups",
   "party.qualifiers.groupCount": "{count} / {min}–{max}",
   "party.qualifiers.error.maxPerGroup": "Maximum 3 teams per group.",
   "party.qualifiers.error.minPerGroup": "Minimum 2 teams per group.",

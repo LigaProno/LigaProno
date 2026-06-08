@@ -1,5 +1,6 @@
 import {
   BETTING_ODDS_SCHEMA_VERSION,
+  fillEstimatedQualifyOdds,
   type BettingOddsPayload,
   type MatchOddsRow,
   type TeamOddsRow,
@@ -105,11 +106,11 @@ export class OddsPortalProvider implements OddsProvider {
       throw new Error(`OddsPortal: niciun meci actualizat. ${errors.slice(0, 3).join(" | ")}`);
     }
 
-    const payload: BettingOddsPayload = {
+    const payload: BettingOddsPayload = fillEstimatedQualifyOdds({
       schemaVersion: BETTING_ODDS_SCHEMA_VERSION,
       matches,
       teams,
-    };
+    });
 
     return { payload, provider: this.name };
   }

@@ -188,6 +188,33 @@ export function validateWcAdvancingTeamIds(
   return null;
 }
 
+/** Grupe cu 2–3 echipe alese (valid pentru salvare CM 2026). */
+export function countCompleteQualifierGroups(
+  teamIds: number[],
+  teamToGroup: Map<number, string>,
+  groupKeys: string[],
+): number {
+  const perGroup = new Map<string, number>();
+  for (const gk of groupKeys) perGroup.set(gk, 0);
+
+  const seen = new Set<number>();
+  for (const id of teamIds) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const gk = teamToGroup.get(id);
+    if (!gk) continue;
+    perGroup.set(gk, (perGroup.get(gk) ?? 0) + 1);
+  }
+
+  let complete = 0;
+  for (const c of perGroup.values()) {
+    if (c >= WC_QUALIFIERS_MIN_PER_GROUP && c <= WC_QUALIFIERS_MAX_PER_GROUP) {
+      complete += 1;
+    }
+  }
+  return complete;
+}
+
 function collectLast32TeamIds(matches: FootballDataMatch[]): Set<number> {
   const last32 = new Set<number>();
   for (const m of matches) {

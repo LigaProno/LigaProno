@@ -44,16 +44,30 @@ function teamsMatch(a: string, b: string): boolean {
   return false;
 }
 
+function fdTeamNameVariants(team: FootballDataMatch["homeTeam"]): string[] {
+  const names = [team.name, team.shortName, team.tla].filter(
+    (v): v is string => typeof v === "string" && v.trim().length > 0,
+  );
+  return [...new Set(names)];
+}
+
+function fixtureSideMatchesFdTeam(
+  fixtureSide: string,
+  fdTeam: FootballDataMatch["homeTeam"],
+): boolean {
+  return fdTeamNameVariants(fdTeam).some((name) => teamsMatch(fixtureSide, name));
+}
+
 export function matchFixtureToFootballData(
   fixture: OpFixture,
   fdMatch: FootballDataMatch,
 ): boolean {
-  const homeFd = fdMatch.homeTeam.name ?? fdMatch.homeTeam.shortName ?? "";
-  const awayFd = fdMatch.awayTeam.name ?? fdMatch.awayTeam.shortName ?? "";
   const homeOk =
-    teamsMatch(fixture.home, homeFd) || teamsMatch(fixture.away, homeFd);
+    fixtureSideMatchesFdTeam(fixture.home, fdMatch.homeTeam) ||
+    fixtureSideMatchesFdTeam(fixture.away, fdMatch.homeTeam);
   const awayOk =
-    teamsMatch(fixture.away, awayFd) || teamsMatch(fixture.home, awayFd);
+    fixtureSideMatchesFdTeam(fixture.away, fdMatch.awayTeam) ||
+    fixtureSideMatchesFdTeam(fixture.home, fdMatch.awayTeam);
   if (!homeOk || !awayOk) return false;
 
   const fdMs = parseFdMatchMs(fdMatch);

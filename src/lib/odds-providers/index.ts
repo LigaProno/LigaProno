@@ -15,6 +15,12 @@ export function isOddsFallbackGeminiEnabled(): boolean {
   return v !== "0" && v !== "false" && v !== "no" && v !== "off";
 }
 
+/** Completează cu Gemini cotele lipsă după OddsPortal (calificări, meciuri nemapate). */
+export function isOddsSupplementGeminiEnabled(): boolean {
+  const v = (process.env.ODDS_SUPPLEMENT_GEMINI ?? "true").trim().toLowerCase();
+  return v !== "0" && v !== "false" && v !== "no" && v !== "off";
+}
+
 export function getOddsProvider(name?: OddsProviderName): OddsProvider {
   const n = name ?? resolveOddsProviderName();
   return n === "gemini" ? geminiOddsProvider : oddsPortalProvider;

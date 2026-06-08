@@ -157,6 +157,16 @@ function scoreUserInContext(
 
 // Recomputes scores for every member of every competition tournament and
 // writes the results back to TournamentMember. Called by the cron job.
+async function loadCompetitionOddsPayloadMap(
+  competitions: string[],
+): Promise<Map<string, unknown>> {
+  const rows = await prisma.competitionBettingOdds.findMany({
+    where: { competition: { in: competitions } },
+    select: { competition: true, payload: true },
+  });
+  return new Map(rows.map((r) => [r.competition, r.payload]));
+}
+
 export async function refreshAllScores(): Promise<{ updated: number; errors: number }> {
   const tournaments = await prisma.tournament.findMany({
     where: { competition: { not: null } },
@@ -166,11 +176,25 @@ export async function refreshAllScores(): Promise<{ updated: number; errors: num
     },
   });
 
+  const competitions = [
+    ...new Set(
+      tournaments
+        .map((t) => t.competition)
+        .filter((c): c is string => typeof c === "string" && c.length > 0),
+    ),
+  ];
+  const oddsByCompetition = await loadCompetitionOddsPayloadMap(competitions);
+
   let updated = 0;
   let errors = 0;
 
   for (const tournament of tournaments) {
     if (!tournament.competition) continue;
+
+    const oddsPayload =
+      oddsByCompetition.get(tournament.competition) ??
+      tournament.bettingOdds?.payload ??
+      null;
 
     let ctx: TournamentContext | null = null;
     try {
@@ -178,7 +202,7 @@ export async function refreshAllScores(): Promise<{ updated: number; errors: num
         tournament.id,
         tournament.name,
         tournament.competition,
-        tournament.bettingOdds?.payload ?? null,
+        oddsPayload,
       );
     } catch {
       errors++;
@@ -278,15 +302,28 @@ async function buildGlobalLeaderboardRealtime(): Promise<GlobalLeaderboardRow[]>
     },
   });
 
+  const competitions = [
+    ...new Set(
+      tournaments
+        .map((t) => t.competition)
+        .filter((c): c is string => typeof c === "string" && c.length > 0),
+    ),
+  ];
+  const oddsByCompetition = await loadCompetitionOddsPayloadMap(competitions);
+
   const bestByUser = new Map<string, GlobalLeaderboardRow>();
 
   for (const tournament of tournaments) {
     if (!tournament.competition) continue;
+    const oddsPayload =
+      oddsByCompetition.get(tournament.competition) ??
+      tournament.bettingOdds?.payload ??
+      null;
     const ctx = await loadTournamentContext(
       tournament.id,
       tournament.name,
       tournament.competition,
-      tournament.bettingOdds?.payload ?? null,
+      oddsPayload,
     );
     if (!ctx) continue;
 

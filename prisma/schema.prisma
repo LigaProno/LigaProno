@@ -41,7 +41,29 @@ model Tournament {
   updatedAt            DateTime             @updatedAt
 }
 
-// Snapshot cote (OddsPortal / Gemini) folosit la punctaj: bază × cotă pentru rezultatul real.
+// Stadion + oră (scraping OddsPortal) per meci, partajat per competiție — populat o singură dată.
+model CompetitionMatchVenues {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  competition String   @unique
+  venues      Json
+  source      String?
+  fetchedAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Snapshot cote partajat de toate party-urile aceleiași competiții (ex. WC_2026).
+model CompetitionBettingOdds {
+  id                    String   @id @default(auto()) @map("_id") @db.ObjectId
+  competition           String   @unique
+  payload               Json
+  oddsSource            String?
+  geminiModel           String?
+  fetchedAt             DateTime @default(now())
+  lastManualRefreshAt   DateTime?
+  updatedAt             DateTime @updatedAt
+}
+
+// Snapshot cote per party (legacy) — citire doar ca fallback până la migrare.
 model TournamentBettingOdds {
   id           String     @id @default(auto()) @map("_id") @db.ObjectId
   tournamentId String     @unique @db.ObjectId

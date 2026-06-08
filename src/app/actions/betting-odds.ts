@@ -2,7 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
-import { refreshOddsForTournament } from "@/lib/refresh-tournament-odds";
+import { refreshOddsForCompetition } from "@/lib/refresh-competition-odds";
 import { canManualRefreshOddsToday } from "@/lib/odds-refresh-limit";
 import { I18nError } from "@/lib/i18n/errors";
 
@@ -33,18 +33,23 @@ export async function refreshTournamentBettingOdds(
     throw new I18nError("errors.competitionRequiredForOdds");
   }
 
-  if (!canManualRefreshOddsToday(tournament.lastManualOddsRefreshAt)) {
+  const competitionOdds = await prisma.competitionBettingOdds.findUnique({
+    where: { competition: tournament.competition },
+  });
+
+  if (!canManualRefreshOddsToday(competitionOdds?.lastManualRefreshAt)) {
     throw new I18nError("errors.oddsOncePerDay");
   }
 
-  const result = await refreshOddsForTournament(tournamentId);
+  const result = await refreshOddsForCompetition(tournament.competition);
   if (!result.ok) {
     throw new Error(result.error);
   }
 
-  await prisma.tournament.update({
-    where: { id: tournamentId },
-    data: { lastManualOddsRefreshAt: new Date() },
+  const now = new Date();
+  await prisma.competitionBettingOdds.update({
+    where: { competition: tournament.competition },
+    data: { lastManualRefreshAt: now },
   });
 
   return {

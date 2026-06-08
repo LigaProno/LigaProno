@@ -10,7 +10,8 @@ import {
   type FootballDataMatch,
   type GroupStanding,
 } from "@/lib/football-data";
-import { enrichWorldCupMatchesWithSchedule } from "@/lib/wc-match-schedule-scraper";
+import { COMPETITION_WC_2026 } from "@/lib/competition";
+import { loadMatchesWithCompetitionVenues } from "@/lib/competition-match-venues";
 import { Cm2026FootballDataClient } from "./cm2026-client";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { MatchesLoading } from "@/components/matches/matches-loading";
@@ -38,7 +39,7 @@ export default async function MatchesPage({
 
   try {
     matches = await fetchWorldCupMatchesFootballData();
-    matches = await enrichWorldCupMatchesWithSchedule(matches);
+    matches = await loadMatchesWithCompetitionVenues(COMPETITION_WC_2026, matches);
   } catch (e) {
     loadError =
       e instanceof Error ? e.message : t("matches.loadErrorDefault");
