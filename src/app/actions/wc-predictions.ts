@@ -268,8 +268,6 @@ export async function saveWcMatchPrediction(
     }
   });
 
-  revalidatePath(`/turnee/${tournamentId}`);
-  revalidatePath("/turnee/clasament");
 }
 
 export async function saveWcExtraPrediction(
@@ -393,8 +391,6 @@ export async function saveWcExtraPrediction(
     }
   });
 
-  revalidatePath(`/turnee/${tournamentId}`);
-  revalidatePath("/turnee/clasament");
 }
 
 function shuffleInPlace<T>(arr: T[]): void {
