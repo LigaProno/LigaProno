@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { FootballDataMatch, FootballDataTeam, GroupStanding } from "@/lib/football-data";
 import {
@@ -21,6 +21,7 @@ import { refreshTournamentBettingOdds } from "@/app/actions/betting-odds";
 import {
   refreshTournamentMatches,
   saveWcExtraPrediction,
+  saveWcMatchPrediction,
   simulateRandomClPredictionsForMe,
 } from "@/app/actions/wc-predictions";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -42,6 +43,7 @@ import { PartyChampionSection } from "@/components/party/party-champion-section"
 import {
   PartyMatchPredictionCard,
   predFromSaved,
+  type MatchPredictionSaveInput,
 } from "@/components/party/party-match-prediction-card";
 import {
   PartyPredictionNav,
@@ -55,7 +57,7 @@ import {
   NextThreePredictionsPanel,
   type NextThreeMatchPreds,
 } from "@/components/party/next-three-predictions-panel";
-import { WC_CYAN, WC_SLATE } from "@/components/world-cup/wc-theme";
+import { WC_CYAN, WC_LIME, WC_SLATE } from "@/components/world-cup/wc-theme";
 import { LeaderboardTh } from "@/components/ui/column-header-tip";
 
 export type LeaderboardRow = {
@@ -160,6 +162,20 @@ export default function PartyWcDashboard({
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [simDevNote, setSimDevNote] = useState<string | null>(null);
+  const matchDraftGettersRef = useRef(
+    new Map<number, () => MatchPredictionSaveInput>(),
+  );
+
+  const registerMatchDraft = useCallback(
+    (matchId: number, getPayload: () => MatchPredictionSaveInput) => {
+      matchDraftGettersRef.current.set(matchId, getPayload);
+    },
+    [],
+  );
+
+  const unregisterMatchDraft = useCallback((matchId: number) => {
+    matchDraftGettersRef.current.delete(matchId);
+  }, []);
 
   const wc2026Mode = isWorldCup2026Storage(competition);
   const competitionActive = parseStoredCompetition(competition) != null;
@@ -296,6 +312,8 @@ export default function PartyWcDashboard({
         initial={predFromSaved(myPreds[m.id])}
         predictionLockedReason={lockReasonForMatch(m)}
         midCompetitionPenaltyMode={midCompetitionPenaltyMode}
+        registerMatchDraft={registerMatchDraft}
+        unregisterMatchDraft={unregisterMatchDraft}
         onSaved={() => {
           setMsg(t("party.predictionSaved"));
           setErr(null);
@@ -307,6 +325,27 @@ export default function PartyWcDashboard({
         }}
       />
     );
+  }
+
+  function handleSaveAllGroupPredictions() {
+    setErr(null);
+    setMsg(null);
+    startTransition(async () => {
+      try {
+        const toSave = selectedGroupMatches.filter(
+          (m) => m.status !== "FINISHED" && lockReasonForMatch(m) == null,
+        );
+        for (const m of toSave) {
+          const getPayload = matchDraftGettersRef.current.get(m.id);
+          if (!getPayload) continue;
+          await saveWcMatchPrediction(tournamentId, m.id, getPayload());
+        }
+        setMsg(t("party.group.saveAllSuccess"));
+        router.refresh();
+      } catch (e) {
+        setErr(formatCaughtError(e, t));
+      }
+    });
   }
 
   const [advancing, setAdvancing] = useState<Set<number>>(
@@ -991,9 +1030,24 @@ export default function PartyWcDashboard({
 
                 {predictionPhase === "groups" && (
                   <>
-                    <h3 className="text-lg font-bold text-white">
-                      {t("party.group.title", { letter: groupLetter })}
-                    </h3>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <h3 className="text-lg font-bold text-white">
+                        {t("party.group.title", { letter: groupLetter })}
+                      </h3>
+                      {!predictionsReadOnly && selectedGroupMatches.length > 0 ?
+                        <button
+                          type="button"
+                          disabled={pending}
+                          onClick={handleSaveAllGroupPredictions}
+                          className="self-start px-6 py-3 rounded-xl font-bold text-sm disabled:opacity-50 cursor-pointer hover:opacity-90 active:scale-[0.98]"
+                          style={{ backgroundColor: WC_LIME, color: "#0F172A" }}
+                        >
+                          {pending ?
+                            t("party.group.savingAll")
+                          : t("party.group.saveAllButton")}
+                        </button>
+                      : null}
+                    </div>
                     {selectedGroupMatches.length === 0 ?
                       <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
                         {t("party.group.noMatches")}

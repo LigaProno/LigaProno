@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { FootballDataMatch } from "@/lib/football-data";
 import { venueLabel } from "@/lib/football-data";
 import { formatMatchKickoff } from "@/lib/match-datetime";
@@ -116,6 +116,22 @@ function OutcomeButtons({
   );
 }
 
+export type MatchPredictionSaveInput = {
+  htOutcome: string | null;
+  ftOutcome: string | null;
+  predHomeGoals: number | null;
+  predAwayGoals: number | null;
+};
+
+function toSaveInput(p: MatchPredState): MatchPredictionSaveInput {
+  return {
+    htOutcome: p.htOutcome || null,
+    ftOutcome: p.ftOutcome || null,
+    predHomeGoals: p.predHomeGoals === "" ? null : Number(p.predHomeGoals),
+    predAwayGoals: p.predAwayGoals === "" ? null : Number(p.predAwayGoals),
+  };
+}
+
 export function PartyMatchPredictionCard({
   m,
   tournamentId,
@@ -125,6 +141,8 @@ export function PartyMatchPredictionCard({
   midCompetitionPenaltyMode = false,
   onSaved,
   onError,
+  registerMatchDraft,
+  unregisterMatchDraft,
 }: {
   m: FootballDataMatch;
   tournamentId: string;
@@ -134,9 +152,16 @@ export function PartyMatchPredictionCard({
   midCompetitionPenaltyMode?: boolean;
   onSaved: () => void;
   onError: (msg: string) => void;
+  registerMatchDraft?: (
+    matchId: number,
+    getPayload: () => MatchPredictionSaveInput,
+  ) => void;
+  unregisterMatchDraft?: (matchId: number) => void;
 }) {
   const { t } = useLocale();
   const [p, setP] = useState<MatchPredState>(initial);
+  const pRef = useRef(p);
+  pRef.current = p;
   const [pending, startTransition] = useTransition();
   const finished = m.status === "FINISHED";
   const formLocked = finished || predictionLockedReason != null;
@@ -149,6 +174,12 @@ export function PartyMatchPredictionCard({
     initial.predHomeGoals,
     initial.predAwayGoals,
   ]);
+
+  useEffect(() => {
+    if (!registerMatchDraft || formLocked) return;
+    registerMatchDraft(m.id, () => toSaveInput(pRef.current));
+    return () => unregisterMatchDraft?.(m.id);
+  }, [m.id, formLocked, registerMatchDraft, unregisterMatchDraft]);
 
   const breakdown = useMemo(
     () =>
@@ -177,12 +208,7 @@ export function PartyMatchPredictionCard({
   function handleSave() {
     startTransition(async () => {
       try {
-        await saveWcMatchPrediction(tournamentId, m.id, {
-          htOutcome: p.htOutcome || null,
-          ftOutcome: p.ftOutcome || null,
-          predHomeGoals: p.predHomeGoals === "" ? null : Number(p.predHomeGoals),
-          predAwayGoals: p.predAwayGoals === "" ? null : Number(p.predAwayGoals),
-        });
+        await saveWcMatchPrediction(tournamentId, m.id, toSaveInput(p));
         onSaved();
       } catch (e) {
         onError(formatCaughtError(e, t));

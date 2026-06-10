@@ -1,7 +1,7 @@
 export const BETTING_ODDS_SCHEMA_VERSION = 1 as const;
 
 /** Cotă folosită când scorul exact nu e în tabel (ex. 7-2); piețele listeză doar liniile uzuale. */
-export const CORRECT_SCORE_OTHER_ODD = 20;
+export const CORRECT_SCORE_OTHER_ODD = 50;
 
 export type Odds1x2Outcome = "HOME" | "DRAW" | "AWAY";
 

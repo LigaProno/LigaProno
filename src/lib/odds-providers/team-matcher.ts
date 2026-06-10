@@ -14,6 +14,9 @@ export function normalizeTeamName(name: string): string {
   s = s.replace(/[^a-z0-9\s]/g, " ");
   s = s.replace(/\s+/g, " ").trim();
   s = TEAM_NAME_ALIASES[s] ?? s;
+  // Alias values may still contain punctuation (e.g. "d.r. congo" from Football-Data).
+  s = s.replace(/[^a-z0-9\s]/g, " ");
+  s = s.replace(/\s+/g, " ").trim();
   return s;
 }
 

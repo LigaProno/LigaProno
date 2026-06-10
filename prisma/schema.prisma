@@ -20,6 +20,7 @@ model User {
   tournaments         Tournament[]         @relation("CreatedTournaments")
   wcMatchPredictions  WcMatchPrediction[]
   wcExtraPredictions  WcExtraPrediction[]
+  miniGamePlays       MiniGamePlay[]
 }
 
 // Competiție activă în party: null = fără pronosticuri; altfel `{COD_API}_{anSezon}` (ex. WC_2026, PL_2024) din Football-Data.
@@ -140,4 +141,31 @@ model DashboardNewsSnapshot {
   geminiModel String?
   fetchedAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// Progres zilnic mini jocuri (trivia, campion ascuns, bingo) — dateKey = ziua în Europe/Bucharest.
+model MiniGamePlay {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId              String   @db.ObjectId
+  user                User     @relation(fields: [userId], references: [id])
+  dateKey             String
+  triviaAnswers       Int[]
+  triviaScore         Int      @default(0)
+  triviaCompleted     Boolean  @default(false)
+  championGuesses     String[]
+  championSolved      Boolean  @default(false)
+  championScore       Int      @default(0)
+  bingoCells          Json?
+  bingoMoves          Int      @default(0)
+  bingoWastedMoves    Int      @default(0)
+  bingoLineComplete   Boolean  @default(false)
+  bingoFullHouse      Boolean  @default(false)
+  bingoScore          Int      @default(0)
+  totalScore          Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([userId, dateKey])
+  @@index([dateKey])
+  @@index([userId])
 }
