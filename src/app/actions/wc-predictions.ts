@@ -19,7 +19,11 @@ import {
   isKnockoutMatchPredictable,
   isKnockoutStage,
 } from "@/lib/knockout-predictions";
-import { isCompetitionUnderway } from "@/lib/prediction-window";
+import {
+  isCompetitionUnderway,
+  isMidCompetitionPredictionChangesAllowed,
+  shouldApplyMidCompetitionChangePenalty,
+} from "@/lib/prediction-window";
 import {
   outcomeFromScores,
   validateWcAdvancingTeamIds,
@@ -192,7 +196,11 @@ export async function saveWcMatchPrediction(
     throw new Error("Meciul nu a fost găsit în programul competiției.");
   }
 
-  const allowChanges = tournament.allowPredictionChangesDuringCompetition ?? false;
+  const tournamentAllowChanges =
+    tournament.allowPredictionChangesDuringCompetition ?? false;
+  const allowChanges = isMidCompetitionPredictionChangesAllowed(
+    tournamentAllowChanges,
+  );
   const underway = isCompetitionUnderway(matches);
   const isKO = isKnockoutStage(match.stage);
 
@@ -264,7 +272,7 @@ export async function saveWcMatchPrediction(
 
   const applyChangePenalty =
     underway &&
-    (tournament.allowPredictionChangesDuringCompetition ?? false) &&
+    shouldApplyMidCompetitionChangePenalty(tournamentAllowChanges) &&
     changed;
 
   await prisma.$transaction(async (tx) => {
@@ -330,7 +338,9 @@ export async function saveWcExtraPrediction(
   await assertMember(tournamentId, user.id);
 
   const underway = await isCompetitionUnderwayForStorage(tournament.competition);
-  if (underway && !(tournament.allowPredictionChangesDuringCompetition ?? false)) {
+  const tournamentAllowChanges =
+    tournament.allowPredictionChangesDuringCompetition ?? false;
+  if (underway && !isMidCompetitionPredictionChangesAllowed(tournamentAllowChanges)) {
     throw new Error(
       "Competiția a început. În acest turneu pronosticurile nu mai pot fi modificate.",
     );
@@ -413,7 +423,7 @@ export async function saveWcExtraPrediction(
 
   const applyChangePenalty =
     underway &&
-    (tournament.allowPredictionChangesDuringCompetition ?? false) &&
+    shouldApplyMidCompetitionChangePenalty(tournamentAllowChanges) &&
     changed;
 
   await prisma.$transaction(async (tx) => {

@@ -7,7 +7,10 @@ import {
   type Odds1x2Outcome,
   type TournamentOddsMaps,
 } from "@/lib/betting-odds";
-import { POINTS_PER_PREDICTION_CHANGE_AFTER_START } from "@/lib/prediction-window";
+import {
+  isFreePredictionChangesAfterStartEnabled,
+  POINTS_PER_PREDICTION_CHANGE_AFTER_START,
+} from "@/lib/prediction-window";
 import type {
   FootballDataMatch,
   GroupStanding,
@@ -485,9 +488,12 @@ export function computeUserWcTotals(
     oddsMaps ?? null,
   );
 
+  const effectiveChangeCount = isFreePredictionChangesAfterStartEnabled() ?
+    0
+  : midCompetitionPredictionChangeCount;
   const predictionChangePenalty = roundPoints(
     POINTS_PER_PREDICTION_CHANGE_AFTER_START *
-      Math.max(0, midCompetitionPredictionChangeCount),
+      Math.max(0, effectiveChangeCount),
   );
   const gross = roundPoints(matchPoints + qualifierPoints + championPoints);
 

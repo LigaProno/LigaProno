@@ -4,6 +4,33 @@ import type { FootballDataMatch } from "@/lib/football-data";
 export const POINTS_PER_PREDICTION_CHANGE_AFTER_START = 10;
 
 /**
+ * Override temporar (env): pronosticuri permise după startul competiției, fără depunctare.
+ * Setează FREE_PREDICTION_CHANGES_AFTER_START=true în `.env` / Vercel.
+ */
+export function isFreePredictionChangesAfterStartEnabled(): boolean {
+  return (
+    (process.env.FREE_PREDICTION_CHANGES_AFTER_START ?? "false")
+      .trim()
+      .toLowerCase() === "true"
+  );
+}
+
+export function isMidCompetitionPredictionChangesAllowed(
+  tournamentAllowChanges: boolean,
+): boolean {
+  return (
+    isFreePredictionChangesAfterStartEnabled() || tournamentAllowChanges
+  );
+}
+
+export function shouldApplyMidCompetitionChangePenalty(
+  tournamentAllowChanges: boolean,
+): boolean {
+  if (isFreePredictionChangesAfterStartEnabled()) return false;
+  return tournamentAllowChanges;
+}
+
+/**
  * Competiția e considerată „începută” dacă există cel puțin un meci cu status de desfășurare/rezultat
  * sau a cărui dată de start (utcDate) a trecut deja.
  */

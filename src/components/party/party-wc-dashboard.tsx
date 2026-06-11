@@ -97,6 +97,7 @@ export default function PartyWcDashboard({
   inviteCode,
   competition,
   allowPredictionChangesDuringCompetition = false,
+  midCompetitionChangePenaltyEnabled = false,
   competitionUnderway = false,
   myMidCompetitionChangeCount = 0,
   showDevClSimulator = false,
@@ -120,6 +121,7 @@ export default function PartyWcDashboard({
   inviteCode: string;
   competition: string | null;
   allowPredictionChangesDuringCompetition?: boolean;
+  midCompetitionChangePenaltyEnabled?: boolean;
   competitionUnderway?: boolean;
   myMidCompetitionChangeCount?: number;
   /** Dev only: buton pentru pronosticuri UCL aleatoare (setat din server). */
@@ -190,7 +192,7 @@ export default function PartyWcDashboard({
   const midCompetitionPenaltyMode =
     competitionActive &&
     competitionUnderway &&
-    allowPredictionChangesDuringCompetition;
+    midCompetitionChangePenaltyEnabled;
 
   const teamIdToGroupKey = useMemo(
     () => buildTeamIdToGroupKeyFromStandings(standings),

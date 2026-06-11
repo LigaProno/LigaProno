@@ -30,7 +30,11 @@ import {
 } from "@/lib/wc-pred-display";
 import type { NextThreeMatchPreds } from "@/components/party/next-three-predictions-panel";
 import { payloadToOddsMaps } from "@/lib/betting-odds";
-import { isCompetitionUnderway } from "@/lib/prediction-window";
+import {
+  isCompetitionUnderway,
+  isMidCompetitionPredictionChangesAllowed,
+  shouldApplyMidCompetitionChangePenalty,
+} from "@/lib/prediction-window";
 import {
   computeUserWcTotals,
   type MatchPredictionInput,
@@ -300,6 +304,13 @@ export default async function PartyTournamentPage({
   const myMidCompetitionChangeCount =
     myMembership?.midCompetitionPredictionChangeCount ?? 0;
 
+  const tournamentAllowChanges =
+    tournament.allowPredictionChangesDuringCompetition ?? false;
+  const effectiveAllowPredictionChanges =
+    isMidCompetitionPredictionChangesAllowed(tournamentAllowChanges);
+  const midCompetitionChangePenaltyEnabled =
+    shouldApplyMidCompetitionChangePenalty(tournamentAllowChanges);
+
   return (
     <div className="flex-1 p-4 sm:p-6 md:p-8 max-w-4xl mx-auto w-full">
       <Link
@@ -330,9 +341,8 @@ export default async function PartyTournamentPage({
         tournamentName={tournament.name}
         inviteCode={tournament.inviteCode}
         competition={tournament.competition}
-        allowPredictionChangesDuringCompetition={
-          tournament.allowPredictionChangesDuringCompetition ?? false
-        }
+        allowPredictionChangesDuringCompetition={effectiveAllowPredictionChanges}
+        midCompetitionChangePenaltyEnabled={midCompetitionChangePenaltyEnabled}
         competitionUnderway={competitionUnderway}
         myMidCompetitionChangeCount={myMidCompetitionChangeCount}
         showDevClSimulator={process.env.NODE_ENV === "development"}
