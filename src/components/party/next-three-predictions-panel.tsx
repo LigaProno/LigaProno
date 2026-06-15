@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { formatMatchKickoff } from "@/lib/match-datetime";
+import type { MatchPredDisplay } from "@/lib/wc-pred-display";
 
 export type NextThreeTeamSide = {
   name: string;
@@ -16,134 +17,122 @@ export type NextThreeMatchPreds = {
   homeTeam: NextThreeTeamSide;
   awayTeam: NextThreeTeamSide;
   venue?: string | null;
-  rows: { userId: string; displayName: string; pred: string }[];
+  rows: { userId: string; displayName: string; pred: MatchPredDisplay }[];
 };
 
-function TeamSide({ team }: { team: NextThreeTeamSide }) {
-  const label = team.shortName ?? team.name;
-
-  return (
-    <div className="flex flex-col items-center gap-2.5 min-w-0 flex-1 max-w-[7rem] sm:max-w-[9rem]">
-      {team.crest ? (
-        <Image
-          src={team.crest}
-          alt=""
-          width={52}
-          height={52}
-          className="rounded-xl bg-white/95 p-1 object-contain shrink-0 shadow-md"
-          unoptimized
-        />
-      ) : (
-        <div
-          className="w-[3.25rem] h-[3.25rem] rounded-xl shrink-0"
-          style={{ backgroundColor: "rgba(255,255,255,0.1)" }}
-        />
-      )}
-      <span
-        className="font-bold text-white text-sm sm:text-base text-center leading-snug line-clamp-2"
-        title={team.name}
-      >
-        {label}
-      </span>
-    </div>
-  );
-}
-
-function MatchPredictionsBlock({
+function MatchPredictionsTable({
   block,
   currentUserId,
   dateLocale,
   stadiumTbd,
   romaniaTimeSuffix,
+  labelMember,
+  labelHt,
+  labelFt,
+  labelScore,
 }: {
   block: NextThreeMatchPreds;
   currentUserId: string;
   dateLocale: string;
   stadiumTbd: string;
   romaniaTimeSuffix: string;
+  labelMember: string;
+  labelHt: string;
+  labelFt: string;
+  labelScore: string;
 }) {
   const when = formatMatchKickoff(block.utcDate, dateLocale);
   const venue = block.venue ?? stadiumTbd;
+  const homeLabel = block.homeTeam.shortName ?? block.homeTeam.name;
+  const awayLabel = block.awayTeam.shortName ?? block.awayTeam.name;
 
   return (
     <article
       className="rounded-2xl border overflow-hidden"
-      style={{ borderColor: "rgba(34,211,238,0.18)" }}
+      style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "#1E293B" }}
     >
       <div
-        className="px-4 py-5 sm:px-6 sm:py-6"
+        className="px-4 py-4 sm:px-5 sm:py-4 flex flex-wrap items-center gap-x-5 gap-y-2"
         style={{
-          background:
-            "linear-gradient(145deg, rgba(15,23,42,0.98) 0%, rgba(30,41,59,0.92) 100%)",
-        }}
-      >
-        <div className="flex items-center justify-center gap-3 sm:gap-6 max-w-lg mx-auto">
-          <TeamSide team={block.homeTeam} />
-
-          <div
-            className="flex flex-col items-center justify-center shrink-0 px-3 py-3 rounded-xl min-w-[6.5rem] sm:min-w-[7.5rem]"
-            style={{
-              backgroundColor: "rgba(0,0,0,0.32)",
-              border: "1px solid rgba(255,255,255,0.1)",
-            }}
-          >
-            <span
-              className="text-[10px] font-bold uppercase tracking-[0.2em]"
-              style={{ color: "rgba(255,255,255,0.35)" }}
-            >
-              vs
-            </span>
-            <span
-              className="mt-1.5 text-xs sm:text-sm font-semibold tabular-nums text-center leading-snug"
-              style={{ color: "#67E8F9" }}
-            >
-              {when}
-            </span>
-            <span className="text-[10px] mt-1" style={{ color: "#BEF264" }}>
-              {romaniaTimeSuffix}
-            </span>
-            <span
-              className="text-[10px] mt-2 text-center line-clamp-2 leading-snug max-w-[9rem]"
-              style={{ color: "rgba(255,255,255,0.42)" }}
-            >
-              {venue}
-            </span>
-          </div>
-
-          <TeamSide team={block.awayTeam} />
-        </div>
-      </div>
-
-      <div
-        className="px-4 py-3 sm:px-5 sm:py-3.5 flex flex-wrap gap-x-4 gap-y-2"
-        style={{
-          borderTop: "1px solid rgba(255,255,255,0.06)",
+          borderBottom: "1px solid rgba(255,255,255,0.08)",
           backgroundColor: "rgba(15,23,42,0.55)",
         }}
       >
-        {block.rows.map((row) => (
-          <span
-            key={row.userId}
-            className="inline-flex items-baseline gap-1.5 text-xs sm:text-sm"
-          >
-            <span
-              className="font-medium truncate max-w-[8rem] sm:max-w-[10rem]"
+        <div className="flex items-center gap-2.5 min-w-0">
+          {block.homeTeam.crest ?
+            <Image src={block.homeTeam.crest} alt="" width={28} height={28} className="rounded-lg bg-white/90 p-0.5 object-contain shrink-0" unoptimized />
+          : null}
+          <span className="font-bold text-white text-base sm:text-lg">{homeLabel}</span>
+          <span className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.35)" }}>vs</span>
+          <span className="font-bold text-white text-base sm:text-lg">{awayLabel}</span>
+          {block.awayTeam.crest ?
+            <Image src={block.awayTeam.crest} alt="" width={28} height={28} className="rounded-lg bg-white/90 p-0.5 object-contain shrink-0" unoptimized />
+          : null}
+        </div>
+        <div className="text-sm tabular-nums font-medium" style={{ color: "#67E8F9" }}>
+          {when}
+          <span className="ml-1.5 text-xs" style={{ color: "#BEF264" }}>{romaniaTimeSuffix}</span>
+        </div>
+        <div className="text-xs sm:text-sm truncate max-w-full sm:max-w-xs" style={{ color: "rgba(255,255,255,0.42)" }}>
+          {venue}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs sm:text-sm min-w-[28rem]">
+          <thead>
+            <tr
               style={{
-                color:
-                  row.userId === currentUserId ? "#22D3EE" : "rgba(255,255,255,0.55)",
+                borderBottom: "1px solid rgba(255,255,255,0.1)",
+                backgroundColor: "rgba(255,255,255,0.04)",
               }}
-              title={row.displayName}
             >
-              {row.displayName}
-            </span>
-            <span
-              className="font-mono font-semibold tabular-nums shrink-0"
-              style={{ color: "rgba(255,255,255,0.92)" }}
-            >
-              {row.pred || "—"}
-            </span>
-          </span>
-        ))}
+              <th className="text-left py-3 px-3 sm:px-4 text-sm sm:text-base font-bold min-w-[6rem]" style={{ color: "rgba(255,255,255,0.65)" }}>
+                {labelMember}
+              </th>
+              <th className="text-center py-3 px-2 text-sm sm:text-base font-bold w-14" style={{ color: "rgba(255,255,255,0.65)" }}>
+                {labelHt}
+              </th>
+              <th className="text-center py-3 px-2 text-sm sm:text-base font-bold w-14" style={{ color: "rgba(255,255,255,0.65)" }}>
+                {labelFt}
+              </th>
+              <th className="text-center py-3 px-2 text-sm sm:text-base font-bold w-16" style={{ color: "rgba(255,255,255,0.65)" }}>
+                {labelScore}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {block.rows.map((row) => (
+              <tr
+                key={row.userId}
+                style={{
+                  borderBottom: "1px solid rgba(255,255,255,0.06)",
+                  backgroundColor:
+                    row.userId === currentUserId ? "rgba(34,211,238,0.06)" : undefined,
+                }}
+              >
+                <td
+                  className="py-2.5 px-3 sm:px-4 align-middle font-medium truncate max-w-[10rem]"
+                  style={{
+                    color: row.userId === currentUserId ? "#22D3EE" : "rgba(255,255,255,0.88)",
+                  }}
+                  title={row.displayName}
+                >
+                  {row.displayName}
+                </td>
+                <td className="py-2.5 px-2 align-middle text-center tabular-nums font-medium text-white">
+                  {row.pred.ht}
+                </td>
+                <td className="py-2.5 px-2 align-middle text-center tabular-nums font-medium text-white">
+                  {row.pred.ft}
+                </td>
+                <td className="py-2.5 px-2 align-middle text-center tabular-nums font-semibold text-white">
+                  {row.pred.score}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </article>
   );
@@ -162,18 +151,22 @@ export function NextThreePredictionsPanel({
 
   return (
     <section className="flex flex-col gap-4">
-      <h3 className="text-white font-semibold text-sm px-0.5">
+      <h3 className="text-white font-semibold text-base sm:text-lg px-0.5">
         {t("party.nextThree.title")}
       </h3>
       <div className="flex flex-col gap-4">
         {matches.map((block) => (
-          <MatchPredictionsBlock
+          <MatchPredictionsTable
             key={block.matchId}
             block={block}
             currentUserId={currentUserId}
             dateLocale={dateLocale}
             stadiumTbd={t("matches.stadiumTbd")}
             romaniaTimeSuffix={t("matches.romaniaTimeSuffix")}
+            labelMember={t("party.nextThree.member")}
+            labelHt={t("party.lb.predHt")}
+            labelFt={t("party.lb.predFt")}
+            labelScore={t("party.lb.predSc")}
           />
         ))}
       </div>

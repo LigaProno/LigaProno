@@ -305,6 +305,58 @@ export type MatchPointsBreakdown = {
   total: number;
 };
 
+export type MatchPredictionHits = {
+  htCorrect: boolean;
+  ftCorrect: boolean;
+  scoreCorrect: boolean;
+};
+
+/** Verifică ce părți ale pronosticului sunt corecte față de scorul din feed (dacă există). */
+export function computeMatchPredictionHits(
+  pred: MatchPredictionInput,
+  match: FootballDataMatch,
+): MatchPredictionHits {
+  const ht = match.score?.halfTime;
+  const ft = match.score?.fullTime;
+
+  let htCorrect = false;
+  if (
+    pred.htOutcome &&
+    ht?.home != null &&
+    ht?.away != null &&
+    (pred.htOutcome === "HOME" ||
+      pred.htOutcome === "AWAY" ||
+      pred.htOutcome === "DRAW")
+  ) {
+    htCorrect = outcomeFromScores(ht.home, ht.away) === pred.htOutcome;
+  }
+
+  let ftCorrect = false;
+  let scoreCorrect = false;
+  if (ft?.home != null && ft?.away != null) {
+    const actualFt = outcomeFromScores(ft.home, ft.away);
+    if (
+      pred.ftOutcome &&
+      (pred.ftOutcome === "HOME" ||
+        pred.ftOutcome === "AWAY" ||
+        pred.ftOutcome === "DRAW") &&
+      actualFt === pred.ftOutcome
+    ) {
+      ftCorrect = true;
+    }
+    if (
+      pred.predHomeGoals != null &&
+      pred.predAwayGoals != null &&
+      pred.predHomeGoals === ft.home &&
+      pred.predAwayGoals === ft.away
+    ) {
+      scoreCorrect = true;
+    }
+  }
+
+  return { htCorrect, ftCorrect, scoreCorrect };
+}
+
 export function computeMatchPoints(
   pred: MatchPredictionInput,
   match: FootballDataMatch,
@@ -434,6 +486,8 @@ export type UserWcTotals = {
   halfTimeGuessPoints: number;
   /** Exact score points (SC). */
   correctScorePoints: number;
+  /** Număr de scoruri exacte ghicite corect. */
+  correctScoreCount: number;
   /** Sum of FG + PG + SC (match-related only). */
   matchPoints: number;
   /** Qualifier picks points (CG). */
@@ -455,6 +509,7 @@ export function computeUserWcTotals(
   let fullTimeGuessPoints = 0;
   let halfTimeGuessPoints = 0;
   let correctScorePoints = 0;
+  let correctScoreCount = 0;
   for (const m of matches) {
     const pred = matchPredictionsByMatchId.get(m.id);
     if (!pred) continue;
@@ -463,6 +518,9 @@ export function computeUserWcTotals(
     halfTimeGuessPoints += b.halfTime;
     fullTimeGuessPoints += b.fullTime;
     correctScorePoints += b.correctScore;
+    if (computeMatchPredictionHits(pred, m).scoreCorrect) {
+      correctScoreCount++;
+    }
   }
   const matchPoints = roundPoints(
     fullTimeGuessPoints + halfTimeGuessPoints + correctScorePoints,
@@ -501,6 +559,7 @@ export function computeUserWcTotals(
     fullTimeGuessPoints: roundPoints(fullTimeGuessPoints),
     halfTimeGuessPoints: roundPoints(halfTimeGuessPoints),
     correctScorePoints: roundPoints(correctScorePoints),
+    correctScoreCount,
     matchPoints,
     qualifierPoints,
     championPoints,

@@ -59,6 +59,8 @@ import {
 } from "@/components/party/next-three-predictions-panel";
 import { WC_CYAN, WC_LIME, WC_SLATE } from "@/components/world-cup/wc-theme";
 import { LeaderboardTh } from "@/components/ui/column-header-tip";
+import { MatchPredDisplayInline } from "@/components/party/match-pred-display-inline";
+import type { MatchPredDisplay } from "@/lib/wc-pred-display";
 
 export type LeaderboardRow = {
   rank: number;
@@ -70,6 +72,8 @@ export type LeaderboardRow = {
   pg: number;
   /** Correct scores. */
   sc: number;
+  /** Număr de scoruri exacte ghicite. */
+  correctScoreCount: number;
   /** Qualifiers guessed. */
   cg: number;
   championPoints: number;
@@ -80,14 +84,14 @@ export type LeaderboardRow = {
   lastMatch: {
     matchId: number;
     fixture: string;
-    pred: string;
+    pred: MatchPredDisplay;
     actualHt: string | null;
     actualFt: string | null;
   } | null;
   nextMatches: ({
     matchId: number;
     fixture: string;
-    pred: string;
+    pred: MatchPredDisplay;
   } | null)[];
 };
 
@@ -705,13 +709,19 @@ export default function PartyWcDashboard({
                         >
                           {row.championPick ?? "—"}
                         </td>
-                        <td className="py-2.5 px-1.5 align-top text-[10px] leading-snug" style={{ color: "rgba(255,255,255,0.82)" }}>
+                        <td className="py-2.5 px-1.5 align-top text-[10px] leading-snug min-w-[5.5rem]" style={{ color: "rgba(255,255,255,0.82)" }}>
                           {row.lastMatch ?
                             <>
-                              <div className="font-medium text-cyan-200/90">{row.lastMatch.fixture}</div>
-                              <div>{row.lastMatch.pred}</div>
+                              <div className="font-medium text-cyan-200/90 mb-1">{row.lastMatch.fixture}</div>
+                              <MatchPredDisplayInline
+                                pred={row.lastMatch.pred}
+                                labelHt={t("party.lb.predHt")}
+                                labelFt={t("party.lb.predFt")}
+                                labelScore={t("party.lb.predSc")}
+                                stacked
+                              />
                               {(row.lastMatch.actualHt || row.lastMatch.actualFt) && (
-                                <div className="text-[9px] mt-0.5 space-y-0.5" style={{ color: "rgba(255,255,255,0.38)" }}>
+                                <div className="text-[9px] mt-1 space-y-0.5" style={{ color: "rgba(255,255,255,0.38)" }}>
                                   {row.lastMatch.actualHt ?
                                     <div>{t("party.lb.ht")} {row.lastMatch.actualHt}</div>
                                   : null}
@@ -730,7 +740,12 @@ export default function PartyWcDashboard({
                           {row.pg}
                         </td>
                         <td className="py-2.5 px-1 text-right tabular-nums align-top" style={{ color: "rgba(255,255,255,0.85)" }}>
-                          {row.sc}
+                          <div className="font-medium">{row.sc}</div>
+                          {row.correctScoreCount > 0 ?
+                            <div className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.42)" }}>
+                              {t("party.lb.scCount", { count: row.correctScoreCount })}
+                            </div>
+                          : null}
                         </td>
                         <td className="py-2.5 px-1 text-right tabular-nums align-top" style={{ color: "rgba(255,255,255,0.85)" }}>
                           {row.cg}

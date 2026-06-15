@@ -218,6 +218,14 @@ export async function fetchWorldCupMatchesFootballData(): Promise<
   );
 }
 
+/** Meciuri CM fără cache HTTP — pentru pagina de program cu rezultate la zi. */
+export async function fetchWorldCupMatchesFresh(): Promise<FootballDataMatch[]> {
+  return fetchCompetitionMatchesFresh(
+    WC_COMPETITION_CODE,
+    String(WC_SEASON_YEAR),
+  );
+}
+
 type CompetitionsListEnvelope = {
   competitions?: Array<{
     code?: string;

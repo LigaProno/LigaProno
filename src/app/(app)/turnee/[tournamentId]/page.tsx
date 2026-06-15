@@ -24,7 +24,7 @@ import { prisma } from "@/lib/prisma";
 import {
   championLabelFromTeams,
   fixtureTlaPair,
-  formatPredShort,
+  getMatchPredDisplay,
   lastFinishedAndNextThree,
   matchResultHtFt,
 } from "@/lib/wc-pred-display";
@@ -204,7 +204,7 @@ export default async function PartyTournamentPage({
       .map((m) => ({
         userId: m.userId,
         displayName: displayName(m.user.firstName, m.user.lastName),
-        pred: formatPredShort(predsByUser.get(m.userId)?.get(nm.id) ?? null),
+        pred: getMatchPredDisplay(predsByUser.get(m.userId)?.get(nm.id) ?? null),
       }))
       .sort((a, b) => a.displayName.localeCompare(b.displayName, "ro")),
   }));
@@ -235,7 +235,7 @@ export default async function PartyTournamentPage({
         {
           matchId: lastFinished.id,
           fixture: fixtureTlaPair(lastFinished),
-          pred: formatPredShort(pmap.get(lastFinished.id) ?? null),
+          pred: getMatchPredDisplay(pmap.get(lastFinished.id) ?? null),
           actualHt: lastScores?.ht ?? null,
           actualFt: lastScores?.ft ?? null,
         }
@@ -247,7 +247,7 @@ export default async function PartyTournamentPage({
       return {
         matchId: nm.id,
         fixture: fixtureTlaPair(nm),
-        pred: formatPredShort(pmap.get(nm.id) ?? null),
+        pred: getMatchPredDisplay(pmap.get(nm.id) ?? null),
       };
     });
 
@@ -258,6 +258,7 @@ export default async function PartyTournamentPage({
       fg: totals.fullTimeGuessPoints,
       pg: totals.halfTimeGuessPoints,
       sc: totals.correctScorePoints,
+      correctScoreCount: totals.correctScoreCount,
       cg: totals.qualifierPoints,
       championPoints: totals.championPoints,
       changePenalty: totals.predictionChangePenalty,

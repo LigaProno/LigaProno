@@ -9,6 +9,7 @@ import type {
   GroupStanding,
 } from "@/lib/football-data";
 import { FootballDataMatchCard } from "@/components/world-cup/football-data-match-card";
+import { MatchesChronologicalTable } from "@/components/matches/matches-chronological-table";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { ThirdPlaceRankingTable } from "@/components/world-cup/third-place-ranking";
@@ -378,12 +379,16 @@ type TabId = "standings" | "matches";
 
 type KnockoutBlock = { stageLabel: string; matches: FootballDataMatch[] };
 
+type MatchSubTabId = "__results__" | "__upcoming__" | "__knockout__" | string;
+
 export function Cm2026FootballDataClient(props: {
   initialTab?: TabId;
   standings: GroupStanding[];
   groupKeysOrdered: string[];
   groupMatches: Record<string, FootballDataMatch[]>;
   knockoutBlocks: KnockoutBlock[];
+  finishedMatches: FootballDataMatch[];
+  upcomingMatches: FootballDataMatch[];
 }) {
   const {
     initialTab = "standings",
@@ -391,6 +396,8 @@ export function Cm2026FootballDataClient(props: {
     groupKeysOrdered,
     groupMatches,
     knockoutBlocks,
+    finishedMatches,
+    upcomingMatches,
   } = props;
 
   const { t } = useLocale();
@@ -398,9 +405,7 @@ export function Cm2026FootballDataClient(props: {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [tab, setTabState] = useState<TabId>(initialTab);
-  const [matchSubTab, setMatchSubTab] = useState<string>(
-    () => groupKeysOrdered[0] ?? "__knockout__",
-  );
+  const [matchSubTab, setMatchSubTab] = useState<MatchSubTabId>("__results__");
 
   useEffect(() => {
     const tabParam = searchParams.get("tab");
@@ -513,7 +518,7 @@ export function Cm2026FootballDataClient(props: {
                 }
           }
         >
-          {t("matches.tab.allMatches")}{" "}
+          {t("matches.tab.matches")}{" "}
           <span className="opacity-60 font-normal">({totalMatches})</span>
         </button>
       </div>
@@ -672,9 +677,36 @@ export function Cm2026FootballDataClient(props: {
           : null}
         </section>
       ) : (
-        <section aria-label="Matches">
+        <section aria-label={t("matches.tab.matches")}>
           {/* Sub-tab pills */}
           <div className="flex gap-1.5 flex-wrap mb-8">
+            <button
+              type="button"
+              onClick={() => setMatchSubTab("__results__")}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+              style={{
+                backgroundColor: matchSubTab === "__results__" ? "rgba(190,242,100,0.15)" : "rgba(255,255,255,0.06)",
+                color: matchSubTab === "__results__" ? "#BEF264" : "rgba(255,255,255,0.5)",
+                border: matchSubTab === "__results__" ? "1px solid rgba(190,242,100,0.3)" : "1px solid transparent",
+              }}
+            >
+              {t("matches.tab.results")}
+              <span className="ml-1 opacity-50 font-normal">({finishedMatches.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMatchSubTab("__upcoming__")}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+              style={{
+                backgroundColor: matchSubTab === "__upcoming__" ? "rgba(34,211,238,0.18)" : "rgba(255,255,255,0.06)",
+                color: matchSubTab === "__upcoming__" ? "#22D3EE" : "rgba(255,255,255,0.5)",
+                border: matchSubTab === "__upcoming__" ? "1px solid rgba(34,211,238,0.3)" : "1px solid transparent",
+              }}
+            >
+              {t("matches.tab.upcoming")}
+              <span className="ml-1 opacity-50 font-normal">({upcomingMatches.length})</span>
+            </button>
+            <span className="w-px h-6 self-center mx-0.5 hidden sm:block" style={{ backgroundColor: "rgba(255,255,255,0.12)" }} />
             {groupKeysOrdered.map((key) => (
               <button
                 key={key}
@@ -701,13 +733,31 @@ export function Cm2026FootballDataClient(props: {
                   border: matchSubTab === "__knockout__" ? "1px solid rgba(190,242,100,0.3)" : "1px solid transparent",
                 }}
               >
-                Knockout
+                {t("matches.knockoutStage")}
               </button>
             )}
           </div>
 
+          {matchSubTab === "__results__" && (
+            <div>
+              <h3 className="text-base font-bold mb-4" style={{ color: "#BEF264" }}>
+                {t("matches.tab.results")}
+              </h3>
+              <MatchesChronologicalTable matches={finishedMatches} mode="results" />
+            </div>
+          )}
+
+          {matchSubTab === "__upcoming__" && (
+            <div>
+              <h3 className="text-base font-bold mb-4" style={{ color: "#22D3EE" }}>
+                {t("matches.tab.upcoming")}
+              </h3>
+              <MatchesChronologicalTable matches={upcomingMatches} mode="upcoming" />
+            </div>
+          )}
+
           {/* Group matches */}
-          {matchSubTab !== "__knockout__" && (() => {
+          {matchSubTab !== "__knockout__" && matchSubTab !== "__results__" && matchSubTab !== "__upcoming__" && (() => {
             const list = groupMatches[matchSubTab] ?? [];
             return (
               <div>
@@ -720,7 +770,7 @@ export function Cm2026FootballDataClient(props: {
                 </h3>
                 {list.length === 0 ? (
                   <p className="text-sm py-4" style={{ color: "rgba(255,255,255,0.4)" }}>
-                    Nu există meciuri pentru această grupă.
+                    {t("matches.noGroupMatches")}
                   </p>
                 ) : (
                   <div className="flex flex-col gap-3">

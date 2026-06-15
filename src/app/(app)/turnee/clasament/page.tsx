@@ -9,6 +9,7 @@ import { pageTitle } from "@/lib/site-metadata";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = pageTitle("Clasament global");
+export const dynamic = "force-dynamic";
 
 export default async function GlobalLeaderboardPage() {
   const locale = await getLocaleFromCookies();

@@ -15,9 +15,11 @@ function generateCode(): string {
 export default function CreateTournamentForm({
   competitionPickerOptions = [],
   competitionsLoadError = null,
+  embedded = false,
 }: {
   competitionPickerOptions?: FootballDataCompetitionPickerOption[];
   competitionsLoadError?: string | null;
+  embedded?: boolean;
 }) {
   const { t } = useLocale();
   const [name, setName] = useState("");
@@ -87,13 +89,18 @@ export default function CreateTournamentForm({
   }
 
   return (
-    <div className="rounded-2xl border p-6 flex flex-col gap-4" style={{ backgroundColor: "#1E293B", borderColor: "rgba(255,255,255,0.08)" }}>
-      <div>
-        <h2 className="text-white font-bold text-lg">{t("tournament.create.title")}</h2>
-        <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>
-          {t("tournament.create.subtitle")}
-        </p>
-      </div>
+    <div
+      className={embedded ? "flex flex-col gap-4" : "rounded-2xl border p-6 flex flex-col gap-4"}
+      style={embedded ? undefined : { backgroundColor: "#1E293B", borderColor: "rgba(255,255,255,0.08)" }}
+    >
+      {!embedded ?
+        <div>
+          <h2 className="text-white font-bold text-lg">{t("tournament.create.title")}</h2>
+          <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>
+            {t("tournament.create.subtitle")}
+          </p>
+        </div>
+      : null}
 
       {createdCode ? (
         <div className="flex flex-col gap-3">

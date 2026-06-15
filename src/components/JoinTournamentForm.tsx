@@ -6,7 +6,7 @@ import { joinTournament } from "@/app/actions/tournament";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { formatCaughtError } from "@/lib/i18n/errors";
 
-export default function JoinTournamentForm() {
+export default function JoinTournamentForm({ embedded = false }: { embedded?: boolean }) {
   const { t } = useLocale();
   const [code, setCode] = useState("");
   const [success, setSuccess] = useState(false);
@@ -32,13 +32,18 @@ export default function JoinTournamentForm() {
   }
 
   return (
-    <div className="rounded-2xl border p-6 flex flex-col gap-4" style={{ backgroundColor: "#1E293B", borderColor: "rgba(255,255,255,0.08)" }}>
-      <div>
-        <h2 className="text-white font-bold text-lg">{t("tournament.join.title")}</h2>
-        <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>
-          {t("tournament.join.subtitle")}
-        </p>
-      </div>
+    <div
+      className={embedded ? "flex flex-col gap-4" : "rounded-2xl border p-6 flex flex-col gap-4"}
+      style={embedded ? undefined : { backgroundColor: "#1E293B", borderColor: "rgba(255,255,255,0.08)" }}
+    >
+      {!embedded ?
+        <div>
+          <h2 className="text-white font-bold text-lg">{t("tournament.join.title")}</h2>
+          <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>
+            {t("tournament.join.subtitle")}
+          </p>
+        </div>
+      : null}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <input

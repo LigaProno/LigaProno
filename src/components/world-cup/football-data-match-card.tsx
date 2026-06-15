@@ -4,7 +4,12 @@ import { venueLabel } from "@/lib/football-data";
 import type { FootballDataMatch } from "@/lib/football-data";
 import { formatMatchKickoff } from "@/lib/match-datetime";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { matchResultHtFt } from "@/lib/wc-pred-display";
 import Image from "next/image";
+
+function isLiveStatus(status?: string): boolean {
+  return status === "IN_PLAY" || status === "PAUSED" || status === "LIVE";
+}
 
 export function FootballDataMatchCard({ m }: { m: FootballDataMatch }) {
   const { t, dateLocale } = useLocale();
@@ -14,12 +19,16 @@ export function FootballDataMatchCard({ m }: { m: FootballDataMatch }) {
   const away = m.awayTeam.name ?? m.awayTeam.shortName ?? "—";
   const hl = m.homeTeam.crest;
   const al = m.awayTeam.crest;
+  const { ht, ft } = matchResultHtFt(m);
+  const live = isLiveStatus(m.status);
+  const finished = m.status === "FINISHED";
+  const hasScore = ht != null || ft != null;
 
   return (
     <div
       className="max-w-xl mx-auto w-full rounded-2xl border overflow-hidden relative"
       style={{
-        borderColor: "rgba(34,211,238,0.22)",
+        borderColor: live ? "rgba(248,113,113,0.35)" : "rgba(34,211,238,0.22)",
         background:
           "linear-gradient(145deg, rgba(15,23,42,0.96) 0%, rgba(30,41,59,0.88) 100%)",
       }}
@@ -61,18 +70,41 @@ export function FootballDataMatchCard({ m }: { m: FootballDataMatch }) {
               border: "1px solid rgba(255,255,255,0.08)",
             }}
           >
-            <span
-              className="text-[11px] sm:text-xs font-semibold leading-snug line-clamp-4 px-1"
-              style={{ color: "#67E8F9" }}
-            >
-              {venue ?? t("matches.stadiumTbd")}
-            </span>
-            <span
-              className="text-[10px] mt-2 font-medium tabular-nums"
-              style={{ color: "#BEF264" }}
-            >
-              {when} {t("matches.romaniaTimeSuffix")}
-            </span>
+            {hasScore ?
+              <>
+                {live ?
+                  <span className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: "#F87171" }}>
+                    {t("matches.live")}
+                  </span>
+                : finished ?
+                  <span className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: "rgba(255,255,255,0.35)" }}>
+                    {t("matches.finished")}
+                  </span>
+                : null}
+                <span className="text-xl sm:text-2xl font-black tabular-nums text-white tracking-wide">
+                  {ft ?? "—"}
+                </span>
+                {ht ?
+                  <span className="text-[11px] mt-1 tabular-nums" style={{ color: "rgba(255,255,255,0.45)" }}>
+                    {t("party.lb.ht")} {ht}
+                  </span>
+                : null}
+              </>
+            : <>
+                <span
+                  className="text-[11px] sm:text-xs font-semibold leading-snug line-clamp-4 px-1"
+                  style={{ color: "#67E8F9" }}
+                >
+                  {venue ?? t("matches.stadiumTbd")}
+                </span>
+                <span
+                  className="text-[10px] mt-2 font-medium tabular-nums"
+                  style={{ color: "#BEF264" }}
+                >
+                  {when} {t("matches.romaniaTimeSuffix")}
+                </span>
+              </>
+            }
           </div>
 
           <div className="flex flex-col items-center justify-center gap-2.5 text-center min-w-0 px-3 py-2">
@@ -96,6 +128,13 @@ export function FootballDataMatchCard({ m }: { m: FootballDataMatch }) {
             </span>
           </div>
         </div>
+
+        {hasScore ?
+          <p className="text-center text-[10px] mt-3 tabular-nums" style={{ color: "rgba(255,255,255,0.38)" }}>
+            {when} {t("matches.romaniaTimeSuffix")}
+            {venue ? ` · ${venue}` : ""}
+          </p>
+        : null}
       </div>
     </div>
   );

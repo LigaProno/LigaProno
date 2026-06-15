@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import {
   createEmptyWcGroupStandings,
   fetchWorldCupGroupStandings,
-  fetchWorldCupMatchesFootballData,
+  fetchWorldCupMatchesFresh,
   partitionFootballDataMatches,
   sortKnockoutStageLabels,
   WC_GROUP_ORDER,
@@ -21,6 +21,7 @@ import Link from "next/link";
 import { pageTitle } from "@/lib/site-metadata";
 
 export const metadata = pageTitle("Program și clasament");
+export const dynamic = "force-dynamic";
 
 export default async function MatchesPage({
   searchParams,
@@ -38,7 +39,7 @@ export default async function MatchesPage({
   let loadError: string | null = null;
 
   try {
-    matches = await fetchWorldCupMatchesFootballData();
+    matches = await fetchWorldCupMatchesFresh();
     matches = await loadMatchesWithCompetitionVenues(COMPETITION_WC_2026, matches);
   } catch (e) {
     loadError =
@@ -73,6 +74,14 @@ export default async function MatchesPage({
     stageLabel,
     matches: knockoutByStageLabel.get(stageLabel) ?? [],
   }));
+
+  const finishedMatches = matches
+    .filter((m) => m.status === "FINISHED")
+    .sort((a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate));
+
+  const upcomingMatches = matches
+    .filter((m) => m.status !== "FINISHED" && m.status !== "CANCELLED" && m.status !== "POSTPONED")
+    .sort((a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate));
 
   if (loadError) {
     return (
@@ -120,6 +129,8 @@ export default async function MatchesPage({
             groupKeysOrdered={groupKeysOrdered}
             groupMatches={groupMatches}
             knockoutBlocks={knockoutBlocks}
+            finishedMatches={finishedMatches}
+            upcomingMatches={upcomingMatches}
           />
         </Suspense>
       </main>

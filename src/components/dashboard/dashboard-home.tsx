@@ -242,7 +242,7 @@ export default function DashboardHome({
               className="px-7 py-3.5 rounded-xl font-bold text-sm sm:text-base shadow-lg transition hover:brightness-110 active:scale-[0.98]"
               style={{ backgroundColor: WC_CYAN, color: WC_NAVY }}
             >
-              {t("dashboard.hero.createTournament")}
+              {t("dashboard.hero.myTournaments")}
             </Link>
             <Link
               href="/matches"

@@ -50,10 +50,54 @@ function outcome1x2(o: string | null | undefined): string {
   return "—";
 }
 
+export type MatchPredDisplay = {
+  ht: string;
+  ft: string;
+  score: string;
+};
+
 /** Pauză: doar 1/X/2 din pronostic (nu există scor separat la pauză în app). */
 export function formatPredHtPart(p: MatchPredictionInput | null | undefined): string {
   if (!p?.htOutcome) return "—";
   return outcome1x2(p.htOutcome);
+}
+
+/** Final 1X2 din pronostic (fără scor exact). */
+export function formatPredFt1x2Part(p: MatchPredictionInput | null | undefined): string {
+  if (!p?.ftOutcome) return "—";
+  return outcome1x2(p.ftOutcome);
+}
+
+/** Scor exact din pronostic. */
+export function formatPredScorePart(p: MatchPredictionInput | null | undefined): string {
+  if (!p) return "—";
+  const hg = p.predHomeGoals;
+  const ag = p.predAwayGoals;
+  if (
+    hg != null &&
+    ag != null &&
+    Number.isFinite(hg) &&
+    Number.isFinite(ag) &&
+    hg >= 0 &&
+    ag >= 0
+  ) {
+    return `${hg}–${ag}`;
+  }
+  return "—";
+}
+
+/** Cele trei părți ale pronosticului (pauză, final 1X2, scor exact). */
+export function getMatchPredDisplay(
+  p: MatchPredictionInput | null | undefined,
+): MatchPredDisplay {
+  if (!p || !hasAnyMatchPrediction(p)) {
+    return { ht: "—", ft: "—", score: "—" };
+  }
+  return {
+    ht: formatPredHtPart(p),
+    ft: formatPredFt1x2Part(p),
+    score: formatPredScorePart(p),
+  };
 }
 
 /** Final: scor exact dacă e setat, altfel 1/X/2. */
