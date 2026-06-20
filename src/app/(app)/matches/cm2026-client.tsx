@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import type {
   FootballDataMatch,
   GroupStanding,
@@ -401,8 +401,6 @@ export function Cm2026FootballDataClient(props: {
   } = props;
 
   const { t } = useLocale();
-  const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [tab, setTabState] = useState<TabId>(initialTab);
   const [matchSubTab, setMatchSubTab] = useState<MatchSubTabId>("__results__");
@@ -417,11 +415,13 @@ export function Cm2026FootballDataClient(props: {
   const setTab = useCallback(
     (next: TabId) => {
       setTabState(next);
-      const p = new URLSearchParams(searchParams.toString());
-      p.set("tab", next);
-      router.replace(`${pathname}?${p.toString()}`, { scroll: false });
+      // Update the URL bar without triggering a server re-render.
+      // router.replace would cause a new server fetch on every tab switch.
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", next);
+      window.history.replaceState(null, "", url.toString());
     },
-    [pathname, router, searchParams],
+    [],
   );
 
   const totalMatches = useMemo(
