@@ -33,6 +33,8 @@ export default function MemberPredictionsView({
   advancingCount,
   rows,
   loadError,
+  backHref,
+  backLabelKey = "memberPred.back",
 }: {
   tournamentId: string;
   tournamentName: string;
@@ -41,20 +43,22 @@ export default function MemberPredictionsView({
   advancingCount: number;
   rows: Row[];
   loadError: string | null;
+  backHref?: string;
+  backLabelKey?: "memberPred.back" | "memberPred.backGlobal";
 }) {
   const { t, dateLocale } = useLocale();
 
   return (
     <div className="flex-1 p-4 sm:p-6 md:p-8 max-w-5xl mx-auto w-full">
       <Link
-        href={`/turnee/${tournamentId}`}
+        href={backHref ?? `/turnee/${tournamentId}`}
         className="inline-flex items-center gap-2 text-sm mb-6 hover:opacity-80 transition-opacity"
         style={{ color: "rgba(255,255,255,0.5)" }}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
-        {t("memberPred.back")}
+        {t(backLabelKey)}
       </Link>
 
       {loadError && (

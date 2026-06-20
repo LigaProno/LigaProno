@@ -141,9 +141,11 @@ function MatchPredictionsTable({
 export function NextThreePredictionsPanel({
   matches,
   currentUserId,
+  hideTitle = false,
 }: {
   matches: NextThreeMatchPreds[];
   currentUserId: string;
+  hideTitle?: boolean;
 }) {
   const { t, dateLocale } = useLocale();
 
@@ -151,9 +153,11 @@ export function NextThreePredictionsPanel({
 
   return (
     <section className="flex flex-col gap-4">
-      <h3 className="text-white font-semibold text-base sm:text-lg px-0.5">
-        {t("party.nextThree.title")}
-      </h3>
+      {!hideTitle ?
+        <h3 className="text-white font-semibold text-base sm:text-lg px-0.5">
+          {t("party.nextThree.title")}
+        </h3>
+      : null}
       <div className="flex flex-col gap-4">
         {matches.map((block) => (
           <MatchPredictionsTable

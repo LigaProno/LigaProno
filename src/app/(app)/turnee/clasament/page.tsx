@@ -2,7 +2,11 @@ import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import GlobalLeaderboardTable from "@/components/turnee/global-leaderboard-table";
-import { buildGlobalLeaderboard, type GlobalLeaderboardRow } from "@/lib/global-leaderboard";
+import {
+  buildGlobalLeaderboard,
+  type GlobalLeaderboardNextThreeBlock,
+  type GlobalLeaderboardRow,
+} from "@/lib/global-leaderboard";
 import { createTranslator } from "@/lib/i18n";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
 import { pageTitle } from "@/lib/site-metadata";
@@ -20,10 +24,13 @@ export default async function GlobalLeaderboardPage() {
   const user = await prisma.user.findUnique({ where: { clerkId } });
 
   let rows: GlobalLeaderboardRow[] = [];
+  let nextThreeByCompetition: GlobalLeaderboardNextThreeBlock[] = [];
   let loadError: string | null = null;
 
   try {
-    rows = await buildGlobalLeaderboard();
+    const result = await buildGlobalLeaderboard();
+    rows = result.rows;
+    nextThreeByCompetition = result.nextThreeByCompetition;
   } catch (e) {
     loadError =
       e instanceof Error ? e.message : t("errors.generic");
@@ -61,7 +68,11 @@ export default async function GlobalLeaderboardPage() {
         </div>
       )}
 
-      <GlobalLeaderboardTable rows={rows} currentUserId={user?.id} />
+      <GlobalLeaderboardTable
+        rows={rows}
+        nextThreeByCompetition={nextThreeByCompetition}
+        currentUserId={user?.id}
+      />
     </div>
   );
 }
