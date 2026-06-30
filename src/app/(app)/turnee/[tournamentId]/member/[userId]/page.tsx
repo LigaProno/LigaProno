@@ -86,6 +86,7 @@ export default async function PartyMemberPredictionsPage({
       ftOutcome: p.ftOutcome ?? null,
       predHomeGoals: p.predHomeGoals ?? null,
       predAwayGoals: p.predAwayGoals ?? null,
+      predAdvancingTeamId: p.predAdvancingTeamId ?? null,
     });
   }
 

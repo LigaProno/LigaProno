@@ -171,6 +171,7 @@ export default async function PartyTournamentPage({
       ftOutcome: p.ftOutcome,
       predHomeGoals: p.predHomeGoals,
       predAwayGoals: p.predAwayGoals,
+      predAdvancingTeamId: p.predAdvancingTeamId,
     });
   }
 
@@ -284,6 +285,7 @@ export default async function PartyTournamentPage({
       ftOutcome: string | null;
       predHomeGoals: number | null;
       predAwayGoals: number | null;
+      predAdvancingTeamId: number | null;
     }
   > = {};
 
@@ -295,6 +297,7 @@ export default async function PartyTournamentPage({
         ftOutcome: pred.ftOutcome ?? null,
         predHomeGoals: pred.predHomeGoals ?? null,
         predAwayGoals: pred.predAwayGoals ?? null,
+        predAdvancingTeamId: pred.predAdvancingTeamId ?? null,
       };
     }
   }

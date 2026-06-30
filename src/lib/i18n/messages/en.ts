@@ -195,6 +195,11 @@ export const en: Messages = {
   "party.backToTournaments": "Back to Tournaments",
   "party.match.halfTime": "Half-time result",
   "party.match.fullTime": "Full-time result",
+  "party.match.fullTime90": "Result after 90 minutes",
+  "party.exactScore90": "Exact score (90 min)",
+  "party.match.advancingTeam": "Who advances",
+  "party.match.advancingTeamDrawHint":
+    "If level after 90 minutes, pick the team that advances (extra time or penalties).",
   "party.match.home": "Home",
   "party.match.away": "Away",
   "party.match.points": "Points",

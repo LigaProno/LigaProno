@@ -7,6 +7,11 @@ import {
   type Odds1x2Outcome,
   type TournamentOddsMaps,
 } from "@/lib/betting-odds";
+import { isKnockoutStage } from "@/lib/knockout-predictions";
+import {
+  getMatchAdvancingTeamId,
+  getMatchScoreAfter90,
+} from "@/lib/match-score";
 import {
   isFreePredictionChangesAfterStartEnabled,
   POINTS_PER_PREDICTION_CHANGE_AFTER_START,
@@ -52,15 +57,8 @@ export function outcomeFromScores(home: number, away: number): MatchOutcome {
 
 function finalWinnerTeamId(m: FootballDataMatch): number | null {
   if (m.stage !== "FINAL" || m.status !== "FINISHED") return null;
-  const ft = m.score?.fullTime;
-  const h = ft?.home;
-  const a = ft?.away;
-  if (h != null && a != null && h !== a) {
-    return h > a ? (m.homeTeam.id ?? null) : (m.awayTeam.id ?? null);
-  }
-  const w = m.score?.winner;
-  if (w === "HOME_TEAM" && m.homeTeam.id !== undefined) return m.homeTeam.id;
-  if (w === "AWAY_TEAM" && m.awayTeam.id !== undefined) return m.awayTeam.id;
+  const fromWinner = getMatchAdvancingTeamId(m);
+  if (fromWinner != null) return fromWinner;
   return null;
 }
 
@@ -296,6 +294,8 @@ export type MatchPredictionInput = {
   ftOutcome?: string | null;
   predHomeGoals?: number | null;
   predAwayGoals?: number | null;
+  /** Echipa aleasă să avanseze (meciuri eliminatorii). */
+  predAdvancingTeamId?: number | null;
 };
 
 export type MatchPointsBreakdown = {
@@ -309,6 +309,7 @@ export type MatchPredictionHits = {
   htCorrect: boolean;
   ftCorrect: boolean;
   scoreCorrect: boolean;
+  advancingCorrect: boolean;
 };
 
 /** Verifică ce părți ale pronosticului sunt corecte față de scorul din feed (dacă există). */
@@ -317,7 +318,7 @@ export function computeMatchPredictionHits(
   match: FootballDataMatch,
 ): MatchPredictionHits {
   const ht = match.score?.halfTime;
-  const ft = match.score?.fullTime;
+  const ft90 = getMatchScoreAfter90(match);
 
   let htCorrect = false;
   if (
@@ -333,8 +334,8 @@ export function computeMatchPredictionHits(
 
   let ftCorrect = false;
   let scoreCorrect = false;
-  if (ft?.home != null && ft?.away != null) {
-    const actualFt = outcomeFromScores(ft.home, ft.away);
+  if (ft90) {
+    const actualFt = outcomeFromScores(ft90.home, ft90.away);
     if (
       pred.ftOutcome &&
       (pred.ftOutcome === "HOME" ||
@@ -347,14 +348,25 @@ export function computeMatchPredictionHits(
     if (
       pred.predHomeGoals != null &&
       pred.predAwayGoals != null &&
-      pred.predHomeGoals === ft.home &&
-      pred.predAwayGoals === ft.away
+      pred.predHomeGoals === ft90.home &&
+      pred.predAwayGoals === ft90.away
     ) {
       scoreCorrect = true;
     }
   }
 
-  return { htCorrect, ftCorrect, scoreCorrect };
+  let advancingCorrect = false;
+  if (
+    isKnockoutStage(match.stage) &&
+    pred.predAdvancingTeamId != null &&
+    match.status === "FINISHED"
+  ) {
+    const actualAdv = getMatchAdvancingTeamId(match);
+    advancingCorrect =
+      actualAdv != null && pred.predAdvancingTeamId === actualAdv;
+  }
+
+  return { htCorrect, ftCorrect, scoreCorrect, advancingCorrect };
 }
 
 export function computeMatchPoints(
@@ -365,7 +377,7 @@ export function computeMatchPoints(
   const empty = { halfTime: 0, fullTime: 0, correctScore: 0, total: 0 };
   if (match.status !== "FINISHED") return empty;
 
-  const ft = match.score?.fullTime;
+  const ft90 = getMatchScoreAfter90(match);
   const ht = match.score?.halfTime;
 
   let halfTime = 0;
@@ -386,8 +398,8 @@ export function computeMatchPoints(
 
   let fullTime = 0;
   let correctScore = 0;
-  if (ft?.home != null && ft?.away != null) {
-    const actualFt = outcomeFromScores(ft.home, ft.away);
+  if (ft90) {
+    const actualFt = outcomeFromScores(ft90.home, ft90.away);
     if (
       pred.ftOutcome &&
       (pred.ftOutcome === "HOME" ||
@@ -401,10 +413,10 @@ export function computeMatchPoints(
     if (
       pred.predHomeGoals != null &&
       pred.predAwayGoals != null &&
-      pred.predHomeGoals === ft.home &&
-      pred.predAwayGoals === ft.away
+      pred.predHomeGoals === ft90.home &&
+      pred.predAwayGoals === ft90.away
     ) {
-      const oddCs = lookupCorrectScoreOdd(matchOdds, ft.home, ft.away);
+      const oddCs = lookupCorrectScoreOdd(matchOdds, ft90.home, ft90.away);
       correctScore = roundPoints(POINTS_CORRECT_SCORE_BASE * oddCs);
     }
   }

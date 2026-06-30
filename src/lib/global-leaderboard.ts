@@ -250,6 +250,7 @@ async function loadTournamentMemberData(
       ftOutcome: p.ftOutcome,
       predHomeGoals: p.predHomeGoals,
       predAwayGoals: p.predAwayGoals,
+      predAdvancingTeamId: p.predAdvancingTeamId,
     });
   }
 

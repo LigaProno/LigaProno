@@ -4,7 +4,7 @@ import { venueLabel } from "@/lib/football-data";
 import type { FootballDataMatch } from "@/lib/football-data";
 import { formatMatchKickoff } from "@/lib/match-datetime";
 import { useLocale } from "@/components/i18n/locale-provider";
-import { matchResultHtFt } from "@/lib/wc-pred-display";
+import { matchResultHtFt, matchResultFtWithSuffix } from "@/lib/wc-pred-display";
 import Image from "next/image";
 
 function isLiveStatus(status?: string): boolean {
@@ -12,7 +12,7 @@ function isLiveStatus(status?: string): boolean {
 }
 
 export function FootballDataMatchCard({ m }: { m: FootballDataMatch }) {
-  const { t, dateLocale } = useLocale();
+  const { t, dateLocale, locale } = useLocale();
   const venue = venueLabel(m);
   const when = formatMatchKickoff(m.utcDate, dateLocale);
   const home = m.homeTeam.name ?? m.homeTeam.shortName ?? "—";
@@ -20,6 +20,7 @@ export function FootballDataMatchCard({ m }: { m: FootballDataMatch }) {
   const hl = m.homeTeam.crest;
   const al = m.awayTeam.crest;
   const { ht, ft } = matchResultHtFt(m);
+  const ftDisplay = matchResultFtWithSuffix(m, locale === "en" ? "en" : "ro") ?? ft;
   const live = isLiveStatus(m.status);
   const finished = m.status === "FINISHED";
   const hasScore = ht != null || ft != null;
@@ -82,7 +83,7 @@ export function FootballDataMatchCard({ m }: { m: FootballDataMatch }) {
                   </span>
                 : null}
                 <span className="text-xl sm:text-2xl font-black tabular-nums text-white tracking-wide">
-                  {ft ?? "—"}
+                  {ftDisplay ?? "—"}
                 </span>
                 {ht ?
                   <span className="text-[11px] mt-1 tabular-nums" style={{ color: "rgba(255,255,255,0.45)" }}>

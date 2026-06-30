@@ -5,12 +5,14 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import type { FootballDataMatch } from "@/lib/football-data";
 import { formatMatchKickoff } from "@/lib/match-datetime";
 import {
+  formatPredAdvancingTeam,
   formatPredFt1x2Part,
   formatPredHtPart,
   formatPredScorePart,
   matchResultHtFt,
   teamShort,
 } from "@/lib/wc-pred-display";
+import { isKnockoutStage } from "@/lib/knockout-predictions";
 import { computeMatchPredictionHits, type MatchPredictionInput } from "@/lib/wc-scoring";
 
 type Row = { match: FootballDataMatch; pred: MatchPredictionInput };
@@ -47,6 +49,7 @@ export default function MemberPredictionsView({
   backLabelKey?: "memberPred.back" | "memberPred.backGlobal";
 }) {
   const { t, dateLocale } = useLocale();
+  const hasKnockoutRows = rows.some((r) => isKnockoutStage(r.match.stage));
 
   return (
     <div className="flex-1 p-4 sm:p-6 md:p-8 max-w-5xl mx-auto w-full">
@@ -134,6 +137,13 @@ export default function MemberPredictionsView({
                 <th
                   className="text-center py-3 px-2 font-semibold"
                   style={{ color: "rgba(255,255,255,0.45)" }}
+                  title={t("party.match.advancingTeam")}
+                >
+                  {hasKnockoutRows ? t("party.match.advancingTeam") : ""}
+                </th>
+                <th
+                  className="text-center py-3 px-2 font-semibold"
+                  style={{ color: "rgba(255,255,255,0.45)" }}
                   title={t("memberPred.actualHtTip")}
                 >
                   {t("party.lb.ht")}
@@ -177,6 +187,16 @@ export default function MemberPredictionsView({
                     >
                       {formatPredScorePart(pred)}
                     </td>
+                    {hasKnockoutRows && (
+                      <td
+                        className="py-3 px-2 align-top text-center font-medium"
+                        style={predCellStyle(hits.advancingCorrect)}
+                      >
+                        {isKnockoutStage(m.stage) ?
+                          formatPredAdvancingTeam(pred.predAdvancingTeamId, m) ?? "—"
+                        : "—"}
+                      </td>
+                    )}
                     <td className="py-3 px-2 align-top text-center tabular-nums font-semibold text-emerald-200/95">
                       {resHt ?? "—"}
                     </td>

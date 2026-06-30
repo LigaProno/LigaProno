@@ -142,6 +142,7 @@ export default function PartyWcDashboard({
       ftOutcome: string | null;
       predHomeGoals: number | null;
       predAwayGoals: number | null;
+      predAdvancingTeamId: number | null;
     }
   >;
   myExtra: {

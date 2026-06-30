@@ -36,8 +36,13 @@ export type FootballDataTeam = {
 /** Scor din API (meciuri terminate / în desfășurare). */
 export type FootballDataScore = {
   winner?: string | null;
+  duration?: string | null;
   fullTime?: { home?: number | null; away?: number | null };
   halfTime?: { home?: number | null; away?: number | null };
+  /** Scor după 90 de minute — prezent la meciuri eliminatorii cu prelungiri / penalty-uri. */
+  regularTime?: { home?: number | null; away?: number | null };
+  extraTime?: { home?: number | null; away?: number | null };
+  penalties?: { home?: number | null; away?: number | null };
 };
 
 /** Formă minimală din răspunsul la `/competitions/{code}/matches`. */

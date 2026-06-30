@@ -196,6 +196,11 @@ export const ro: Messages = {
   "party.backToTournaments": "Înapoi la Turnee",
   "party.match.halfTime": "Rezultat pauză",
   "party.match.fullTime": "Rezultat final",
+  "party.match.fullTime90": "Rezultat după 90 min",
+  "party.exactScore90": "Scor exact (90 min)",
+  "party.match.advancingTeam": "Cine se califică",
+  "party.match.advancingTeamDrawHint":
+    "La egalitate după 90 de minute, alege echipa care avansează (prelungiri sau penalty-uri).",
   "party.match.home": "Gazde",
   "party.match.away": "Oaspeți",
   "party.match.points": "Puncte",

@@ -25,6 +25,9 @@ import {
   shouldApplyMidCompetitionChangePenalty,
 } from "@/lib/prediction-window";
 import {
+  inferAdvancingTeamIdFromPredictedScore,
+} from "@/lib/match-score";
+import {
   outcomeFromScores,
   validateWcAdvancingTeamIds,
   type WcQualifierValidationError,
@@ -167,6 +170,7 @@ export async function saveWcMatchPrediction(
     ftOutcome?: string | null;
     predHomeGoals?: number | null;
     predAwayGoals?: number | null;
+    predAdvancingTeamId?: number | null;
   },
 ): Promise<void> {
   const { userId: clerkId } = await auth();
@@ -253,6 +257,38 @@ export async function saveWcMatchPrediction(
     predAwayGoals = null;
   }
 
+  let predAdvancingTeamId =
+    input.predAdvancingTeamId !== undefined && input.predAdvancingTeamId !== null ?
+      Number(input.predAdvancingTeamId)
+    : null;
+  if (predAdvancingTeamId != null && Number.isNaN(predAdvancingTeamId)) {
+    predAdvancingTeamId = null;
+  }
+
+  if (isKO) {
+    const inferred = inferAdvancingTeamIdFromPredictedScore(
+      predHomeGoals,
+      predAwayGoals,
+      match.homeTeam.id,
+      match.awayTeam.id,
+    );
+    if (inferred != null) {
+      predAdvancingTeamId = inferred;
+    }
+    const homeId = match.homeTeam.id;
+    const awayId = match.awayTeam.id;
+    if (
+      predAdvancingTeamId == null ||
+      (predAdvancingTeamId !== homeId && predAdvancingTeamId !== awayId)
+    ) {
+      throw new Error(
+        "La meciurile eliminatorii trebuie să alegi echipa care se califică.",
+      );
+    }
+  } else {
+    predAdvancingTeamId = null;
+  }
+
   const existing = await prisma.wcMatchPrediction.findUnique({
     where: {
       tournamentId_userId_matchId: {
@@ -268,7 +304,8 @@ export async function saveWcMatchPrediction(
     (existing.htOutcome !== ht ||
       existing.ftOutcome !== ft ||
       existing.predHomeGoals !== predHomeGoals ||
-      existing.predAwayGoals !== predAwayGoals);
+      existing.predAwayGoals !== predAwayGoals ||
+      existing.predAdvancingTeamId !== predAdvancingTeamId);
 
   const applyChangePenalty =
     underway &&
@@ -292,12 +329,14 @@ export async function saveWcMatchPrediction(
         ftOutcome: ft,
         predHomeGoals,
         predAwayGoals,
+        predAdvancingTeamId,
       },
       update: {
         htOutcome: ht,
         ftOutcome: ft,
         predHomeGoals,
         predAwayGoals,
+        predAdvancingTeamId,
       },
     });
     if (applyChangePenalty) {
@@ -517,6 +556,18 @@ export async function simulateRandomClPredictionsForMe(
     const htA = randInt(3);
     const ft = outcomeFromScores(predHomeGoals, predAwayGoals);
     const ht = outcomeFromScores(htH, htA);
+    const homeId = m.homeTeam.id;
+    const awayId = m.awayTeam.id;
+    let predAdvancingTeamId =
+      inferAdvancingTeamIdFromPredictedScore(
+        predHomeGoals,
+        predAwayGoals,
+        homeId,
+        awayId,
+      );
+    if (predAdvancingTeamId == null && homeId != null && awayId != null) {
+      predAdvancingTeamId = Math.random() < 0.5 ? homeId : awayId;
+    }
 
     await prisma.wcMatchPrediction.upsert({
       where: {
@@ -534,12 +585,14 @@ export async function simulateRandomClPredictionsForMe(
         ftOutcome: ft,
         predHomeGoals,
         predAwayGoals,
+        predAdvancingTeamId,
       },
       update: {
         htOutcome: ht,
         ftOutcome: ft,
         predHomeGoals,
         predAwayGoals,
+        predAdvancingTeamId,
       },
     });
   }

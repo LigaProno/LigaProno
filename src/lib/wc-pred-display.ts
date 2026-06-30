@@ -1,5 +1,10 @@
 import type { FootballDataMatch, FootballDataTeam } from "@/lib/football-data";
 import type { MatchPredictionInput } from "@/lib/wc-scoring";
+import {
+  formatKnockoutDeciderSuffix,
+  getMatchScoreAfter90,
+} from "@/lib/match-score";
+import { isKnockoutStage } from "@/lib/knockout-predictions";
 
 export function teamShort(t: FootballDataTeam | undefined): string {
   if (!t) return "?";
@@ -119,15 +124,26 @@ export function formatPredFtPart(p: MatchPredictionInput | null | undefined): st
   return "—";
 }
 
-/** Scoruri oficiale din API (pauză / final). */
+/** Scoruri oficiale din API (pauză / final după 90 de minute). */
 export function matchResultHtFt(m: FootballDataMatch): { ht: string | null; ft: string | null } {
   const ht = m.score?.halfTime;
-  const ft = m.score?.fullTime;
+  const ft90 = getMatchScoreAfter90(m);
   const htStr =
     ht?.home != null && ht?.away != null ? `${ht.home}–${ht.away}` : null;
-  const ftStr =
-    ft?.home != null && ft?.away != null ? `${ft.home}–${ft.away}` : null;
+  const ftStr = ft90 ? `${ft90.home}–${ft90.away}` : null;
   return { ht: htStr, ft: ftStr };
+}
+
+/** Scor final 90' + eventual sufix prelungiri / penalty-uri. */
+export function matchResultFtWithSuffix(
+  m: FootballDataMatch,
+  locale: "ro" | "en" = "ro",
+): string | null {
+  const ft90 = getMatchScoreAfter90(m);
+  if (!ft90) return null;
+  const base = `${ft90.home}–${ft90.away}`;
+  const suffix = formatKnockoutDeciderSuffix(m, locale);
+  return suffix ? `${base} (${suffix})` : base;
 }
 
 /** Rezumat scurt pentru leaderboard (scor sau 1/X/2). */
@@ -155,9 +171,23 @@ export function formatPredShort(p: MatchPredictionInput | null | undefined): str
 }
 
 export function formatActualFt(m: FootballDataMatch): string | null {
-  const ft = m.score?.fullTime;
-  if (ft?.home == null || ft?.away == null) return null;
-  return `${ft.home}-${ft.away}`;
+  const ft90 = getMatchScoreAfter90(m);
+  if (!ft90) return null;
+  return `${ft90.home}-${ft90.away}`;
+}
+
+export function formatPredAdvancingTeam(
+  predAdvancingTeamId: number | null | undefined,
+  m: FootballDataMatch,
+): string | null {
+  if (predAdvancingTeamId == null || !isKnockoutStage(m.stage)) return null;
+  if (predAdvancingTeamId === m.homeTeam.id) {
+    return teamShort(m.homeTeam);
+  }
+  if (predAdvancingTeamId === m.awayTeam.id) {
+    return teamShort(m.awayTeam);
+  }
+  return `#${predAdvancingTeamId}`;
 }
 
 export function fixtureTlaPair(m: FootballDataMatch): string {

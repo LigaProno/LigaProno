@@ -17,6 +17,7 @@ import {
   buildBestThirdPlacesRanking,
   getStandingsQualificationMarks,
 } from "@/lib/wc-scoring";
+import { getMatchAdvancingTeamId, getMatchScoreAfter90 } from "@/lib/match-score";
 
 // ---------------------------------------------------------------------------
 // Knockout bracket carousel
@@ -52,13 +53,14 @@ function BracketMatchCard({
   width: number;
   cardH: number;
 }) {
-  const ft = m.score?.fullTime;
+  const ft90 = getMatchScoreAfter90(m);
   const winner = m.score?.winner;
-  const homeGoals = ft?.home;
-  const awayGoals = ft?.away;
+  const homeGoals = ft90?.home;
+  const awayGoals = ft90?.away;
   const homeWon = winner === "HOME_TEAM";
   const awayWon = winner === "AWAY_TEAM";
   const hasResult = homeGoals != null && awayGoals != null;
+  const advancingId = getMatchAdvancingTeamId(m);
   const homeName =
     m.homeTeam.shortName ?? m.homeTeam.tla ?? m.homeTeam.name ?? "TBD";
   const awayName =
@@ -87,7 +89,7 @@ function BracketMatchCard({
         flexDirection: "column",
       }}
     >
-      <div style={rowStyle(hasResult && awayWon)}>
+      <div style={rowStyle(hasResult && (awayWon || advancingId === m.awayTeam.id))}>
         {m.homeTeam.crest ? (
           <Image
             src={m.homeTeam.crest}
@@ -120,7 +122,7 @@ function BracketMatchCard({
               fontWeight: 800,
               fontVariantNumeric: "tabular-nums",
               flexShrink: 0,
-              color: homeWon ? "#BEF264" : "rgba(255,255,255,0.6)",
+              color: homeWon || advancingId === m.homeTeam.id ? "#BEF264" : "rgba(255,255,255,0.6)",
             }}
           >
             {homeGoals}
@@ -130,7 +132,7 @@ function BracketMatchCard({
       <div
         style={{ height: 1, backgroundColor: "rgba(255,255,255,0.08)", flexShrink: 0 }}
       />
-      <div style={rowStyle(hasResult && homeWon)}>
+      <div style={rowStyle(hasResult && (homeWon || advancingId === m.homeTeam.id))}>
         {m.awayTeam.crest ? (
           <Image
             src={m.awayTeam.crest}
@@ -163,7 +165,7 @@ function BracketMatchCard({
               fontWeight: 800,
               fontVariantNumeric: "tabular-nums",
               flexShrink: 0,
-              color: awayWon ? "#BEF264" : "rgba(255,255,255,0.6)",
+              color: awayWon || advancingId === m.awayTeam.id ? "#BEF264" : "rgba(255,255,255,0.6)",
             }}
           >
             {awayGoals}
