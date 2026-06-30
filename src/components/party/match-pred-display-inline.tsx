@@ -5,6 +5,7 @@ export function MatchPredDisplayInline({
   labelHt,
   labelFt,
   labelScore,
+  labelAdvancing,
   stacked = false,
   className = "",
 }: {
@@ -12,6 +13,7 @@ export function MatchPredDisplayInline({
   labelHt: string;
   labelFt: string;
   labelScore: string;
+  labelAdvancing?: string;
   stacked?: boolean;
   className?: string;
 }) {
@@ -30,6 +32,12 @@ export function MatchPredDisplayInline({
           <span style={{ color: "rgba(255,255,255,0.42)" }}>{labelScore}</span>{" "}
           <span className="font-medium">{pred.score}</span>
         </div>
+        {pred.advancing != null && labelAdvancing ?
+          <div>
+            <span style={{ color: "rgba(255,255,255,0.42)" }}>{labelAdvancing}</span>{" "}
+            <span className="font-medium">{pred.advancing}</span>
+          </div>
+        : null}
       </div>
     );
   }
@@ -48,6 +56,15 @@ export function MatchPredDisplayInline({
       </span>
       <span style={{ color: "rgba(255,255,255,0.42)" }}>{labelScore}</span>{" "}
       <span className="font-medium">{pred.score}</span>
+      {pred.advancing != null && labelAdvancing ?
+        <>
+          <span style={{ color: "rgba(255,255,255,0.25)" }} className="mx-1">
+            ·
+          </span>
+          <span style={{ color: "rgba(255,255,255,0.42)" }}>{labelAdvancing}</span>{" "}
+          <span className="font-medium">{pred.advancing}</span>
+        </>
+      : null}
     </div>
   );
 }

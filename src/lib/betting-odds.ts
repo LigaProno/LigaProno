@@ -11,6 +11,8 @@ export type MatchOddsRow = {
   ft1x2: Record<Odds1x2Outcome, number>;
   /** Chei „home-away”, ex. „2-1”. */
   correctScore: Record<string, number>;
+  /** Calificare din meci eliminatoriu (gazde / oaspeți). */
+  toAdvance?: { home: number; away: number } | null;
 };
 
 export type TeamOddsRow = {
@@ -116,6 +118,16 @@ function normalizeTeamRow(src: unknown): TeamOddsRow {
   };
 }
 
+function normalizeToAdvance(src: unknown): { home: number; away: number } | null {
+  if (!src || typeof src !== "object") return null;
+  const o = src as Record<string, unknown>;
+  const home = o.home ?? o.HOME;
+  const away = o.away ?? o.AWAY;
+  if (typeof home !== "number" || typeof away !== "number") return null;
+  if (!Number.isFinite(home) || !Number.isFinite(away)) return null;
+  return { home: clampOdd(home), away: clampOdd(away) };
+}
+
 export function normalizeMatchOddsRow(raw: unknown): MatchOddsRow | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -123,6 +135,7 @@ export function normalizeMatchOddsRow(raw: unknown): MatchOddsRow | null {
     ht1x2: normalizeOutcomeRecord(o.ht1x2),
     ft1x2: normalizeOutcomeRecord(o.ft1x2),
     correctScore: normalizeCorrectScore(o.correctScore),
+    toAdvance: normalizeToAdvance(o.toAdvance),
   };
 }
 
@@ -161,6 +174,17 @@ export function hasUsableMatchOdds(row: MatchOddsRow | null | undefined): boolea
   if (!allOutcomesAreOne(row.ft1x2)) return true;
   if (!allOutcomesAreOne(row.ht1x2)) return true;
   return Object.keys(row.correctScore).length >= 3;
+}
+
+/** Păstrează doar meciurile cu cote reale (exclude placeholder-ele ×1). */
+export function filterUsableMatchOdds(
+  matches: Record<string, MatchOddsRow>,
+): Record<string, MatchOddsRow> {
+  const out: Record<string, MatchOddsRow> = {};
+  for (const [id, row] of Object.entries(matches)) {
+    if (hasUsableMatchOdds(row)) out[id] = row;
+  }
+  return out;
 }
 
 function mergeTeamOddsRow(preferred: TeamOddsRow, fallback?: TeamOddsRow): TeamOddsRow {
@@ -303,4 +327,56 @@ export function lookupTeamOutrightOdd(
   const row = maps?.teamById.get(teamId);
   const w = row?.outrightWinner;
   return w != null && w >= 1 ? clampOdd(w) : 1;
+}
+
+/** Estimează cote „cine trece mai departe” din 1X2 final (inclusiv egal → prelungiri). */
+export function estimateToAdvanceFromFt1x2(
+  ft: Record<Odds1x2Outcome, number>,
+): { home: number; away: number } {
+  const ih = 1 / Math.max(ft.HOME, 1.01);
+  const id = 1 / Math.max(ft.DRAW, 1.01);
+  const ia = 1 / Math.max(ft.AWAY, 1.01);
+  const sum = ih + id + ia;
+  const pH = ih / sum + 0.5 * (id / sum);
+  const pA = ia / sum + 0.5 * (id / sum);
+  const norm = pH + pA;
+  return {
+    home: clampOdd(Math.max(1.01, 1 / (pH / norm))),
+    away: clampOdd(Math.max(1.01, 1 / (pA / norm))),
+  };
+}
+
+export function lookupMatchToAdvanceOdd(
+  row: MatchOddsRow | null | undefined,
+  homeTeamId: number | null | undefined,
+  awayTeamId: number | null | undefined,
+  advancingTeamId: number,
+): number {
+  if (!row) return 1;
+  let adv = row.toAdvance;
+  if (!adv || adv.home < 1.01 || adv.away < 1.01) {
+    adv = estimateToAdvanceFromFt1x2(row.ft1x2);
+  }
+  if (advancingTeamId === homeTeamId) return adv.home;
+  if (advancingTeamId === awayTeamId) return adv.away;
+  return 1;
+}
+
+/** Completează toAdvance lipsă pentru meciurile eliminatorii (din ft1x2). */
+export function fillEstimatedToAdvanceOdds(
+  payload: BettingOddsPayload,
+  knockoutMatchIds: Iterable<number>,
+): BettingOddsPayload {
+  const koSet = new Set(knockoutMatchIds);
+  const matches: Record<string, MatchOddsRow> = { ...payload.matches };
+  for (const [idStr, row] of Object.entries(matches)) {
+    const id = Number(idStr);
+    if (!koSet.has(id)) continue;
+    if (row.toAdvance?.home != null && row.toAdvance?.away != null) continue;
+    matches[idStr] = {
+      ...row,
+      toAdvance: estimateToAdvanceFromFt1x2(row.ft1x2),
+    };
+  }
+  return { ...payload, matches };
 }

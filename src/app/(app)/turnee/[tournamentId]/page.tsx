@@ -29,7 +29,7 @@ import {
   matchResultHtFt,
 } from "@/lib/wc-pred-display";
 import type { NextThreeMatchPreds } from "@/components/party/next-three-predictions-panel";
-import { payloadToOddsMaps } from "@/lib/betting-odds";
+import { filterUsableMatchOdds, payloadToOddsMaps } from "@/lib/betting-odds";
 import {
   isCompetitionUnderway,
   isMidCompetitionPredictionChangesAllowed,
@@ -185,33 +185,44 @@ export default async function PartyTournamentPage({
     ]),
   );
 
-  const { lastFinished, nextThree } = lastFinishedAndNextThree(matches);
-
-  const nextThreeMemberPreds: NextThreeMatchPreds[] = nextThree.map((nm) => ({
-    matchId: nm.id,
-    utcDate: nm.utcDate,
-    homeTeam: {
-      name: nm.homeTeam.name ?? nm.homeTeam.shortName ?? "—",
-      shortName: nm.homeTeam.tla ?? nm.homeTeam.shortName ?? undefined,
-      crest: nm.homeTeam.crest,
-    },
-    awayTeam: {
-      name: nm.awayTeam.name ?? nm.awayTeam.shortName ?? "—",
-      shortName: nm.awayTeam.tla ?? nm.awayTeam.shortName ?? undefined,
-      crest: nm.awayTeam.crest,
-    },
-    venue: venueLabel(nm),
-    rows: tournament.members
-      .map((m) => ({
-        userId: m.userId,
-        displayName: displayName(m.user.firstName, m.user.lastName),
-        pred: getMatchPredDisplay(predsByUser.get(m.userId)?.get(nm.id) ?? null),
-      }))
-      .sort((a, b) => a.displayName.localeCompare(b.displayName, "ro")),
-  }));
-
   const oddsPayload = competitionOddsSnapshot?.payload ?? null;
   const oddsMaps = payloadToOddsMaps(oddsPayload);
+  const usableMatchOddsById = filterUsableMatchOdds(oddsPayload?.matches ?? {});
+
+  const { lastFinished, nextThree } = lastFinishedAndNextThree(matches);
+
+  const nextThreeMemberPreds: NextThreeMatchPreds[] = nextThree.map((nm) => {
+    const row = usableMatchOddsById[String(nm.id)];
+    return {
+      matchId: nm.id,
+      utcDate: nm.utcDate,
+      homeTeam: {
+        name: nm.homeTeam.name ?? nm.homeTeam.shortName ?? "—",
+        shortName: nm.homeTeam.tla ?? nm.homeTeam.shortName ?? undefined,
+        crest: nm.homeTeam.crest,
+      },
+      awayTeam: {
+        name: nm.awayTeam.name ?? nm.awayTeam.shortName ?? "—",
+        shortName: nm.awayTeam.tla ?? nm.awayTeam.shortName ?? undefined,
+        crest: nm.awayTeam.crest,
+      },
+      venue: venueLabel(nm),
+      ftOdds: row ?
+        {
+          home: row.ft1x2.HOME,
+          draw: row.ft1x2.DRAW,
+          away: row.ft1x2.AWAY,
+        }
+      : null,
+      rows: tournament.members
+        .map((m) => ({
+          userId: m.userId,
+          displayName: displayName(m.user.firstName, m.user.lastName),
+          pred: getMatchPredDisplay(predsByUser.get(m.userId)?.get(nm.id) ?? null, nm),
+        }))
+        .sort((a, b) => a.displayName.localeCompare(b.displayName, "ro")),
+    };
+  });
 
   const competitionUnderway =
     parsedCompetition && !loadError && matches.length > 0 ?
@@ -236,7 +247,7 @@ export default async function PartyTournamentPage({
         {
           matchId: lastFinished.id,
           fixture: fixtureTlaPair(lastFinished),
-          pred: getMatchPredDisplay(pmap.get(lastFinished.id) ?? null),
+          pred: getMatchPredDisplay(pmap.get(lastFinished.id) ?? null, lastFinished),
           actualHt: lastScores?.ht ?? null,
           actualFt: lastScores?.ft ?? null,
         }
@@ -248,7 +259,7 @@ export default async function PartyTournamentPage({
       return {
         matchId: nm.id,
         fixture: fixtureTlaPair(nm),
-        pred: getMatchPredDisplay(pmap.get(nm.id) ?? null),
+        pred: getMatchPredDisplay(pmap.get(nm.id) ?? null, nm),
       };
     });
 
@@ -358,7 +369,7 @@ export default async function PartyTournamentPage({
         myPreds={myPredsRecord}
         myExtra={myExtra}
         allTeams={allTeams}
-        bettingOddsByMatchId={oddsPayload?.matches ?? {}}
+        bettingOddsByMatchId={usableMatchOddsById}
         bettingOddsByTeamId={oddsPayload?.teams ?? {}}
         bettingOddsFetchedAt={competitionOddsSnapshot?.fetchedAt?.toISOString() ?? null}
         lastManualOddsRefreshAt={

@@ -2,6 +2,7 @@ import type { FootballDataMatch } from "@/lib/football-data";
 import {
   type BettingOddsPayload,
   BETTING_ODDS_SCHEMA_VERSION,
+  hasUsableMatchOdds,
   type MatchOddsRow,
   type TeamOddsRow,
 } from "@/lib/betting-odds";
@@ -190,7 +191,8 @@ Return this exact shape:
     "<matchId as string>": {
       "ht1x2": { "HOME": number, "DRAW": number, "AWAY": number },
       "ft1x2": { "HOME": number, "DRAW": number, "AWAY": number },
-      "correctScore": { "0-0": number, "1-0": number, ... }
+      "correctScore": { "0-0": number, "1-0": number, ... },
+      "toAdvance": { "home": number, "away": number } | null
     }
   },
   "teams": {}
@@ -200,6 +202,7 @@ Rules:
 - Decimal odds >= 1.01 for every number.
 - ht1x2 = half-time 1X2, ft1x2 = full-time 1X2 for this fixture.
 - correctScore: include odds for every scoreline with home goals 0-4 and away goals 0-4 (25 keys per match) using keys "h-a" like "2-1".
+- toAdvance: for knockout stages (ROUND_OF_16, QUARTER_FINALS, SEMI_FINALS, THIRD_PLACE, FINAL, LAST_16, etc.), include "to qualify" / "to advance" decimal odds for home and away (who wins the tie including extra time and penalties if needed). Use null for GROUP_STAGE fixtures.
 - "teams" must be an empty object {}.
 - Cover every matchId from the input lines.
 `;
@@ -294,7 +297,7 @@ export async function fetchTeamOddsViaGemini(
 export async function fetchMatchOddsViaGemini(
   competitionLabel: string,
   matches: FootballDataMatch[],
-  options?: { model?: string; googleSearch?: boolean },
+  options?: { model?: string; googleSearch?: boolean; timeoutMs?: number },
 ): Promise<FetchBettingOddsResult> {
   const apiKey = getGeminiApiKey();
   const model = (
@@ -309,8 +312,8 @@ export async function fetchMatchOddsViaGemini(
     teams: {},
   };
 
-  for (let i = 0; i < matches.length; i += MATCH_BATCH) {
-    const chunk = matches.slice(i, i + MATCH_BATCH);
+  async function fetchChunk(chunk: FootballDataMatch[]): Promise<void> {
+    if (chunk.length === 0) return;
     const raw = await callGeminiJson(
       apiKey,
       model,
@@ -318,6 +321,18 @@ export async function fetchMatchOddsViaGemini(
       { googleSearch },
     );
     acc = mergePayload(acc, coercePayload(raw));
+  }
+
+  for (let i = 0; i < matches.length; i += MATCH_BATCH) {
+    const chunk = matches.slice(i, i + MATCH_BATCH);
+    await fetchChunk(chunk);
+
+    const stillMissing = chunk.filter(
+      (m) => !hasUsableMatchOdds(acc.matches[String(m.id)]),
+    );
+    if (stillMissing.length > 0 && stillMissing.length < chunk.length) {
+      await fetchChunk(stillMissing);
+    }
   }
 
   return { payload: acc, model, usedGoogleSearch: googleSearch };

@@ -719,6 +719,7 @@ export default function PartyWcDashboard({
                                 labelHt={t("party.lb.predHt")}
                                 labelFt={t("party.lb.predFt")}
                                 labelScore={t("party.lb.predSc")}
+                                labelAdvancing={t("party.lb.predAdv")}
                                 stacked
                               />
                               {(row.lastMatch.actualHt || row.lastMatch.actualFt) && (

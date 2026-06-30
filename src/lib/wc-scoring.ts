@@ -1,6 +1,7 @@
 import {
   lookup1x2Odd,
   lookupCorrectScoreOdd,
+  lookupMatchToAdvanceOdd,
   lookupTeamOutrightOdd,
   lookupTeamQualifyOdd,
   type MatchOddsRow,
@@ -44,6 +45,8 @@ export const WC_QUALIFIERS_MAX_PER_GROUP = 3;
 export const WC_BEST_THIRD_PLACES_COUNT = 8;
 /** Punctaj de bază pentru campion ghicit. */
 export const POINTS_CHAMPION_BASE = 12;
+/** Punctaj de bază pentru echipă calificată corect din meci eliminatoriu. */
+export const POINTS_KO_ADVANCE_BASE = 1;
 
 export function roundPoints(n: number): number {
   return Math.round(n * 100) / 100;
@@ -302,6 +305,7 @@ export type MatchPointsBreakdown = {
   halfTime: number;
   fullTime: number;
   correctScore: number;
+  advancing: number;
   total: number;
 };
 
@@ -374,7 +378,7 @@ export function computeMatchPoints(
   match: FootballDataMatch,
   matchOdds?: MatchOddsRow | null,
 ): MatchPointsBreakdown {
-  const empty = { halfTime: 0, fullTime: 0, correctScore: 0, total: 0 };
+  const empty = { halfTime: 0, fullTime: 0, correctScore: 0, advancing: 0, total: 0 };
   if (match.status !== "FINISHED") return empty;
 
   const ft90 = getMatchScoreAfter90(match);
@@ -421,11 +425,29 @@ export function computeMatchPoints(
     }
   }
 
+  let advancing = 0;
+  if (
+    isKnockoutStage(match.stage) &&
+    pred.predAdvancingTeamId != null
+  ) {
+    const actualAdv = getMatchAdvancingTeamId(match);
+    if (actualAdv != null && pred.predAdvancingTeamId === actualAdv) {
+      const odd = lookupMatchToAdvanceOdd(
+        matchOdds ?? null,
+        match.homeTeam.id,
+        match.awayTeam.id,
+        actualAdv,
+      );
+      advancing = roundPoints(POINTS_KO_ADVANCE_BASE * odd);
+    }
+  }
+
   return {
     halfTime,
     fullTime,
     correctScore,
-    total: roundPoints(halfTime + fullTime + correctScore),
+    advancing,
+    total: roundPoints(halfTime + fullTime + correctScore + advancing),
   };
 }
 
@@ -521,6 +543,7 @@ export function computeUserWcTotals(
   let fullTimeGuessPoints = 0;
   let halfTimeGuessPoints = 0;
   let correctScorePoints = 0;
+  let koAdvancingPoints = 0;
   let correctScoreCount = 0;
   for (const m of matches) {
     const pred = matchPredictionsByMatchId.get(m.id);
@@ -530,12 +553,13 @@ export function computeUserWcTotals(
     halfTimeGuessPoints += b.halfTime;
     fullTimeGuessPoints += b.fullTime;
     correctScorePoints += b.correctScore;
+    koAdvancingPoints += b.advancing;
     if (computeMatchPredictionHits(pred, m).scoreCorrect) {
       correctScoreCount++;
     }
   }
   const matchPoints = roundPoints(
-    fullTimeGuessPoints + halfTimeGuessPoints + correctScorePoints,
+    fullTimeGuessPoints + halfTimeGuessPoints + correctScorePoints + koAdvancingPoints,
   );
 
   const advancingSet = resolveActualAdvancingTeamIdsForScoring(

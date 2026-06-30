@@ -6,6 +6,7 @@ import {
 } from "@/lib/competition";
 import { loadCompetitionOddsSnapshot } from "@/lib/competition-odds";
 import {
+  filterUsableMatchOdds,
   payloadToOddsMaps,
   type BettingOddsPayload,
   type TournamentOddsMaps,
@@ -108,7 +109,7 @@ function buildLeaderboardPredictionFields(
       {
         matchId: lastFinished.id,
         fixture: fixtureTlaPair(lastFinished),
-        pred: getMatchPredDisplay(pmap.get(lastFinished.id) ?? null),
+        pred: getMatchPredDisplay(pmap.get(lastFinished.id) ?? null, lastFinished),
         actualHt: lastScores?.ht ?? null,
         actualFt: lastScores?.ft ?? null,
       }
@@ -125,6 +126,7 @@ function buildNextThreeByCompetition(
   rows: GlobalLeaderboardRow[],
   competitionCtxByKey: Map<string, CompetitionScoringContext>,
   memberDataByTournament: Map<string, TournamentMemberData>,
+  oddsByCompetition: Map<string, BettingOddsPayload | null>,
 ): GlobalLeaderboardNextThreeBlock[] {
   const blocks: GlobalLeaderboardNextThreeBlock[] = [];
 
@@ -135,33 +137,46 @@ function buildNextThreeByCompetition(
     const relevantRows = rows.filter((row) => row.bestTournamentCompetition === competition);
     if (relevantRows.length === 0) continue;
 
-    const matches: NextThreeMatchPreds[] = nextThree.map((nm) => ({
-      matchId: nm.id,
-      utcDate: nm.utcDate,
-      homeTeam: {
-        name: nm.homeTeam.name ?? nm.homeTeam.shortName ?? "—",
-        shortName: nm.homeTeam.tla ?? nm.homeTeam.shortName ?? undefined,
-        crest: nm.homeTeam.crest,
-      },
-      awayTeam: {
-        name: nm.awayTeam.name ?? nm.awayTeam.shortName ?? "—",
-        shortName: nm.awayTeam.tla ?? nm.awayTeam.shortName ?? undefined,
-        crest: nm.awayTeam.crest,
-      },
-      venue: venueLabel(nm),
-      rows: relevantRows
-        .map((row) => ({
-          userId: row.userId,
-          displayName: row.displayName,
-          pred: getMatchPredDisplay(
-            memberDataByTournament
-              .get(row.bestTournamentId)
-              ?.predsByUser.get(row.userId)
-              ?.get(nm.id) ?? null,
-          ),
-        }))
-        .sort((a, b) => a.displayName.localeCompare(b.displayName, "ro")),
-    }));
+    const usableOdds = filterUsableMatchOdds(oddsByCompetition.get(competition)?.matches ?? {});
+
+    const matches: NextThreeMatchPreds[] = nextThree.map((nm) => {
+      const row = usableOdds[String(nm.id)];
+      return {
+        matchId: nm.id,
+        utcDate: nm.utcDate,
+        homeTeam: {
+          name: nm.homeTeam.name ?? nm.homeTeam.shortName ?? "—",
+          shortName: nm.homeTeam.tla ?? nm.homeTeam.shortName ?? undefined,
+          crest: nm.homeTeam.crest,
+        },
+        awayTeam: {
+          name: nm.awayTeam.name ?? nm.awayTeam.shortName ?? "—",
+          shortName: nm.awayTeam.tla ?? nm.awayTeam.shortName ?? undefined,
+          crest: nm.awayTeam.crest,
+        },
+        venue: venueLabel(nm),
+        ftOdds: row ?
+          {
+            home: row.ft1x2.HOME,
+            draw: row.ft1x2.DRAW,
+            away: row.ft1x2.AWAY,
+          }
+        : null,
+        rows: relevantRows
+          .map((row) => ({
+            userId: row.userId,
+            displayName: row.displayName,
+            pred: getMatchPredDisplay(
+              memberDataByTournament
+                .get(row.bestTournamentId)
+                ?.predsByUser.get(row.userId)
+                ?.get(nm.id) ?? null,
+              nm,
+            ),
+          }))
+          .sort((a, b) => a.displayName.localeCompare(b.displayName, "ro")),
+      };
+    });
 
     blocks.push({
       competition,
@@ -625,6 +640,7 @@ export async function buildGlobalLeaderboard(): Promise<GlobalLeaderboardResult>
       rows,
       competitionCtxByKey,
       memberDataByTournament,
+      oddsByCompetition,
     ),
   };
 }

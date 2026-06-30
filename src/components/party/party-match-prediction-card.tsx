@@ -385,14 +385,6 @@ export function PartyMatchPredictionCard({
 
         {!formLocked && (
           <>
-            <PotentialPoints
-              ht={p.htOutcome}
-              ft={p.ftOutcome}
-              hg={p.predHomeGoals}
-              ag={p.predAwayGoals}
-              matchOdds={matchOddsRow}
-            />
-
             <div className="grid sm:grid-cols-2 gap-4">
               <OutcomeButtons
                 label={t("party.match.halfTime")}
@@ -508,6 +500,19 @@ export function PartyMatchPredictionCard({
               </div>
             )}
 
+            <PotentialPoints
+              ht={p.htOutcome}
+              ft={p.ftOutcome}
+              hg={p.predHomeGoals}
+              ag={p.predAwayGoals}
+              matchOdds={matchOddsRow}
+              predAdvancingTeamId={
+                p.predAdvancingTeamId === "" ? null : Number(p.predAdvancingTeamId)
+              }
+              homeTeamId={homeTeamId}
+              awayTeamId={awayTeamId}
+            />
+
             <button
               type="button"
               onClick={handleSave}
@@ -541,6 +546,12 @@ export function PartyMatchPredictionCard({
               fullTime: breakdown.fullTime,
               correctScore: breakdown.correctScore,
             })}
+            {isKnockout && (
+              <>
+                {", "}
+                {t("party.lb.predAdv")} {breakdown.advancing}
+              </>
+            )}
           </p>
         )}
       </div>

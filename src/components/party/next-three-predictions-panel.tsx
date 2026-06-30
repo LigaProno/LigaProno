@@ -17,6 +17,7 @@ export type NextThreeMatchPreds = {
   homeTeam: NextThreeTeamSide;
   awayTeam: NextThreeTeamSide;
   venue?: string | null;
+  ftOdds?: { home: number; draw: number; away: number } | null;
   rows: { userId: string; displayName: string; pred: MatchPredDisplay }[];
 };
 
@@ -30,6 +31,7 @@ function MatchPredictionsTable({
   labelHt,
   labelFt,
   labelScore,
+  labelAdvancing,
 }: {
   block: NextThreeMatchPreds;
   currentUserId: string;
@@ -40,11 +42,13 @@ function MatchPredictionsTable({
   labelHt: string;
   labelFt: string;
   labelScore: string;
+  labelAdvancing: string;
 }) {
   const when = formatMatchKickoff(block.utcDate, dateLocale);
   const venue = block.venue ?? stadiumTbd;
   const homeLabel = block.homeTeam.shortName ?? block.homeTeam.name;
   const awayLabel = block.awayTeam.shortName ?? block.awayTeam.name;
+  const showAdvancing = block.rows.some((row) => row.pred.advancing != null);
 
   return (
     <article
@@ -76,6 +80,11 @@ function MatchPredictionsTable({
         <div className="text-xs sm:text-sm truncate max-w-full sm:max-w-xs" style={{ color: "rgba(255,255,255,0.42)" }}>
           {venue}
         </div>
+        {block.ftOdds ?
+          <div className="text-[11px] sm:text-xs tabular-nums font-medium w-full sm:w-auto" style={{ color: "rgba(167,243,208,0.85)" }}>
+            1 {block.ftOdds.home.toFixed(2)} · X {block.ftOdds.draw.toFixed(2)} · 2 {block.ftOdds.away.toFixed(2)}
+          </div>
+        : null}
       </div>
 
       <div className="overflow-x-auto">
@@ -99,6 +108,11 @@ function MatchPredictionsTable({
               <th className="text-center py-3 px-2 text-sm sm:text-base font-bold w-16" style={{ color: "rgba(255,255,255,0.65)" }}>
                 {labelScore}
               </th>
+              {showAdvancing ?
+                <th className="text-center py-3 px-2 text-sm sm:text-base font-bold w-16" style={{ color: "rgba(255,255,255,0.65)" }}>
+                  {labelAdvancing}
+                </th>
+              : null}
             </tr>
           </thead>
           <tbody>
@@ -129,6 +143,11 @@ function MatchPredictionsTable({
                 <td className="py-2.5 px-2 align-middle text-center tabular-nums font-semibold text-white">
                   {row.pred.score}
                 </td>
+                {showAdvancing ?
+                  <td className="py-2.5 px-2 align-middle text-center tabular-nums font-medium text-white">
+                    {row.pred.advancing ?? "—"}
+                  </td>
+                : null}
               </tr>
             ))}
           </tbody>
@@ -171,6 +190,7 @@ export function NextThreePredictionsPanel({
             labelHt={t("party.lb.predHt")}
             labelFt={t("party.lb.predFt")}
             labelScore={t("party.lb.predSc")}
+            labelAdvancing={t("party.lb.predAdv")}
           />
         ))}
       </div>

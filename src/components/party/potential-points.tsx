@@ -3,6 +3,7 @@
 import {
   lookup1x2Odd,
   lookupCorrectScoreOdd,
+  lookupMatchToAdvanceOdd,
   type MatchOddsRow,
 } from "@/lib/betting-odds";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -10,6 +11,7 @@ import {
   POINTS_HT_BASE,
   POINTS_FT_BASE,
   POINTS_CORRECT_SCORE_BASE,
+  POINTS_KO_ADVANCE_BASE,
   roundPoints,
 } from "@/lib/wc-scoring";
 
@@ -23,15 +25,25 @@ export function PotentialPoints({
   hg,
   ag,
   matchOdds,
+  predAdvancingTeamId,
+  homeTeamId,
+  awayTeamId,
 }: {
   ht: string;
   ft: string;
   hg: string;
   ag: string;
   matchOdds: MatchOddsRow | null | undefined;
+  predAdvancingTeamId?: number | null;
+  homeTeamId?: number | null;
+  awayTeamId?: number | null;
 }) {
   const { t } = useLocale();
-  const hasAny = ht || ft || (hg !== "" && ag !== "");
+  const hasAny =
+    ht ||
+    ft ||
+    (hg !== "" && ag !== "") ||
+    (predAdvancingTeamId != null && homeTeamId != null && awayTeamId != null);
   if (!hasAny) return null;
 
   const htOdd = ht ? lookup1x2Odd(matchOdds, "ht1x2", ht as "HOME" | "DRAW" | "AWAY") : null;
@@ -46,7 +58,20 @@ export function PotentialPoints({
   const htPts = htOdd != null ? roundPoints(POINTS_HT_BASE * htOdd) : null;
   const ftPts = ftOdd != null ? roundPoints(POINTS_FT_BASE * ftOdd) : null;
   const csPts = csOdd != null ? roundPoints(POINTS_CORRECT_SCORE_BASE * csOdd) : null;
-  const total = roundPoints((htPts ?? 0) + (ftPts ?? 0) + (csPts ?? 0));
+
+  const advOdd =
+    predAdvancingTeamId != null && homeTeamId != null && awayTeamId != null ?
+      lookupMatchToAdvanceOdd(
+        matchOdds,
+        homeTeamId,
+        awayTeamId,
+        predAdvancingTeamId,
+      )
+    : null;
+  const advPts =
+    advOdd != null ? roundPoints(POINTS_KO_ADVANCE_BASE * advOdd) : null;
+
+  const total = roundPoints((htPts ?? 0) + (ftPts ?? 0) + (csPts ?? 0) + (advPts ?? 0));
 
   const noOdds = !matchOdds;
 
@@ -80,6 +105,13 @@ export function PotentialPoints({
           <span className="text-white font-medium">{hg}-{ag}</span>
           {!noOdds && <span style={{ color: CYAN }}> ×{csOdd?.toFixed(2)}</span>}
           <span style={{ color: LIME }}> = {csPts} {t("potentialPoints.pointsShort")}</span>
+        </span>
+      )}
+      {advPts != null && (
+        <span className="text-xs" style={{ color: MUTED }}>
+          {t("potentialPoints.advancing")}{" "}
+          {!noOdds && <span style={{ color: CYAN }}>×{advOdd?.toFixed(2)}</span>}
+          <span style={{ color: LIME }}> = {advPts} {t("potentialPoints.pointsShort")}</span>
         </span>
       )}
       <span className="text-xs font-bold ml-auto" style={{ color: LIME }}>

@@ -1,10 +1,12 @@
 import {
   BETTING_ODDS_SCHEMA_VERSION,
   fillEstimatedQualifyOdds,
+  fillEstimatedToAdvanceOdds,
   type BettingOddsPayload,
   type MatchOddsRow,
   type TeamOddsRow,
 } from "@/lib/betting-odds";
+import { isKnockoutStage } from "@/lib/knockout-predictions";
 import { mapWithConcurrency } from "@/lib/odds-providers/concurrency";
 import {
   fetchEventMeta,
@@ -106,11 +108,17 @@ export class OddsPortalProvider implements OddsProvider {
       throw new Error(`OddsPortal: niciun meci actualizat. ${errors.slice(0, 3).join(" | ")}`);
     }
 
-    const payload: BettingOddsPayload = fillEstimatedQualifyOdds({
-      schemaVersion: BETTING_ODDS_SCHEMA_VERSION,
-      matches,
-      teams,
-    });
+    const koMatchIds = ctx.matches
+      .filter((m) => isKnockoutStage(m.stage))
+      .map((m) => m.id);
+    const payload: BettingOddsPayload = fillEstimatedToAdvanceOdds(
+      fillEstimatedQualifyOdds({
+        schemaVersion: BETTING_ODDS_SCHEMA_VERSION,
+        matches,
+        teams,
+      }),
+      koMatchIds,
+    );
 
     return { payload, provider: this.name };
   }

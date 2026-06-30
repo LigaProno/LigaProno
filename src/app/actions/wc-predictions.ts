@@ -278,12 +278,11 @@ export async function saveWcMatchPrediction(
     const homeId = match.homeTeam.id;
     const awayId = match.awayTeam.id;
     if (
-      predAdvancingTeamId == null ||
-      (predAdvancingTeamId !== homeId && predAdvancingTeamId !== awayId)
+      predAdvancingTeamId != null &&
+      predAdvancingTeamId !== homeId &&
+      predAdvancingTeamId !== awayId
     ) {
-      throw new Error(
-        "La meciurile eliminatorii trebuie să alegi echipa care se califică.",
-      );
+      throw new Error("Echipa aleasă să avanseze nu face parte din acest meci.");
     }
   } else {
     predAdvancingTeamId = null;
@@ -307,10 +306,20 @@ export async function saveWcMatchPrediction(
       existing.predAwayGoals !== predAwayGoals ||
       existing.predAdvancingTeamId !== predAdvancingTeamId);
 
+  const firstTimeAdvancingPick =
+    !!existing &&
+    existing.predAdvancingTeamId == null &&
+    predAdvancingTeamId != null &&
+    existing.htOutcome === ht &&
+    existing.ftOutcome === ft &&
+    existing.predHomeGoals === predHomeGoals &&
+    existing.predAwayGoals === predAwayGoals;
+
   const applyChangePenalty =
     underway &&
     shouldApplyMidCompetitionChangePenalty(tournamentAllowChanges) &&
-    changed;
+    changed &&
+    !firstTimeAdvancingPick;
 
   await prisma.$transaction(async (tx) => {
     await tx.wcMatchPrediction.upsert({

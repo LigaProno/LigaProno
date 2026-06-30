@@ -59,6 +59,8 @@ export type MatchPredDisplay = {
   ht: string;
   ft: string;
   score: string;
+  /** Echipă calificată (doar eliminatorii); null = nu se afișează coloana. */
+  advancing: string | null;
 };
 
 /** Pauză: doar 1/X/2 din pronostic (nu există scor separat la pauză în app). */
@@ -94,14 +96,24 @@ export function formatPredScorePart(p: MatchPredictionInput | null | undefined):
 /** Cele trei părți ale pronosticului (pauză, final 1X2, scor exact). */
 export function getMatchPredDisplay(
   p: MatchPredictionInput | null | undefined,
+  match?: FootballDataMatch | null,
 ): MatchPredDisplay {
+  const empty: MatchPredDisplay = { ht: "—", ft: "—", score: "—", advancing: null };
   if (!p || !hasAnyMatchPrediction(p)) {
-    return { ht: "—", ft: "—", score: "—" };
+    if (match && isKnockoutStage(match.stage)) {
+      return { ...empty, advancing: "—" };
+    }
+    return empty;
   }
+  const advancing =
+    match && isKnockoutStage(match.stage) ?
+      formatPredAdvancingTeam(p.predAdvancingTeamId, match) ?? "—"
+    : null;
   return {
     ht: formatPredHtPart(p),
     ft: formatPredFt1x2Part(p),
     score: formatPredScorePart(p),
+    advancing,
   };
 }
 

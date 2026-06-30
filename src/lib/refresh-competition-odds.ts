@@ -3,11 +3,13 @@ import { parseStoredCompetition } from "@/lib/competition";
 import { collectTeamsFromMatches, fetchCompetitionMatches } from "@/lib/football-data";
 import {
   fillEstimatedQualifyOdds,
+  fillEstimatedToAdvanceOdds,
   mergeBettingPayloads,
   parseBettingOddsPayload,
   sanitizeBettingPayload,
   type BettingOddsPayload,
 } from "@/lib/betting-odds";
+import { isKnockoutStage } from "@/lib/knockout-predictions";
 import { bestLegacyTournamentOddsPayload } from "@/lib/competition-odds";
 import {
   getOddsProvider,
@@ -17,6 +19,7 @@ import {
 } from "@/lib/odds-providers";
 import { geminiOddsProvider } from "@/lib/odds-providers/gemini-provider";
 import { supplementOddsWithGemini } from "@/lib/odds-supplement";
+import { isGeminiApiKeyConfigured } from "@/lib/gemini-odds-fetch";
 import { prisma } from "@/lib/prisma";
 
 export type RefreshCompetitionOddsResult =
@@ -104,16 +107,15 @@ export async function refreshOddsForCompetition(
 
     let payload: BettingOddsPayload = sanitizeBettingPayload(rawPayload);
 
-    if (
-      !usedFallback &&
-      resolveOddsProviderName() === "oddsportal" &&
-      isOddsSupplementGeminiEnabled()
-    ) {
+    if (isGeminiApiKeyConfigured() && isOddsSupplementGeminiEnabled()) {
       try {
         const supplement = await supplementOddsWithGemini(payload, ctx);
         if (supplement.supplementedTeams || supplement.supplementedMatchCount > 0) {
           payload = supplement.payload;
-          oddsSource = `${oddsSource}+gemini-supplement`;
+          oddsSource =
+            oddsSource.includes("gemini-supplement") ?
+              oddsSource
+            : `${oddsSource}+gemini-supplement`;
           console.info(
             `[odds] Completare Gemini: calificări=${supplement.supplementedTeams}, meciuri=${supplement.supplementedMatchCount}`,
           );
@@ -122,7 +124,7 @@ export async function refreshOddsForCompetition(
         const msg =
           supplementErr instanceof Error ? supplementErr.message : String(supplementErr);
         console.warn(
-          `[odds] Completare Gemini eșuată (${msg}); se păstrează cotele OddsPortal.`,
+          `[odds] Completare Gemini eșuată (${msg}); se păstrează cotele existente.`,
         );
       }
     }
@@ -132,6 +134,10 @@ export async function refreshOddsForCompetition(
     }
 
     payload = fillEstimatedQualifyOdds(payload);
+    const koMatchIds = matches
+      .filter((m) => isKnockoutStage(m.stage))
+      .map((m) => m.id);
+    payload = fillEstimatedToAdvanceOdds(payload, koMatchIds);
 
     await prisma.competitionBettingOdds.upsert({
       where: { competition: competitionKey },

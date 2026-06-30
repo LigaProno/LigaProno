@@ -18,6 +18,19 @@ function upcomingMatches(matches: FootballDataMatch[]): FootballDataMatch[] {
   return matches.filter((m) => m.status !== "FINISHED" && m.status !== "CANCELLED");
 }
 
+/** Meci viitor cu ambele echipe cunoscute (excludem placeholder-ele din tabloul KO). */
+export function upcomingMatchesWithKnownTeams(
+  matches: FootballDataMatch[],
+): FootballDataMatch[] {
+  return upcomingMatches(matches).filter(
+    (m) =>
+      m.homeTeam?.id != null &&
+      m.awayTeam?.id != null &&
+      Boolean(m.homeTeam.name ?? m.homeTeam.shortName) &&
+      Boolean(m.awayTeam.name ?? m.awayTeam.shortName),
+  );
+}
+
 function teamsMissingQualifyOdds(
   payload: BettingOddsPayload,
   teams: { id: number; name: string }[],
@@ -30,6 +43,38 @@ function matchesMissingOdds(
   matches: FootballDataMatch[],
 ): FootballDataMatch[] {
   return matches.filter((m) => !hasUsableMatchOdds(payload.matches[String(m.id)]));
+}
+
+/** Completează cotele lipsă pentru meciurile viitoare cu echipe cunoscute (max. 2 treceri). */
+async function fillMissingUpcomingMatchOdds(
+  payload: BettingOddsPayload,
+  ctx: OddsFetchContext,
+  competitionLabel: string,
+): Promise<{ payload: BettingOddsPayload; filledCount: number }> {
+  let merged = payload;
+  let filledCount = 0;
+  const target = upcomingMatchesWithKnownTeams(ctx.matches);
+
+  for (let pass = 0; pass < 2; pass++) {
+    const missing = matchesMissingOdds(merged, target);
+    if (missing.length === 0) break;
+
+    const { payload: matchPayload } = await fetchMatchOddsViaGemini(
+      competitionLabel,
+      missing,
+      { googleSearch: false, timeoutMs: 180_000 },
+    );
+    const beforeMissing = missing.length;
+    merged = mergeBettingPayloads(
+      sanitizeBettingPayload(matchPayload),
+      merged,
+    );
+    const afterMissing = matchesMissingOdds(merged, missing).length;
+    filledCount += beforeMissing - afterMissing;
+    if (beforeMissing === afterMissing) break;
+  }
+
+  return { payload: merged, filledCount };
 }
 
 export type OddsSupplementResult = {
@@ -72,18 +117,13 @@ export async function supplementOddsWithGemini(
     supplementedTeams = true;
   }
 
-  const missingMatches = matchesMissingOdds(merged, upcomingMatches(ctx.matches));
-  if (missingMatches.length > 0) {
-    const { payload: matchPayload } = await fetchMatchOddsViaGemini(
-      ctx.competitionLabel,
-      missingMatches,
-    );
-    merged = mergeBettingPayloads(
-      sanitizeBettingPayload(matchPayload),
-      merged,
-    );
-    supplementedMatchCount = missingMatches.length;
-  }
+  const { payload: withMatches, filledCount } = await fillMissingUpcomingMatchOdds(
+    merged,
+    ctx,
+    ctx.competitionLabel,
+  );
+  merged = withMatches;
+  supplementedMatchCount = filledCount;
 
   return { payload: merged, supplementedTeams, supplementedMatchCount };
 }
