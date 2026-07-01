@@ -3,19 +3,22 @@ import type { Metadata } from "next";
 export const SITE_NAME = "PronoHub";
 
 export const SITE_TAGLINE_RO =
-  "Pronosticuri Cupa Mondială 2026 — turnee private, clasament live și program meciuri.";
+  "Pronosticuri fotbal — turnee private, clasament live și program meciuri.";
 
 export const SITE_TAGLINE_EN =
-  "FIFA World Cup 2026 predictions — private tournaments, live leaderboard and fixtures.";
+  "Football predictions — private tournaments, live leaderboard and fixtures.";
 
 const SITE_KEYWORDS = [
   "PronoHub",
-  "Cupa Mondială 2026",
-  "FIFA World Cup 2026",
   "pronosticuri fotbal",
   "turnee private",
   "clasament pronosticuri",
-  "program meciuri CM 2026",
+  "Premier League",
+  "La Liga",
+  "Serie A",
+  "Bundesliga",
+  "Ligue 1",
+  "Cupa Mondială",
 ];
 
 /** URL public al aplicației — setează NEXT_PUBLIC_APP_URL în producție (ex. https://pronohub.vercel.app). */
@@ -33,7 +36,7 @@ export function getSiteUrl(): URL {
 
 export function buildRootMetadata(): Metadata {
   const siteUrl = getSiteUrl();
-  const title = `${SITE_NAME} — Cupa Mondială 2026`;
+  const title = `${SITE_NAME} — Pronosticuri Fotbal`;
 
   return {
     metadataBase: siteUrl,
