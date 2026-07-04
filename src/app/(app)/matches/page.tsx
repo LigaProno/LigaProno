@@ -1,17 +1,14 @@
 import { Suspense } from "react";
 import {
-  createEmptyWcGroupStandings,
-  fetchWorldCupGroupStandings,
-  fetchWorldCupMatchesFresh,
+  fetchCompetitionMatchesFresh,
+  fetchPartyStandings,
   partitionFootballDataMatches,
   sortKnockoutStageLabels,
-  WC_GROUP_ORDER,
-  WC_UNASSIGNED_GROUP_KEY,
+  UNASSIGNED_GROUP_KEY,
   type FootballDataMatch,
   type GroupStanding,
 } from "@/lib/football-data";
-import { COMPETITION_WC_2026 } from "@/lib/competition";
-import { loadMatchesWithCompetitionVenues } from "@/lib/competition-match-venues";
+import { COMPETITION_PICKER_OPTIONS } from "@/lib/competition";
 import { Cm2026FootballDataClient } from "./cm2026-client";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { MatchesLoading } from "@/components/matches/matches-loading";
@@ -38,9 +35,9 @@ export default async function MatchesPage({
   let matches: FootballDataMatch[] = [];
   let loadError: string | null = null;
 
+  const defaultComp = COMPETITION_PICKER_OPTIONS[0];
   try {
-    matches = await fetchWorldCupMatchesFresh();
-    matches = await loadMatchesWithCompetitionVenues(COMPETITION_WC_2026, matches);
+    matches = await fetchCompetitionMatchesFresh(defaultComp.code, defaultComp.season);
   } catch (e) {
     loadError =
       e instanceof Error ? e.message : t("matches.loadErrorDefault");
@@ -48,19 +45,20 @@ export default async function MatchesPage({
 
   if (!loadError) {
     try {
-      standings = await fetchWorldCupGroupStandings(matches);
+      standings = await fetchPartyStandings(defaultComp.code, defaultComp.season, matches);
     } catch {
-      standings = createEmptyWcGroupStandings();
+      standings = [];
     }
   }
 
   const { groups, knockoutByStageLabel } =
     partitionFootballDataMatches(matches);
 
-  const groupKeysOrdered = [...WC_GROUP_ORDER];
-  if ((groups.get(WC_UNASSIGNED_GROUP_KEY)?.length ?? 0) > 0) {
-    groupKeysOrdered.push(WC_UNASSIGNED_GROUP_KEY);
-  }
+  const groupKeysOrdered = [...groups.keys()].sort((a, b) => {
+    if (a === UNASSIGNED_GROUP_KEY) return 1;
+    if (b === UNASSIGNED_GROUP_KEY) return -1;
+    return a.localeCompare(b, undefined, { numeric: true });
+  });
 
   const groupMatches: Record<string, FootballDataMatch[]> = {};
   for (const k of groupKeysOrdered) {

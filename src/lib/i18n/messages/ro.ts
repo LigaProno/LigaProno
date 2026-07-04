@@ -66,7 +66,7 @@ export const ro: Messages = {
   "tournament.join.codePlaceholder": "ABCDEF1234",
   "tournament.join.submit": "Intră în turneu",
   "tournament.join.success": "Te-ai alăturat turneului!",
-  "party.worldCup2026": "World Cup 2026",
+
   "party.privateTournament": "Turneu privat",
   "party.inviteCode": "Cod invitație",
   "party.oddsAt": "Cote",

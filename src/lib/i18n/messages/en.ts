@@ -65,7 +65,7 @@ export const en: Messages = {
   "tournament.join.codePlaceholder": "ABCDEF1234",
   "tournament.join.submit": "Join tournament",
   "tournament.join.success": "You joined the tournament!",
-  "party.worldCup2026": "World Cup 2026",
+
   "party.privateTournament": "Private tournament",
   "party.inviteCode": "Invite code",
   "party.oddsAt": "Odds",

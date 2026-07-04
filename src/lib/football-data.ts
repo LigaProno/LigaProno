@@ -14,16 +14,8 @@ const BASE_URL = "https://api.football-data.org/v4";
 
 export type { FootballDataCompetitionPickerOption } from "@/lib/competition";
 
-/** Cod competiție FIFA World Cup în API. */
-export const WC_COMPETITION_CODE = "WC";
-export const WC_SEASON_YEAR = 2026;
-
-/** CM 2026: 12 grupe A–L (format oficial). */
-export const WC_GROUP_LETTERS = "ABCDEFGHIJKL".split("") as readonly string[];
-export const WC_GROUP_ORDER = WC_GROUP_LETTERS.map((l) => `Group ${l}`);
-
 /** Group-stage matches without a recognised `group` field. */
-export const WC_UNASSIGNED_GROUP_KEY = "Unassigned";
+export const UNASSIGNED_GROUP_KEY = "Unassigned";
 
 export type FootballDataTeam = {
   id?: number;
@@ -211,25 +203,6 @@ export async function fetchCompetitionMatchesFresh(
   return collected;
 }
 
-/**
- * Toate meciurile CM pentru sezonul dat (paginare limit/offset dacă e nevoie).
- */
-export async function fetchWorldCupMatchesFootballData(): Promise<
-  FootballDataMatch[]
-> {
-  return fetchCompetitionMatches(
-    WC_COMPETITION_CODE,
-    String(WC_SEASON_YEAR),
-  );
-}
-
-/** Meciuri CM fără cache HTTP — pentru pagina de program cu rezultate la zi. */
-export async function fetchWorldCupMatchesFresh(): Promise<FootballDataMatch[]> {
-  return fetchCompetitionMatchesFresh(
-    WC_COMPETITION_CODE,
-    String(WC_SEASON_YEAR),
-  );
-}
 
 type CompetitionsListEnvelope = {
   competitions?: Array<{
@@ -271,17 +244,8 @@ export const getFootballDataCompetitionPickerOptions = cache(
   },
 );
 
-export const getWorldCupCompetitionPickerOptions = cache(
-  async (): Promise<FootballDataCompetitionPickerOption[]> => {
-    const all = await getFootballDataCompetitionPickerOptions();
-    return all.filter((o) => o.code.toUpperCase() === WC_COMPETITION_CODE);
-  },
-);
 
-/**
- * Clasamente pentru party: CM 2026 folosește logica specială cu grupe A–L;
- * altfel citește `/standings` și mapează blocuri TOTAL / GROUP_STAGE.
- */
+/** Clasamente pentru party: citește `/standings` și mapează blocuri TOTAL / GROUP_STAGE. */
 export async function fetchPartyStandings(
   code: string,
   season: string,
@@ -289,9 +253,6 @@ export async function fetchPartyStandings(
 ): Promise<GroupStanding[]> {
   const c = code.trim().toUpperCase();
   const s = season.trim();
-  if (c === WC_COMPETITION_CODE && s === String(WC_SEASON_YEAR)) {
-    return fetchWorldCupGroupStandings(matches);
-  }
 
   type RawStandings = {
     standings?: Array<{
@@ -411,21 +372,6 @@ export type GroupStanding = {
   rows: StandingTableRow[];
 };
 
-/** Schelet pentru cele 12 grupe (fără date API). */
-export function createEmptyWcGroupStandings(): GroupStanding[] {
-  return WC_GROUP_LETTERS.map((letter) => ({
-    letter,
-    groupKey: `Group ${letter}`,
-    rows: [],
-  }));
-}
-
-function extractWcGroupLetter(groupRaw: string | null | undefined): string | null {
-  if (!groupRaw?.trim()) return null;
-  const g = groupRaw.trim().toUpperCase();
-  const m = g.match(/^GROUP_([A-L])$/);
-  return m ? m[1] : null;
-}
 
 /**
  * Normalizează `group` din meciuri: `GROUP_A`, uneori doar `A`.
@@ -480,100 +426,7 @@ function flattenGroupStageStandingRows(data: {
   return [...byTeamId.values()];
 }
 
-function redistributeStandingsByTeamGroup(
-  rows: StandingTableRow[],
-  teamToGroup: Map<number, string>,
-): Map<string, StandingTableRow[]> {
-  const out = new Map<string, StandingTableRow[]>();
-  for (const letter of WC_GROUP_LETTERS) {
-    out.set(`Group ${letter}`, []);
-  }
 
-  for (const row of rows) {
-    const id = row.team?.id;
-    if (id === undefined) continue;
-    const gk = teamToGroup.get(id);
-    if (!gk || !out.has(gk)) continue;
-    out.get(gk)!.push(row);
-  }
-
-  for (const arr of out.values()) {
-    arr.sort((a, b) => {
-      if (b.points !== a.points) return b.points - a.points;
-      const gdA =
-        a.goalDifference ?? (a.goalsFor ?? 0) - (a.goalsAgainst ?? 0);
-      const gdB =
-        b.goalDifference ?? (b.goalsFor ?? 0) - (b.goalsAgainst ?? 0);
-      if (gdB !== gdA) return gdB - gdA;
-      return (b.goalsFor ?? 0) - (a.goalsFor ?? 0);
-    });
-    arr.forEach((row, i) => {
-      row.position = i + 1;
-    });
-  }
-
-  return out;
-}
-
-/**
- * Clasamente — API `/standings` + repartizare după meciuri (GROUP_STAGE) ca să nu rămână
- * toate echipele într-o singură grupă când răspunsul API e denormalizat.
- */
-export async function fetchWorldCupGroupStandings(
-  matches: FootballDataMatch[],
-): Promise<GroupStanding[]> {
-  type RawStandings = {
-    standings?: Array<{
-      stage?: string;
-      type?: string;
-      group?: string | null;
-      table?: StandingTableRow[];
-    }>;
-  };
-
-  const data = await fdFetch<RawStandings>(
-    `/competitions/${WC_COMPETITION_CODE}/standings`,
-    { season: String(WC_SEASON_YEAR) },
-  );
-
-  const teamToGroup = buildTeamIdToGroupKeyFromMatches(matches);
-  const flatRows = flattenGroupStageStandingRows(data);
-
-  const byLetterApi = new Map<string, StandingTableRow[]>();
-
-  for (const block of data.standings ?? []) {
-    if (block.stage !== "GROUP_STAGE" || !block.table?.length) continue;
-    if (block.type && block.type !== "TOTAL") continue;
-
-    const letter = extractWcGroupLetter(block.group);
-    if (!letter) continue;
-
-    const prev = byLetterApi.get(letter);
-    if (!prev || block.table.length >= prev.length) {
-      byLetterApi.set(letter, block.table);
-    }
-  }
-
-  /** Dacă avem meciuri cu grupă, repartizăm după ID echipă (corectează API-ul care pune tot golul într-o singură grupă). */
-  const useRedistribution = teamToGroup.size > 0 && flatRows.length > 0;
-
-  let byGroupKey: Map<string, StandingTableRow[]>;
-
-  if (useRedistribution) {
-    byGroupKey = redistributeStandingsByTeamGroup(flatRows, teamToGroup);
-  } else {
-    byGroupKey = new Map<string, StandingTableRow[]>();
-    for (const letter of WC_GROUP_LETTERS) {
-      byGroupKey.set(`Group ${letter}`, byLetterApi.get(letter) ?? []);
-    }
-  }
-
-  return WC_GROUP_LETTERS.map((letter) => ({
-    letter,
-    groupKey: `Group ${letter}`,
-    rows: byGroupKey.get(`Group ${letter}`) ?? [],
-  }));
-}
 
 export function partitionFootballDataMatches(matches: FootballDataMatch[]): {
   groups: Map<string, FootballDataMatch[]>;
@@ -593,9 +446,9 @@ export function partitionFootballDataMatches(matches: FootballDataMatch[]): {
         groups.set(key, list);
         continue;
       }
-      const list = groups.get(WC_UNASSIGNED_GROUP_KEY) ?? [];
+      const list = groups.get(UNASSIGNED_GROUP_KEY) ?? [];
       list.push(m);
-      groups.set(WC_UNASSIGNED_GROUP_KEY, list);
+      groups.set(UNASSIGNED_GROUP_KEY, list);
       continue;
     }
 

@@ -9,12 +9,11 @@ import {
   buildTeamIdToGroupKeyFromStandings,
   partitionFootballDataMatches,
   sortKnockoutStageLabels,
-  WC_GROUP_ORDER,
-  WC_UNASSIGNED_GROUP_KEY,
+  UNASSIGNED_GROUP_KEY,
 } from "@/lib/football-data";
 import {
-  isWorldCup2026Storage,
   parseStoredCompetition,
+  COMPETITION_PICKER_OPTIONS,
 } from "@/lib/competition";
 import type { MatchOddsRow, TeamOddsRow } from "@/lib/betting-odds";
 import { refreshTournamentBettingOdds } from "@/app/actions/betting-odds";
@@ -184,7 +183,6 @@ export default function PartyWcDashboard({
     matchDraftGettersRef.current.delete(matchId);
   }, []);
 
-  const wc2026Mode = isWorldCup2026Storage(competition);
   const competitionActive = parseStoredCompetition(competition) != null;
   const isChampionsLeagueParty =
     parseStoredCompetition(competition)?.code === "CL";
@@ -211,19 +209,11 @@ export default function PartyWcDashboard({
 
   const { groupBlocks, knockoutBlocks } = useMemo(() => {
     const { groups, knockoutByStageLabel } = partitionFootballDataMatches(matches);
-    let groupKeysOrdered: string[];
-    if (wc2026Mode) {
-      groupKeysOrdered = [...WC_GROUP_ORDER];
-      if ((groups.get(WC_UNASSIGNED_GROUP_KEY)?.length ?? 0) > 0) {
-        groupKeysOrdered.push(WC_UNASSIGNED_GROUP_KEY);
-      }
-    } else {
-      groupKeysOrdered = [...groups.keys()].sort((a, b) => {
-        if (a === WC_UNASSIGNED_GROUP_KEY) return 1;
-        if (b === WC_UNASSIGNED_GROUP_KEY) return -1;
-        return a.localeCompare(b, undefined, { numeric: true });
-      });
-    }
+    const groupKeysOrdered = [...groups.keys()].sort((a, b) => {
+      if (a === UNASSIGNED_GROUP_KEY) return 1;
+      if (b === UNASSIGNED_GROUP_KEY) return -1;
+      return a.localeCompare(b, undefined, { numeric: true });
+    });
     const groupBlocks = groupKeysOrdered.map((key) => ({
       key,
       matches: groups.get(key) ?? [],
@@ -234,7 +224,7 @@ export default function PartyWcDashboard({
       matches: knockoutByStageLabel.get(stageLabel) ?? [],
     }));
     return { groupBlocks, knockoutBlocks };
-  }, [matches, wc2026Mode]);
+  }, [matches]);
 
   const allowChanges = allowPredictionChangesDuringCompetition ?? false;
 
@@ -371,26 +361,25 @@ export default function PartyWcDashboard({
   const advancingCount = advancing.size;
 
   const completeGroupsCount = useMemo(() => {
-    if (!wc2026Mode || groupKeys.length === 0) return 0;
+    if (groupKeys.length === 0) return 0;
     return countCompleteQualifierGroups(
       [...advancing],
       teamIdToGroupKey,
       groupKeys,
     );
-  }, [advancing, teamIdToGroupKey, groupKeys, wc2026Mode]);
+  }, [advancing, teamIdToGroupKey, groupKeys]);
 
   const qualifiersValidationError = useMemo(() => {
-    if (!wc2026Mode || groupKeys.length === 0) return null;
+    if (groupKeys.length === 0) return null;
     return validateWcAdvancingTeamIds(
       [...advancing],
       teamIdToGroupKey,
       groupKeys,
     );
-  }, [advancing, teamIdToGroupKey, groupKeys, wc2026Mode]);
+  }, [advancing, teamIdToGroupKey, groupKeys]);
 
   const qualifiersSaveDisabled =
-    predictionsReadOnly ||
-    (wc2026Mode && qualifiersValidationError != null);
+    predictionsReadOnly || qualifiersValidationError != null;
 
   function qualifiersErrorMessage(
     code: NonNullable<typeof qualifiersValidationError>,
@@ -434,7 +423,9 @@ export default function PartyWcDashboard({
       <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: WC_CYAN }}>
-            {wc2026Mode ? t("party.worldCup2026") : t("party.privateTournament")}
+            {competitionActive
+              ? (COMPETITION_PICKER_OPTIONS.find((o) => o.storageKey === competition)?.label ?? t("party.privateTournament"))
+              : t("party.privateTournament")}
           </p>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">{tournamentName}</h1>
           <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>
@@ -445,7 +436,7 @@ export default function PartyWcDashboard({
           </p>
           {competitionActive && (
             <p className="text-[10px] mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>
-              {t("party.competitionLabel")}: {wc2026Mode ? t("party.worldCup2026") : competition}
+              {t("party.competitionLabel")}: {COMPETITION_PICKER_OPTIONS.find((o) => o.storageKey === competition)?.label ?? competition}
             </p>
           )}
           {competitionActive && bettingOddsFetchedAt ?
@@ -471,7 +462,7 @@ export default function PartyWcDashboard({
             </p>
           : null}
         </div>
-        {competitionActive && wc2026Mode ?
+        {competitionActive ?
           <div className="flex flex-col sm:flex-row gap-2 shrink-0 self-start">
             <Link
               href="/matches"
@@ -881,11 +872,9 @@ export default function PartyWcDashboard({
                     <div>
                       <h3 className="text-lg font-bold text-white mb-1">{t("party.qualifiers.title")}</h3>
                       <p className="text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>
-                        {wc2026Mode
-                          ? t("party.qualifiers.hintWc")
-                          : t("party.qualifiers.hint")}
+                        {t("party.qualifiers.hint")}
                       </p>
-                      {wc2026Mode ?
+                      {groupKeys.length > 0 ?
                         <p
                           className="text-sm mt-2 font-semibold tabular-nums"
                           style={{
@@ -909,7 +898,7 @@ export default function PartyWcDashboard({
                           })}
                         </p>
                       : null}
-                      {wc2026Mode && qualifiersValidationError ?
+                      {qualifiersValidationError ?
                         <p className="text-sm mt-1 text-amber-200/95">
                           {qualifiersErrorMessage(qualifiersValidationError)}
                         </p>
@@ -927,7 +916,7 @@ export default function PartyWcDashboard({
                           <div key={g.groupKey}>
                             <div className="flex items-baseline justify-between gap-2 mb-2">
                               <h4 className="text-white text-sm font-semibold">{g.groupKey}</h4>
-                              {wc2026Mode ?
+                              {groupKeys.length > 0 ?
                                 <span
                                   className="text-[10px] font-bold tabular-nums"
                                   style={{
@@ -955,10 +944,7 @@ export default function PartyWcDashboard({
                                 const checked = advancing.has(id);
                                 const pos = row.position ?? 0;
                                 const checkboxDisabled = predictionsReadOnly;
-                                const title =
-                                  wc2026Mode && pos <= 2
-                                    ? t("party.qualifiers.autoQualify")
-                                    : undefined;
+                                const title = undefined;
                                 return (
                                   <label
                                     key={id}

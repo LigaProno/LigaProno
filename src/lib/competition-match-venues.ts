@@ -1,10 +1,5 @@
-import { isWorldCup2026Storage } from "@/lib/competition";
 import type { FootballDataMatch } from "@/lib/football-data";
 import { prisma } from "@/lib/prisma";
-import {
-  enrichMatchesWithScrapedSchedule,
-  fetchWc2026ScheduleFixtures,
-} from "@/lib/wc-match-schedule-scraper";
 
 export type StoredMatchVenue = {
   stadium: string | null;
@@ -84,45 +79,12 @@ export function applyCompetitionVenuesToMatches(
   });
 }
 
-async function scrapeAndPersistVenues(
-  competition: string,
-  matches: FootballDataMatch[],
-): Promise<Record<string, StoredMatchVenue>> {
-  const fixtures = await fetchWc2026ScheduleFixtures();
-  const enriched =
-    fixtures.length > 0
-      ? enrichMatchesWithScrapedSchedule(matches, fixtures)
-      : matches;
-  const venueMap = buildVenueMap(enriched);
-
-  await prisma.competitionMatchVenues.upsert({
-    where: { competition },
-    create: {
-      competition,
-      venues: venueMap as object,
-      source: "oddsportal",
-    },
-    update: {
-      venues: venueMap as object,
-      source: "oddsportal",
-      fetchedAt: new Date(),
-    },
-  });
-
-  return venueMap;
-}
-
-/**
- * Încarcă stadionul din DB; dacă lipsește, face scraping OddsPortal o singură dată
- * și salvează pentru toată competiția.
- */
+/** Încarcă stadionul din DB pentru competiție (dacă există date stocate). */
 export async function ensureCompetitionMatchVenues(
   competition: string,
   matches: FootballDataMatch[],
 ): Promise<Record<string, StoredMatchVenue>> {
-  if (!isWorldCup2026Storage(competition) || matches.length === 0) {
-    return {};
-  }
+  if (matches.length === 0) return {};
 
   const existing = await prisma.competitionMatchVenues.findUnique({
     where: { competition },
@@ -131,12 +93,7 @@ export async function ensureCompetitionMatchVenues(
     return parseVenueMap(existing.venues);
   }
 
-  try {
-    return await scrapeAndPersistVenues(competition, matches);
-  } catch (e) {
-    console.warn("ensureCompetitionMatchVenues:", e);
-    return {};
-  }
+  return {};
 }
 
 /** Meciuri Football-Data cu stadion din cache-ul partajat al competiției. */

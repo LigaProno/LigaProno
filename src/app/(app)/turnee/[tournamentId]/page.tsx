@@ -6,17 +6,13 @@ import PartyWcDashboard, {
 } from "@/components/party/party-wc-dashboard";
 import {
   collectTeamsFromMatches,
-  createEmptyWcGroupStandings,
   fetchCompetitionMatches,
   fetchPartyStandings,
   venueLabel,
   type FootballDataMatch,
   type GroupStanding,
 } from "@/lib/football-data";
-import {
-  isWorldCup2026Storage,
-  parseStoredCompetition,
-} from "@/lib/competition";
+import { parseStoredCompetition } from "@/lib/competition";
 import { loadCompetitionOddsSnapshot } from "@/lib/competition-odds";
 import { loadMatchesWithCompetitionVenues } from "@/lib/competition-match-venues";
 import { canManualRefreshOddsToday } from "@/lib/odds-refresh-limit";
@@ -61,7 +57,7 @@ export default async function PartyTournamentPage({
 
   // Batch 1: user, tournament, matches, and predictions all run in parallel.
   // Standings must wait for matches, so it runs in batch 2.
-  const [user, tournament, matchesRaw, wcMatchPreds, wcExtras] =
+  const [user, tournament, wcMatchPreds, wcExtras] =
     await Promise.all([
       prisma.user.findUnique({ where: { clerkId } }),
       prisma.tournament.findUnique({
@@ -74,25 +70,6 @@ export default async function PartyTournamentPage({
           },
         },
       }),
-      (async (): Promise<{ matches: FootballDataMatch[]; error: string | null }> => {
-        const parsed = parseStoredCompetition(
-          // competition isn't available yet — re-parse after tournament loads,
-          // so we speculatively fetch WC 2026 (the only supported competition).
-          "WC_2026",
-        );
-        if (!parsed) return { matches: [], error: null };
-        try {
-          return {
-            matches: await fetchCompetitionMatches(parsed.code, parsed.season),
-            error: null,
-          };
-        } catch (e) {
-          return {
-            matches: [],
-            error: e instanceof Error ? e.message : "Could not load matches.",
-          };
-        }
-      })(),
       prisma.wcMatchPrediction.findMany({ where: { tournamentId } }),
       prisma.wcExtraPrediction.findMany({ where: { tournamentId } }),
     ]);
@@ -107,14 +84,10 @@ export default async function PartyTournamentPage({
 
   const parsedCompetition = parseStoredCompetition(tournament.competition);
 
-  // Use speculatively-fetched matches only if the tournament is WC 2026.
-  let matches: FootballDataMatch[] =
-    isWorldCup2026Storage(tournament.competition) ? matchesRaw.matches : [];
-  let loadError: string | null =
-    isWorldCup2026Storage(tournament.competition) ? matchesRaw.error : null;
+  let matches: FootballDataMatch[] = [];
+  let loadError: string | null = null;
 
-  // If tournament uses a different competition, fetch it now (rare path).
-  if (parsedCompetition && !isWorldCup2026Storage(tournament.competition)) {
+  if (parsedCompetition) {
     try {
       matches = await fetchCompetitionMatches(
         parsedCompetition.code,
@@ -142,10 +115,7 @@ export default async function PartyTournamentPage({
         matches,
       );
     } catch {
-      standings =
-        isWorldCup2026Storage(tournament.competition) ?
-          createEmptyWcGroupStandings()
-        : [];
+      standings = [];
     }
   }
 

@@ -6,23 +6,11 @@ export type OddsPortalCompetitionConfig = {
   tournamentUuid: string;
 };
 
-const WC_2026: OddsPortalCompetitionConfig = {
-  tournamentPageUrl: "https://www.oddsportal.com/football/world/world-championship-2026/",
-  tournamentSlug: "world-championship-2026",
-  outrightsPageUrl:
-    "https://www.oddsportal.com/football/world/world-championship-2026/outrights/",
-  tournamentNumericId: 77311,
-  tournamentUuid: "zeSHfCx3",
-};
-
 /** Mapare cod competiție Football-Data → config OddsPortal. */
 export function getOddsPortalCompetition(
-  code: string,
-  season: string,
+  _code: string,
+  _season: string,
 ): OddsPortalCompetitionConfig | null {
-  const c = code.toUpperCase();
-  const s = season.trim();
-  if (c === "WC" && s === "2026") return WC_2026;
   return null;
 }
 

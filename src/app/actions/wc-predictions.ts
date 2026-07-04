@@ -9,9 +9,8 @@ import {
   fetchCompetitionMatches,
   fetchCompetitionMatchesFresh,
   fetchPartyStandings,
-  getWorldCupCompetitionPickerOptions,
 } from "@/lib/football-data";
-import { parseStoredCompetition, isWorldCup2026Storage } from "@/lib/competition";
+import { parseStoredCompetition, COMPETITION_PICKER_OPTIONS } from "@/lib/competition";
 import {
   getMatchPredictionLockReason,
   getPredictionLockMessage,
@@ -40,13 +39,9 @@ function validOutcome(v: unknown): v is "HOME" | "AWAY" | "DRAW" | "" {
   return v === "HOME" || v === "AWAY" || v === "DRAW" || v === "";
 }
 
-async function assertWorldCupPickerValue(storageKey: string): Promise<string> {
+function assertPickerValue(storageKey: string): string {
   const t = storageKey.trim();
-  const opts = await getWorldCupCompetitionPickerOptions();
-  if (opts.length === 0) {
-    throw new I18nError("errors.worldCupNotAvailable");
-  }
-  if (!opts.some((o) => o.storageKey === t)) {
+  if (!COMPETITION_PICKER_OPTIONS.some((o) => o.storageKey === t)) {
     throw new I18nError("errors.invalidCompetition");
   }
   return t;
@@ -77,7 +72,7 @@ export async function setTournamentCompetition(
   const next =
     competition == null || competition.trim() === "" ?
       null
-    : await assertWorldCupPickerValue(competition);
+    : assertPickerValue(competition);
 
   await prisma.tournament.update({
     where: { id: tournamentId },
@@ -426,19 +421,10 @@ export async function saveWcExtraPrediction(
 
   let advancingToSave = clean;
   if (teamToGroup.size > 0) {
-    const wcRulesApply =
-      isWorldCup2026Storage(tournament.competition) && groupKeys.length > 0;
-
     if (saveScope === "qualifiers") {
       assertMaxThreePerGroup(clean, teamToGroup);
-      if (wcRulesApply) {
-        const wcError = validateWcAdvancingTeamIds(clean, teamToGroup, groupKeys);
-        if (wcError != null) throwWcQualifierError(wcError);
-      }
     } else {
-      const cleanValid =
-        !wcRulesApply ||
-        validateWcAdvancingTeamIds(clean, teamToGroup, groupKeys) == null;
+      const cleanValid = clean.length > 0;
 
       if (cleanValid && clean.length > 0) {
         assertMaxThreePerGroup(clean, teamToGroup);

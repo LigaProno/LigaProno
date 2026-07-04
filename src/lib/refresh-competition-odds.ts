@@ -33,7 +33,7 @@ export type RefreshCompetitionOddsResult =
     }
   | { ok: false; competition: string; error: string };
 
-/** Actualizează cotele partajate pentru o competiție (ex. WC_2026). */
+/** Actualizează cotele partajate pentru o competiție (ex. PL_2025). */
 export async function refreshOddsForCompetition(
   competition: string,
 ): Promise<RefreshCompetitionOddsResult> {

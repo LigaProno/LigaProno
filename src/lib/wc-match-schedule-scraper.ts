@@ -1,27 +1,11 @@
-import {
-  WC_COMPETITION_CODE,
-  WC_SEASON_YEAR,
-  type FootballDataMatch,
-} from "@/lib/football-data";
+import type { FootballDataMatch } from "@/lib/football-data";
 import {
   fetchTournamentFixtures,
   type OpScheduleFixture,
 } from "@/lib/odds-providers/oddsportal/client";
-import { getOddsPortalCompetition } from "@/lib/odds-providers/oddsportal/competition-map";
 import { mapFixturesToFootballDataMatches } from "@/lib/odds-providers/team-matcher";
 
 export type { OpScheduleFixture };
-
-export async function fetchWc2026ScheduleFixtures(): Promise<OpScheduleFixture[]> {
-  const config = getOddsPortalCompetition(
-    WC_COMPETITION_CODE,
-    String(WC_SEASON_YEAR),
-  );
-  if (!config) {
-    throw new Error("Config OddsPortal lipsă pentru CM 2026.");
-  }
-  return fetchTournamentFixtures(config);
-}
 
 function fixtureVenue(
   fixture: OpScheduleFixture,
@@ -59,13 +43,3 @@ export function enrichMatchesWithScrapedSchedule(
   });
 }
 
-/** @deprecated Folosește loadMatchesWithCompetitionVenues (cache DB, un singur scrape). */
-export async function enrichWorldCupMatchesWithSchedule(
-  matches: FootballDataMatch[],
-): Promise<FootballDataMatch[]> {
-  const { COMPETITION_WC_2026 } = await import("@/lib/competition");
-  const { loadMatchesWithCompetitionVenues } = await import(
-    "@/lib/competition-match-venues"
-  );
-  return loadMatchesWithCompetitionVenues(COMPETITION_WC_2026, matches);
-}

@@ -1,7 +1,6 @@
 import type { NextThreeMatchPreds } from "@/components/party/next-three-predictions-panel";
 import {
   COMPETITION_PICKER_OPTIONS,
-  isWorldCup2026Storage,
   parseStoredCompetition,
 } from "@/lib/competition";
 import { loadCompetitionOddsSnapshot } from "@/lib/competition-odds";
@@ -13,7 +12,6 @@ import {
 } from "@/lib/betting-odds";
 import {
   collectTeamsFromMatches,
-  createEmptyWcGroupStandings,
   fetchCompetitionMatches,
   fetchPartyStandings,
   venueLabel,
@@ -233,8 +231,7 @@ async function loadCompetitionScoringContext(
   try {
     standings = await fetchPartyStandings(parsed.code, parsed.season, matches);
   } catch {
-    standings =
-      isWorldCup2026Storage(competition) ? createEmptyWcGroupStandings() : [];
+    standings = [];
   }
 
   const oddsMaps = payloadToOddsMaps(oddsPayload);

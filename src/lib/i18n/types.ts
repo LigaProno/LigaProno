@@ -61,7 +61,6 @@ export type MessageKey =
   | "tournament.join.codePlaceholder"
   | "tournament.join.submit"
   | "tournament.join.success"
-  | "party.worldCup2026"
   | "party.privateTournament"
   | "party.inviteCode"
   | "party.oddsAt"

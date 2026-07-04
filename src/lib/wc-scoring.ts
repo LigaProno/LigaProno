@@ -23,8 +23,6 @@ import type {
   StandingTableRow,
 } from "@/lib/football-data";
 
-export { COMPETITION_WC_2026 } from "@/lib/competition";
-
 export type MatchOutcome = Odds1x2Outcome;
 
 /** Punctaj de bază pentru pauză (înmulțit cu cota rezultatului real). */

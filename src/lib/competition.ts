@@ -1,9 +1,5 @@
-/** Valoare `Tournament.competition`: `{API_CODE}_{seasonStartYear}` (ex. `WC_2026`, `PL_2024`). */
-export const COMPETITION_WC_2026 = "WC_2026";
-
 /** Hardcoded picker option — avoids an API call on the tournaments page. */
 export const COMPETITION_PICKER_OPTIONS: FootballDataCompetitionPickerOption[] = [
-  { storageKey: COMPETITION_WC_2026, code: "WC", season: "2026", label: "FIFA World Cup (2026)" },
   { storageKey: "PL_2025", code: "PL", season: "2025", label: "Premier League (2025–26)" },
   { storageKey: "PD_2025", code: "PD", season: "2025", label: "La Liga (2025–26)" },
   { storageKey: "FL1_2025", code: "FL1", season: "2025", label: "Ligue 1 (2025–26)" },
@@ -41,9 +37,3 @@ export function parseStoredCompetition(
   return { code: m[1].toUpperCase(), season: m[2] };
 }
 
-export function isWorldCup2026Storage(
-  s: string | null | undefined,
-): boolean {
-  const p = parseStoredCompetition(s);
-  return p?.code === "WC" && p.season === "2026";
-}
