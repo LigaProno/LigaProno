@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useLocale } from "@/components/i18n/locale-provider";
 import type { MessageKey } from "@/lib/i18n";
@@ -45,7 +45,7 @@ export function PartyPredictionNav({
   ];
 
   return (
-    <div className="sticky top-0 z-10 -mx-1 px-1 py-2 flex flex-col gap-3 bg-[#0F172A]/95 backdrop-blur-sm border-b" style={{ borderColor: WC_BORDER }}>
+    <div className="sticky top-0 z-10 -mx-1 px-1 py-2 flex flex-col gap-3 bg-[#0A0B1E]/95 backdrop-blur-sm border-b" style={{ borderColor: WC_BORDER }}>
       <div
         className="flex rounded-2xl p-1 border gap-1 overflow-x-auto"
         style={{
@@ -63,7 +63,7 @@ export function PartyPredictionNav({
             onClick={() => onPhaseChange(p)}
             className="shrink-0 rounded-xl py-2.5 px-4 text-sm font-bold transition-all cursor-pointer"
             style={{
-              backgroundColor: phase === p ? "rgba(34,211,238,0.18)" : "transparent",
+              backgroundColor: phase === p ? "rgba(59,130,246,0.18)" : "transparent",
               color: phase === p ? WC_CYAN : "rgba(255,255,255,0.55)",
             }}
           >
@@ -82,11 +82,11 @@ export function PartyPredictionNav({
               className="w-9 h-9 rounded-lg text-sm font-bold transition-all cursor-pointer"
               style={{
                 backgroundColor:
-                  groupLetter === letter ? "rgba(34,211,238,0.2)" : "rgba(255,255,255,0.06)",
+                  groupLetter === letter ? "rgba(59,130,246,0.2)" : "rgba(255,255,255,0.06)",
                 color: groupLetter === letter ? WC_CYAN : "rgba(255,255,255,0.55)",
                 border:
                   groupLetter === letter ?
-                    "1px solid rgba(34,211,238,0.35)"
+                    "1px solid rgba(59,130,246,0.35)"
                   : "1px solid transparent",
               }}
             >

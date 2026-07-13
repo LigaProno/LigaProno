@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 
@@ -33,7 +33,7 @@ export default function ChampionPixelImage({
         style={{
           width: DISPLAY,
           height: DISPLAY,
-          backgroundColor: "rgba(34,211,238,0.1)",
+          backgroundColor: "rgba(59,130,246,0.1)",
         }}
       >
         <span className="text-4xl text-cyan-300/40">?</span>

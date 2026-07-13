@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -58,14 +58,14 @@ export default function MiniGamesHub({
             className="rounded-2xl border p-5 transition-all hover:border-cyan-400/30 active:scale-[0.98]"
             style={{
               borderColor: card.done ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.08)",
-              backgroundColor: "#1E293B",
+              backgroundColor: "rgba(255,255,255,0.08)",
             }}
           >
             <h2 className="font-semibold text-white mb-1">{t(card.titleKey)}</h2>
             <p className="text-xs mb-4" style={{ color: "rgba(255,255,255,0.45)" }}>
               {t(card.descKey)}
             </p>
-            <p className="text-sm font-medium" style={{ color: card.done ? "#86efac" : "#22D3EE" }}>
+            <p className="text-sm font-medium" style={{ color: card.done ? "#86efac" : "#3B82F6" }}>
               {card.progress}
             </p>
           </Link>

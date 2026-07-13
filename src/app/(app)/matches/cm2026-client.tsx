@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -81,7 +81,7 @@ function BracketMatchCard({
       style={{
         width,
         height: cardH,
-        backgroundColor: "#1E293B",
+        backgroundColor: "rgba(255,255,255,0.08)",
         border: "1px solid rgba(255,255,255,0.1)",
         borderRadius: 8,
         overflow: "hidden",
@@ -122,7 +122,7 @@ function BracketMatchCard({
               fontWeight: 800,
               fontVariantNumeric: "tabular-nums",
               flexShrink: 0,
-              color: homeWon || advancingId === m.homeTeam.id ? "#BEF264" : "rgba(255,255,255,0.6)",
+              color: homeWon || advancingId === m.homeTeam.id ? "#60A5FA" : "rgba(255,255,255,0.6)",
             }}
           >
             {homeGoals}
@@ -165,7 +165,7 @@ function BracketMatchCard({
               fontWeight: 800,
               fontVariantNumeric: "tabular-nums",
               flexShrink: 0,
-              color: awayWon || advancingId === m.awayTeam.id ? "#BEF264" : "rgba(255,255,255,0.6)",
+              color: awayWon || advancingId === m.awayTeam.id ? "#60A5FA" : "rgba(255,255,255,0.6)",
             }}
           >
             {awayGoals}
@@ -229,11 +229,11 @@ function KnockoutCarousel({
               className="px-3 py-1.5 rounded-lg text-xs font-bold tracking-wide transition-all cursor-pointer"
               style={{
                 backgroundColor: isActive
-                  ? "rgba(34,211,238,0.15)"
+                  ? "rgba(59,130,246,0.15)"
                   : "rgba(255,255,255,0.06)",
-                color: isActive ? "#22D3EE" : "rgba(255,255,255,0.45)",
+                color: isActive ? "#3B82F6" : "rgba(255,255,255,0.45)",
                 border: isActive
-                  ? "1px solid rgba(34,211,238,0.35)"
+                  ? "1px solid rgba(59,130,246,0.35)"
                   : "1px solid transparent",
               }}
             >
@@ -261,7 +261,7 @@ function KnockoutCarousel({
           className="pointer-events-none absolute inset-y-0 right-0 z-10"
           style={{
             width: 18,
-            background: "linear-gradient(to left, #0F172A 60%, transparent)",
+            background: "linear-gradient(to left, #0A0B1E 60%, transparent)",
           }}
         />
 
@@ -284,7 +284,7 @@ function KnockoutCarousel({
             const isActive = ri === activeIdx;
             const pairCount = Math.floor(block.matches.length / 2);
             const juncX = BK_COL_GAP / 2;
-            const CONN = "rgba(34,211,238,0.35)";
+            const CONN = "rgba(59,130,246,0.35)";
             return (
               <svg
                 key={`conn-${ri}`}
@@ -447,7 +447,7 @@ export function Cm2026FootballDataClient(props: {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-8">
         <div>
-          <p className="text-sm font-medium mb-1" style={{ color: "#22D3EE" }}>
+          <p className="text-sm font-medium mb-1" style={{ color: "#3B82F6" }}>
             {t("dashboard.hero.badge")}
           </p>
           <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
@@ -465,7 +465,7 @@ export function Cm2026FootballDataClient(props: {
           <Link
             href="/dashboard"
             className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-sm font-bold border transition-all hover:bg-white/5"
-            style={{ borderColor: "rgba(255,255,255,0.2)", color: "#BEF264" }}
+            style={{ borderColor: "rgba(255,255,255,0.2)", color: "#60A5FA" }}
           >
             {t("matches.backHome")}
           </Link>
@@ -489,9 +489,9 @@ export function Cm2026FootballDataClient(props: {
           style={
             tab === "standings"
               ? {
-                  backgroundColor: "rgba(34,211,238,0.2)",
-                  color: "#22D3EE",
-                  border: "1px solid rgba(34,211,238,0.45)",
+                  backgroundColor: "rgba(59,130,246,0.2)",
+                  color: "#3B82F6",
+                  border: "1px solid rgba(59,130,246,0.45)",
                 }
               : {
                   color: "rgba(255,255,255,0.65)",
@@ -510,9 +510,9 @@ export function Cm2026FootballDataClient(props: {
           style={
             tab === "matches"
               ? {
-                  backgroundColor: "rgba(34,211,238,0.2)",
-                  color: "#22D3EE",
-                  border: "1px solid rgba(34,211,238,0.45)",
+                  backgroundColor: "rgba(59,130,246,0.2)",
+                  color: "#3B82F6",
+                  border: "1px solid rgba(59,130,246,0.45)",
                 }
               : {
                   color: "rgba(255,255,255,0.65)",
@@ -529,11 +529,11 @@ export function Cm2026FootballDataClient(props: {
         <section className="space-y-10" aria-label={t("matches.tab.standings")}>
           <div className="flex flex-wrap gap-4 text-xs mb-2">
             <span className="inline-flex items-center gap-2">
-              <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: "rgba(190,242,100,0.35)" }} />
+              <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: "rgba(96,165,250,0.35)" }} />
               {t("matches.standings.legendDirect")}
             </span>
             <span className="inline-flex items-center gap-2">
-              <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: "rgba(34,211,238,0.25)" }} />
+              <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: "rgba(59,130,246,0.25)" }} />
               {t("matches.standings.legendThird")}
             </span>
           </div>
@@ -542,13 +542,13 @@ export function Cm2026FootballDataClient(props: {
               <div key={`stand-${g.letter}`}>
                 <h2
                   className="text-lg font-black mb-3 flex items-center gap-2"
-                  style={{ color: "#BEF264" }}
+                  style={{ color: "#60A5FA" }}
                 >
                   <span
                     className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black"
                     style={{
-                      backgroundColor: "rgba(34,211,238,0.2)",
-                      color: "#22D3EE",
+                      backgroundColor: "rgba(59,130,246,0.2)",
+                      color: "#3B82F6",
                     }}
                   >
                     {g.letter}
@@ -584,7 +584,7 @@ export function Cm2026FootballDataClient(props: {
                         <th className="px-2 py-3 font-bold text-center text-white/80">
                           {t("matches.standings.goalsAgainst")}
                         </th>
-                        <th className="px-3 py-3 font-bold text-right text-[#BEF264]">
+                        <th className="px-3 py-3 font-bold text-right text-[#60A5FA]">
                           {t("matches.standings.points")}
                         </th>
                       </tr>
@@ -617,9 +617,9 @@ export function Cm2026FootballDataClient(props: {
                             style={{
                               borderColor: "rgba(255,255,255,0.06)",
                               backgroundColor: isDirect
-                                ? "rgba(190,242,100,0.06)"
+                                ? "rgba(96,165,250,0.06)"
                                 : isThirdQualify
-                                  ? "rgba(34,211,238,0.06)"
+                                  ? "rgba(59,130,246,0.06)"
                                   : undefined,
                             }}
                           >
@@ -661,7 +661,7 @@ export function Cm2026FootballDataClient(props: {
                             <td className="px-2 py-3 text-center tabular-nums text-white/85 align-middle">
                               {row.goalsAgainst}
                             </td>
-                            <td className="px-3 py-3 text-right font-black tabular-nums text-[#BEF264] align-middle">
+                            <td className="px-3 py-3 text-right font-black tabular-nums text-[#60A5FA] align-middle">
                               {row.points}
                             </td>
                           </tr>
@@ -687,9 +687,9 @@ export function Cm2026FootballDataClient(props: {
               onClick={() => setMatchSubTab("__results__")}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
               style={{
-                backgroundColor: matchSubTab === "__results__" ? "rgba(190,242,100,0.15)" : "rgba(255,255,255,0.06)",
-                color: matchSubTab === "__results__" ? "#BEF264" : "rgba(255,255,255,0.5)",
-                border: matchSubTab === "__results__" ? "1px solid rgba(190,242,100,0.3)" : "1px solid transparent",
+                backgroundColor: matchSubTab === "__results__" ? "rgba(96,165,250,0.15)" : "rgba(255,255,255,0.06)",
+                color: matchSubTab === "__results__" ? "#60A5FA" : "rgba(255,255,255,0.5)",
+                border: matchSubTab === "__results__" ? "1px solid rgba(96,165,250,0.3)" : "1px solid transparent",
               }}
             >
               {t("matches.tab.results")}
@@ -700,9 +700,9 @@ export function Cm2026FootballDataClient(props: {
               onClick={() => setMatchSubTab("__upcoming__")}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
               style={{
-                backgroundColor: matchSubTab === "__upcoming__" ? "rgba(34,211,238,0.18)" : "rgba(255,255,255,0.06)",
-                color: matchSubTab === "__upcoming__" ? "#22D3EE" : "rgba(255,255,255,0.5)",
-                border: matchSubTab === "__upcoming__" ? "1px solid rgba(34,211,238,0.3)" : "1px solid transparent",
+                backgroundColor: matchSubTab === "__upcoming__" ? "rgba(59,130,246,0.18)" : "rgba(255,255,255,0.06)",
+                color: matchSubTab === "__upcoming__" ? "#3B82F6" : "rgba(255,255,255,0.5)",
+                border: matchSubTab === "__upcoming__" ? "1px solid rgba(59,130,246,0.3)" : "1px solid transparent",
               }}
             >
               {t("matches.tab.upcoming")}
@@ -716,9 +716,9 @@ export function Cm2026FootballDataClient(props: {
                 onClick={() => setMatchSubTab(key)}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
                 style={{
-                  backgroundColor: matchSubTab === key ? "rgba(34,211,238,0.18)" : "rgba(255,255,255,0.06)",
-                  color: matchSubTab === key ? "#22D3EE" : "rgba(255,255,255,0.5)",
-                  border: matchSubTab === key ? "1px solid rgba(34,211,238,0.3)" : "1px solid transparent",
+                  backgroundColor: matchSubTab === key ? "rgba(59,130,246,0.18)" : "rgba(255,255,255,0.06)",
+                  color: matchSubTab === key ? "#3B82F6" : "rgba(255,255,255,0.5)",
+                  border: matchSubTab === key ? "1px solid rgba(59,130,246,0.3)" : "1px solid transparent",
                 }}
               >
                 {key}
@@ -730,9 +730,9 @@ export function Cm2026FootballDataClient(props: {
                 onClick={() => setMatchSubTab("__knockout__")}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
                 style={{
-                  backgroundColor: matchSubTab === "__knockout__" ? "rgba(190,242,100,0.15)" : "rgba(255,255,255,0.06)",
-                  color: matchSubTab === "__knockout__" ? "#BEF264" : "rgba(255,255,255,0.5)",
-                  border: matchSubTab === "__knockout__" ? "1px solid rgba(190,242,100,0.3)" : "1px solid transparent",
+                  backgroundColor: matchSubTab === "__knockout__" ? "rgba(96,165,250,0.15)" : "rgba(255,255,255,0.06)",
+                  color: matchSubTab === "__knockout__" ? "#60A5FA" : "rgba(255,255,255,0.5)",
+                  border: matchSubTab === "__knockout__" ? "1px solid rgba(96,165,250,0.3)" : "1px solid transparent",
                 }}
               >
                 {t("matches.knockoutStage")}
@@ -742,7 +742,7 @@ export function Cm2026FootballDataClient(props: {
 
           {matchSubTab === "__results__" && (
             <div>
-              <h3 className="text-base font-bold mb-4" style={{ color: "#BEF264" }}>
+              <h3 className="text-base font-bold mb-4" style={{ color: "#60A5FA" }}>
                 {t("matches.tab.results")}
               </h3>
               <MatchesChronologicalTable matches={finishedMatches} mode="results" />
@@ -751,7 +751,7 @@ export function Cm2026FootballDataClient(props: {
 
           {matchSubTab === "__upcoming__" && (
             <div>
-              <h3 className="text-base font-bold mb-4" style={{ color: "#22D3EE" }}>
+              <h3 className="text-base font-bold mb-4" style={{ color: "#3B82F6" }}>
                 {t("matches.tab.upcoming")}
               </h3>
               <MatchesChronologicalTable matches={upcomingMatches} mode="upcoming" />
@@ -765,7 +765,7 @@ export function Cm2026FootballDataClient(props: {
               <div>
                 <h3
                   className="text-base font-bold mb-4"
-                  style={{ color: "#BEF264" }}
+                  style={{ color: "#60A5FA" }}
                 >
                   {matchSubTab}{" "}
                   <span className="text-xs font-normal opacity-50">({list.length})</span>

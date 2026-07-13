@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
@@ -109,14 +109,14 @@ export default function BingoGame({
               className="aspect-square p-2 rounded-xl border text-center flex flex-col items-center justify-center gap-1 transition-all cursor-pointer"
               style={{
                 borderColor: isSelected
-                  ? "rgba(34,211,238,0.6)"
+                  ? "rgba(59,130,246,0.6)"
                   : filled
                     ? "rgba(34,197,94,0.4)"
                     : "rgba(255,255,255,0.1)",
                 backgroundColor: filled
                   ? "rgba(34,197,94,0.1)"
                   : isSelected
-                    ? "rgba(34,211,238,0.08)"
+                    ? "rgba(59,130,246,0.08)"
                     : "rgba(255,255,255,0.03)",
               }}
             >
@@ -137,7 +137,7 @@ export default function BingoGame({
       {selectedCell !== null && (
         <div
           className="rounded-2xl border p-4"
-          style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "#1E293B" }}
+          style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.08)" }}
         >
           <p className="text-xs text-cyan-300 mb-2">{criteria[selectedCell].label[locale]}</p>
           <input

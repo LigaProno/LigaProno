@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useLocale } from "@/components/i18n/locale-provider";
 
-const CYAN = "#22D3EE";
-const LIME = "#BEF264";
+const CYAN = "#3B82F6";
+const LIME = "#60A5FA";
 
 function ScoreRow({ icon, label, pts, color = CYAN }: { icon: string; label: string; pts: string; color?: string }) {
   return (
@@ -83,8 +83,8 @@ export default function RulesModal() {
               <div
                 className="flex items-center justify-between px-6 py-5 shrink-0"
                 style={{
-                  background: "linear-gradient(135deg, rgba(34,211,238,0.10) 0%, rgba(34,211,238,0.02) 60%, transparent 100%)",
-                  borderBottom: "1px solid rgba(34,211,238,0.13)",
+                  background: "linear-gradient(135deg, rgba(59,130,246,0.10) 0%, rgba(59,130,246,0.02) 60%, transparent 100%)",
+                  borderBottom: "1px solid rgba(59,130,246,0.13)",
                 }}
               >
                 <div>

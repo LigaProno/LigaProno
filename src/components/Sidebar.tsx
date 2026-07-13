@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { UserButton } from "@clerk/nextjs";
 import { useState, type ReactNode } from "react";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -16,21 +16,20 @@ type NavItem = {
   icon: ReactNode;
 };
 
-const SIDEBAR_BG   = "#06080D";
-const SIDEBAR_BDR  = "rgba(255,255,255,0.06)";
+const SIDEBAR_BG = "rgba(10,11,30,0.85)";
+const SIDEBAR_BDR = "rgba(255,255,255,0.06)";
+const GOLD = "#C5A059";
 
 function LogoMark() {
   return (
     <div
-      className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
+      className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg"
       style={{
-        background: "linear-gradient(135deg, #22D3EE 0%, #0891B2 100%)",
-        boxShadow: "0 0 14px rgba(34,211,238,0.28)",
+        boxShadow: "0 0 16px rgba(197,160,89,0.22)",
+        border: "1px solid rgba(197,160,89,0.25)",
       }}
     >
-      <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-      </svg>
+      <Image src="/logo-liga-prono.png" alt="" fill className="object-cover" sizes="32px" />
     </div>
   );
 }
@@ -57,7 +56,7 @@ function NavLinks({
             onClick={onClick}
             className="relative flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors duration-100"
             style={{
-              color:           active ? "#EEF2FF" : "rgba(255,255,255,0.42)",
+              color: active ? "#EEF2FF" : "rgba(255,255,255,0.42)",
               backgroundColor: active ? "rgba(255,255,255,0.05)" : "transparent",
             }}
             onMouseEnter={(e) => {
@@ -73,7 +72,7 @@ function NavLinks({
                 style={{
                   left: 0,
                   width: "2px",
-                  backgroundColor: "#22D3EE",
+                  backgroundColor: GOLD,
                   borderRadius: "0 2px 2px 0",
                 }}
               />
@@ -111,33 +110,9 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
       ),
     },
     {
-      href: "/matches",
-      labelKey: "nav.matches",
-      match: (p) => p === "/matches" || p.startsWith("/matches/"),
-      icon: (
-        <svg className="w-[18px] h-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth={1.7} viewBox="0 0 24 24">
-          <rect x="3" y="4" width="18" height="18" rx="2" />
-          <path strokeLinecap="round" d="M16 2v4M8 2v4M3 10h18" />
-        </svg>
-      ),
-    },
-    {
-      href: "/mini-jocuri",
-      labelKey: "nav.miniGames",
-      match: (p) => p === "/mini-jocuri" || p.startsWith("/mini-jocuri/"),
-      icon: (
-        <svg className="w-[18px] h-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth={1.7} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-    },
-    {
       href: "/turnee",
       labelKey: "nav.tournaments",
-      match: (p) =>
-        p === "/turnee" ||
-        (p.startsWith("/turnee/") && !p.startsWith("/turnee/clasament")),
+      match: (p) => p === "/turnee" || p.startsWith("/turnee/"),
       icon: (
         <svg className="w-[18px] h-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth={1.7} viewBox="0 0 24 24">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -147,12 +122,12 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
       ),
     },
     {
-      href: "/turnee/clasament",
-      labelKey: "nav.globalLeaderboard",
-      match: (p) => p === "/turnee/clasament",
+      href: "/profil",
+      labelKey: "nav.profile",
+      match: (p) => p === "/profil" || p.startsWith("/profil/"),
       icon: (
         <svg className="w-[18px] h-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth={1.7} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
       ),
     },
@@ -174,25 +149,20 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
       <Link href="/dashboard" className="flex items-center gap-2.5" onClick={onClick}>
         <LogoMark />
         <span className="font-bold text-base tracking-[-0.02em] text-white">
-          Prono<span style={{ color: "#22D3EE" }}>Hub</span>
+          Liga <span style={{ color: GOLD }}>Prono</span>
         </span>
       </Link>
     </div>
   );
 
-  const bottomArea = (onClick?: () => void) => (
+  const bottomArea = () => (
     <div className="p-4 shrink-0 flex flex-col gap-3" style={{ borderTop: `1px solid ${SIDEBAR_BDR}` }}>
       <LanguageSwitcher />
-      <div className="flex items-center gap-3">
-        <UserButton userProfileMode="navigation" userProfileUrl="/user-profile" />
-        <span className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>{t("nav.account")}</span>
-      </div>
     </div>
   );
 
   return (
     <>
-      {/* ── Mobile top bar ────────────────────────────────────────── */}
       <header
         className="flex md:hidden items-center justify-between px-4 h-14 shrink-0 w-full"
         style={{ backgroundColor: SIDEBAR_BG, borderBottom: `1px solid ${SIDEBAR_BDR}` }}
@@ -200,12 +170,11 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
         <Link href="/dashboard" className="flex items-center gap-2.5">
           <LogoMark />
           <span className="font-bold text-base tracking-[-0.02em] text-white">
-            Prono<span style={{ color: "#22D3EE" }}>Hub</span>
+            Liga <span style={{ color: GOLD }}>Prono</span>
           </span>
         </Link>
         <div className="flex items-center gap-2">
           <LanguageSwitcher compact />
-          <UserButton userProfileMode="navigation" userProfileUrl="/user-profile" />
           <button
             onClick={() => setOpen(true)}
             className="p-1.5 rounded-md transition-colors hover:bg-white/8"
@@ -219,7 +188,6 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
         </div>
       </header>
 
-      {/* ── Mobile drawer backdrop ─────────────────────────────────── */}
       {open && (
         <div
           className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
@@ -227,7 +195,6 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
         />
       )}
 
-      {/* ── Mobile drawer ─────────────────────────────────────────── */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col md:hidden transition-transform duration-200 ease-in-out ${open ? "translate-x-0" : "-translate-x-full"}`}
         style={{ backgroundColor: SIDEBAR_BG, borderRight: `1px solid ${SIDEBAR_BDR}` }}
@@ -238,10 +205,9 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
           <div className="mb-1" style={{ borderTop: `1px solid ${SIDEBAR_BDR}` }} />
           <RulesModal />
         </div>
-        {bottomArea(() => setOpen(false))}
+        {bottomArea()}
       </aside>
 
-      {/* ── Desktop sidebar ───────────────────────────────────────── */}
       <aside
         className="hidden md:flex flex-col w-56 shrink-0"
         style={{ backgroundColor: SIDEBAR_BG, borderRight: `1px solid ${SIDEBAR_BDR}` }}

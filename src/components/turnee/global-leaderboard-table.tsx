@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -38,7 +38,7 @@ export default function GlobalLeaderboardTable({
     <div className="flex flex-col gap-5">
       <div
         className="rounded-2xl border overflow-x-auto"
-        style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "#1E293B" }}
+        style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.08)" }}
       >
         <table className="w-full text-sm min-w-[560px]">
           <thead>
@@ -64,7 +64,7 @@ export default function GlobalLeaderboardTable({
                 style={{
                   borderBottom: "1px solid rgba(255,255,255,0.06)",
                   backgroundColor:
-                    row.userId === currentUserId ? "rgba(34,211,238,0.06)" : undefined,
+                    row.userId === currentUserId ? "rgba(59,130,246,0.06)" : undefined,
                 }}
               >
                 <td className="py-2.5 px-2 text-white font-bold tabular-nums align-top">{row.rank}</td>
@@ -139,7 +139,7 @@ export default function GlobalLeaderboardTable({
                     </div>
                   : null}
                 </td>
-                <td className="py-2.5 px-2 text-right font-bold tabular-nums align-top" style={{ color: "#BEF264" }}>
+                <td className="py-2.5 px-2 text-right font-bold tabular-nums align-top" style={{ color: "#60A5FA" }}>
                   {row.total}
                 </td>
               </tr>

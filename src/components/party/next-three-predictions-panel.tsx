@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -50,7 +50,7 @@ function MatchPredictionsTable({
   return (
     <article
       className="rounded-2xl border overflow-hidden"
-      style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "#1E293B" }}
+      style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.08)" }}
     >
       <div
         className="px-4 py-4 sm:px-5 sm:py-4 flex flex-wrap items-center gap-x-5 gap-y-2"
@@ -72,7 +72,7 @@ function MatchPredictionsTable({
         </div>
         <div className="text-sm tabular-nums font-medium" style={{ color: "#67E8F9" }}>
           {when}
-          <span className="ml-1.5 text-xs" style={{ color: "#BEF264" }}>{romaniaTimeSuffix}</span>
+          <span className="ml-1.5 text-xs" style={{ color: "#60A5FA" }}>{romaniaTimeSuffix}</span>
         </div>
         <div className="text-xs sm:text-sm truncate max-w-full sm:max-w-xs" style={{ color: "rgba(255,255,255,0.42)" }}>
           {venue}
@@ -114,13 +114,13 @@ function MatchPredictionsTable({
                 style={{
                   borderBottom: "1px solid rgba(255,255,255,0.06)",
                   backgroundColor:
-                    row.userId === currentUserId ? "rgba(34,211,238,0.06)" : undefined,
+                    row.userId === currentUserId ? "rgba(59,130,246,0.06)" : undefined,
                 }}
               >
                 <td
                   className="py-2.5 px-3 sm:px-4 align-middle font-medium truncate max-w-[10rem]"
                   style={{
-                    color: row.userId === currentUserId ? "#22D3EE" : "rgba(255,255,255,0.88)",
+                    color: row.userId === currentUserId ? "#3B82F6" : "rgba(255,255,255,0.88)",
                   }}
                   title={row.displayName}
                 >

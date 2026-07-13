@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
@@ -97,7 +97,7 @@ export default function TriviaGame({
 
       <div
         className="rounded-2xl border p-6"
-        style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "#1E293B" }}
+        style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.08)" }}
       >
         {phase === "done" ? (
           <div className="text-center py-4">
@@ -108,14 +108,14 @@ export default function TriviaGame({
             <Link
               href="/mini-jocuri"
               className="inline-block px-5 py-2.5 rounded-xl font-medium text-sm"
-              style={{ backgroundColor: "#22D3EE", color: "#0F172A" }}
+              style={{ backgroundColor: "#3B82F6", color: "#0A0B1E" }}
             >
               {t("miniGames.backToHub")}
             </Link>
           </div>
         ) : (
           <>
-            <p className="text-xs uppercase tracking-wide mb-3" style={{ color: "#22D3EE" }}>
+            <p className="text-xs uppercase tracking-wide mb-3" style={{ color: "#3B82F6" }}>
               {t("miniGames.trivia.question")} {displayIndex + 1}/{questions.length}
             </p>
             <h2 className="text-lg font-semibold text-white mb-6 leading-snug">
@@ -163,7 +163,7 @@ export default function TriviaGame({
                 </div>
                 <div
                   className="rounded-xl border px-4 py-4 mb-6"
-                  style={{ borderColor: "rgba(34,211,238,0.2)", backgroundColor: "rgba(34,211,238,0.05)" }}
+                  style={{ borderColor: "rgba(59,130,246,0.2)", backgroundColor: "rgba(59,130,246,0.05)" }}
                 >
                   <p className="text-xs font-semibold uppercase mb-2 text-cyan-300">
                     {t("miniGames.trivia.story")}
@@ -174,7 +174,7 @@ export default function TriviaGame({
                   type="button"
                   onClick={handleNext}
                   className="w-full py-3 rounded-xl font-medium text-sm cursor-pointer"
-                  style={{ backgroundColor: "#22D3EE", color: "#0F172A" }}
+                  style={{ backgroundColor: "#3B82F6", color: "#0A0B1E" }}
                 >
                   {completed && displayIndex === questions.length - 1
                     ? t("miniGames.trivia.seeResults")

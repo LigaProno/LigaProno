@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -97,7 +97,7 @@ function OutcomeButtons({
               color: value === o.val ? WC_NAVY : WC_MUTED,
               border:
                 value === o.val ?
-                  "1px solid rgba(34,211,238,0.5)"
+                  "1px solid rgba(59,130,246,0.5)"
                 : "1px solid rgba(255,255,255,0.06)",
             }}
           >
@@ -215,7 +215,7 @@ export function PartyMatchPredictionCard({
     <div
       className="rounded-2xl border overflow-hidden relative"
       style={{
-        borderColor: "rgba(34,211,238,0.18)",
+        borderColor: "rgba(59,130,246,0.18)",
         background: WC_CARD_GRADIENT,
       }}
     >

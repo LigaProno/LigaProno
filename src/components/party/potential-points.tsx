@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   lookup1x2Odd,
@@ -13,8 +13,8 @@ import {
   roundPoints,
 } from "@/lib/wc-scoring";
 
-const CYAN = "#22D3EE";
-const LIME = "#BEF264";
+const CYAN = "#3B82F6";
+const LIME = "#60A5FA";
 const MUTED = "rgba(255,255,255,0.45)";
 
 export function PotentialPoints({
@@ -55,8 +55,8 @@ export function PotentialPoints({
     <div
       className="rounded-lg px-3 py-2 flex flex-wrap gap-x-4 gap-y-1 items-center"
       style={{
-        backgroundColor: "rgba(34,211,238,0.06)",
-        borderTop: "1px solid rgba(34,211,238,0.12)",
+        backgroundColor: "rgba(59,130,246,0.06)",
+        borderTop: "1px solid rgba(59,130,246,0.12)",
       }}
     >
       {htPts != null && (

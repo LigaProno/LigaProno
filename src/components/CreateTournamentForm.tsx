@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -61,7 +61,7 @@ export default function CreateTournamentForm({
   return (
     <div
       className={embedded ? "flex flex-col gap-4" : "rounded-xl border p-6 flex flex-col gap-4"}
-      style={embedded ? undefined : { backgroundColor: "#0D1422", borderColor: "rgba(255,255,255,0.08)", boxShadow: "0 2px 12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)" }}
+      style={embedded ? undefined : { backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.08)", boxShadow: "0 2px 12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)" }}
     >
       {!embedded && (
         <div>
@@ -72,10 +72,10 @@ export default function CreateTournamentForm({
 
       {createdCode ? (
         <div className="flex flex-col gap-3">
-          <p className="text-sm font-semibold" style={{ color: "#BEF264" }}>{t("tournament.create.success")}</p>
+          <p className="text-sm font-semibold" style={{ color: "#60A5FA" }}>{t("tournament.create.success")}</p>
           <div className="flex items-center gap-2">
             <div className="flex-1 rounded-lg px-4 py-3 text-center text-lg font-bold tracking-[0.25em]"
-              style={{ backgroundColor: "#060911", color: "#22D3EE", border: "1px solid rgba(34,211,238,0.2)" }}>
+              style={{ backgroundColor: "rgba(255,255,255,0.03)", color: "#3B82F6", border: "1px solid rgba(59,130,246,0.2)" }}>
               {createdCode}
             </div>
             <button onClick={copyCode} className="ph-btn-primary shrink-0 rounded-lg text-sm" style={{ padding: "11px 16px" }}>
@@ -107,17 +107,17 @@ export default function CreateTournamentForm({
             ) : (
               <select value={competitionKey} onChange={(e) => setCompetitionKey(e.target.value)} required
                 className="ph-input" style={{ color: competitionKey ? "#EEF2FF" : "rgba(255,255,255,0.28)" }}>
-                <option value="" disabled style={{ backgroundColor: "#060911" }}>{t("tournament.create.competitionHint")}</option>
+                <option value="" disabled style={{ backgroundColor: "rgba(255,255,255,0.03)" }}>{t("tournament.create.competitionHint")}</option>
                 {competitionPickerOptions.map((c) => (
-                  <option key={c.storageKey} value={c.storageKey} style={{ color: "#EEF2FF", backgroundColor: "#060911" }}>{c.label}</option>
+                  <option key={c.storageKey} value={c.storageKey} style={{ color: "#EEF2FF", backgroundColor: "rgba(255,255,255,0.03)" }}>{c.label}</option>
                 ))}
               </select>
             )}
           </div>
 
           <div className="rounded-lg px-3.5 py-3 flex items-start gap-2.5 text-xs leading-relaxed"
-            style={{ backgroundColor: "rgba(34,211,238,0.05)", border: "1px solid rgba(34,211,238,0.16)" }}>
-            <svg className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "#22D3EE" }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            style={{ backgroundColor: "rgba(59,130,246,0.05)", border: "1px solid rgba(59,130,246,0.16)" }}>
+            <svg className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "#3B82F6" }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <p style={{ color: "rgba(226,232,240,0.78)" }}>{t("tournament.create.predictionLockInfo")}</p>
@@ -128,8 +128,8 @@ export default function CreateTournamentForm({
               {t("tournament.create.inviteCodeLabel")}
             </label>
             <div className="flex items-center gap-2 rounded-lg px-4 py-3"
-              style={{ backgroundColor: "#060911", border: "1px solid rgba(255,255,255,0.10)" }}>
-              <span className="flex-1 text-sm font-bold tracking-[0.18em]" style={{ color: "#22D3EE" }} suppressHydrationWarning>
+              style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.10)" }}>
+              <span className="flex-1 text-sm font-bold tracking-[0.18em]" style={{ color: "#3B82F6" }} suppressHydrationWarning>
                 {codeReady ? code : "··········"}
               </span>
               <button type="button" disabled={!codeReady} onClick={() => setCode(generateCode())}

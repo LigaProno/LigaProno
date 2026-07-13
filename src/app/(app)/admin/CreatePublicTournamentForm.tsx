@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -76,7 +76,7 @@ export default function CreatePublicTournamentForm({
           onChange={(e) => setName(e.target.value)}
           maxLength={60}
           className="w-full rounded-xl px-4 py-3 text-sm outline-none border"
-          style={{ backgroundColor: "#060911", color: "#fff", borderColor: "rgba(255,255,255,0.12)" }}
+          style={{ backgroundColor: "rgba(255,255,255,0.03)", color: "#fff", borderColor: "rgba(255,255,255,0.12)" }}
         />
       </div>
 
@@ -91,7 +91,7 @@ export default function CreatePublicTournamentForm({
           required
           className="w-full rounded-xl px-4 py-3 text-sm outline-none border"
           style={{
-            backgroundColor: "#060911",
+            backgroundColor: "rgba(255,255,255,0.03)",
             color: competitionKey ? "#fff" : "rgba(255,255,255,0.4)",
             borderColor: "rgba(255,255,255,0.12)",
           }}
@@ -121,7 +121,7 @@ export default function CreatePublicTournamentForm({
             handlePrizeCountChange(v);
           }}
           className="w-32 rounded-xl px-4 py-3 text-sm outline-none border"
-          style={{ backgroundColor: "#060911", color: "#fff", borderColor: "rgba(255,255,255,0.12)" }}
+          style={{ backgroundColor: "rgba(255,255,255,0.03)", color: "#fff", borderColor: "rgba(255,255,255,0.12)" }}
         />
       </div>
 
@@ -136,7 +136,7 @@ export default function CreatePublicTournamentForm({
               <div key={i} className="flex items-center gap-3">
                 <span
                   className="text-xs font-bold shrink-0 w-14 text-right"
-                  style={{ color: i === 0 ? "#BEF264" : i === 1 ? "#22D3EE" : "rgba(255,255,255,0.45)" }}
+                  style={{ color: i === 0 ? "#60A5FA" : i === 1 ? "#3B82F6" : "rgba(255,255,255,0.45)" }}
                 >
                   {placeLabel(i + 1)}
                 </span>
@@ -144,7 +144,7 @@ export default function CreatePublicTournamentForm({
                   value={prizeSelections[i] ?? PRIZE_OPTIONS[0]}
                   onChange={(e) => handlePrizeChange(i, e.target.value)}
                   className="flex-1 rounded-xl px-3 py-2.5 text-sm outline-none border"
-                  style={{ backgroundColor: "#060911", color: "#fff", borderColor: "rgba(255,255,255,0.12)" }}
+                  style={{ backgroundColor: "rgba(255,255,255,0.03)", color: "#fff", borderColor: "rgba(255,255,255,0.12)" }}
                 >
                   {PRIZE_OPTIONS.map((p) => (
                     <option key={p} value={p} style={{ color: "#fff" }}>
@@ -159,13 +159,13 @@ export default function CreatePublicTournamentForm({
       )}
 
       {error && <p className="text-sm text-red-400">{error}</p>}
-      {success && <p className="text-sm" style={{ color: "#BEF264" }}>{success}</p>}
+      {success && <p className="text-sm" style={{ color: "#60A5FA" }}>{success}</p>}
 
       <button
         type="submit"
         disabled={isPending || !canSubmit}
         className="w-full py-3 rounded-xl font-bold text-sm disabled:opacity-50 cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all"
-        style={{ backgroundColor: "#22D3EE", color: "#0F172A" }}
+        style={{ backgroundColor: "#3B82F6", color: "#0A0B1E" }}
       >
         {isPending ? "Se creează…" : "Creează turneu public"}
       </button>

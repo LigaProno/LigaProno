@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import CreateTournamentForm from "@/components/CreateTournamentForm";
@@ -27,7 +27,7 @@ export default function TournamentActionsWidget({
     <div
       className="rounded-xl border flex flex-col gap-0 overflow-hidden"
       style={{
-        backgroundColor: "#0D1422",
+        backgroundColor: "rgba(255,255,255,0.06)",
         borderColor: "rgba(255,255,255,0.08)",
         boxShadow: "0 2px 16px rgba(0,0,0,0.4)",
       }}
@@ -55,7 +55,7 @@ export default function TournamentActionsWidget({
               {active && (
                 <span
                   className="absolute bottom-0 left-4 right-4 h-px"
-                  style={{ backgroundColor: id === "create" ? "#22D3EE" : "#BEF264" }}
+                  style={{ backgroundColor: id === "create" ? "#3B82F6" : "#60A5FA" }}
                 />
               )}
               {label}

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import type { FootballDataTeam } from "@/lib/football-data";
@@ -43,11 +43,11 @@ export function PartyChampionSection({
               onClick={() => onSelect(selected ? "" : id)}
               className="flex flex-col items-center gap-2 rounded-xl px-3 py-3 border transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
               style={{
-                borderColor: selected ? "rgba(34,211,238,0.45)" : WC_BORDER,
+                borderColor: selected ? "rgba(59,130,246,0.45)" : WC_BORDER,
                 backgroundColor:
-                  selected ? "rgba(34,211,238,0.12)" : "rgba(0,0,0,0.2)",
+                  selected ? "rgba(59,130,246,0.12)" : "rgba(0,0,0,0.2)",
                 boxShadow:
-                  selected ? "0 0 0 1px rgba(34,211,238,0.25)" : undefined,
+                  selected ? "0 0 0 1px rgba(59,130,246,0.25)" : undefined,
               }}
             >
               {t.crest ?

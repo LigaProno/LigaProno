@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -29,7 +29,7 @@ export default function JoinTournamentForm({ embedded = false }: { embedded?: bo
   return (
     <div
       className={embedded ? "flex flex-col gap-4" : "rounded-xl border p-6 flex flex-col gap-4"}
-      style={embedded ? undefined : { backgroundColor: "#0D1422", borderColor: "rgba(255,255,255,0.08)", boxShadow: "0 2px 12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)" }}
+      style={embedded ? undefined : { backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.08)", boxShadow: "0 2px 12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)" }}
     >
       {!embedded && (
         <div>
@@ -47,9 +47,9 @@ export default function JoinTournamentForm({ embedded = false }: { embedded?: bo
           maxLength={10}
           aria-label={t("tournament.join.codeLabel")}
           className="ph-input text-center tracking-[0.22em] uppercase font-bold"
-          style={{ color: code ? "#22D3EE" : undefined, fontSize: "0.9rem" }}
+          style={{ color: code ? "#3B82F6" : undefined, fontSize: "0.9rem" }}
         />
-        {success && <p className="text-sm font-medium" style={{ color: "#BEF264" }}>{t("tournament.join.success")}</p>}
+        {success && <p className="text-sm font-medium" style={{ color: "#60A5FA" }}>{t("tournament.join.success")}</p>}
         {error  && <p className="text-sm" style={{ color: "#f87171" }}>{error}</p>}
         <button type="submit" disabled={isPending || code.length < 4} className="ph-btn-lime w-full">
           {isPending ? t("common.loading") : t("tournament.join.submit")}

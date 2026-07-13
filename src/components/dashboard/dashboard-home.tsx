@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useMemo } from "react";
@@ -75,7 +75,7 @@ function NewsCard({
       }`}
       style={{
         borderColor: "rgba(255,255,255,0.08)",
-        backgroundColor: "#0D1422",
+        backgroundColor: "rgba(255,255,255,0.06)",
         boxShadow: "0 2px 12px rgba(0,0,0,0.35)",
       }}
     >
@@ -245,13 +245,6 @@ export default function DashboardHome({
             >
               {t("dashboard.hero.myTournaments")}
             </Link>
-            <Link
-              href="/matches"
-              className="px-7 py-3.5 rounded-xl font-bold text-sm sm:text-base shadow-lg transition hover:brightness-110 active:scale-[0.98]"
-              style={{ backgroundColor: WC_LIME, color: WC_NAVY }}
-            >
-              {t("dashboard.hero.scheduleStandings")}
-            </Link>
           </div>
         </div>
 
@@ -298,7 +291,7 @@ export default function DashboardHome({
             >
               <p className="mb-2">{t("dashboard.news.emptyHint")}</p>
               <p>
-                <code className="text-[#22D3EE]">GEMINI_API_KEY</code> — {t("dashboard.news.geminiHint")}
+                <code className="text-[#3B82F6]">GEMINI_API_KEY</code> — {t("dashboard.news.geminiHint")}
               </p>
             </div>
           : (

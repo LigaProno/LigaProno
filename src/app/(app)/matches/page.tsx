@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+﻿import { Suspense } from "react";
 import {
   fetchCompetitionMatchesFresh,
   fetchPartyStandings,
@@ -103,7 +103,7 @@ export default async function MatchesPage({
               <Link
                 href="/dashboard"
                 className="inline-flex px-4 py-2 rounded-xl text-sm font-bold border"
-                style={{ borderColor: "rgba(255,255,255,0.25)", color: "#BEF264" }}
+                style={{ borderColor: "rgba(255,255,255,0.25)", color: "#60A5FA" }}
               >
                 {t("matches.backHome")}
               </Link>

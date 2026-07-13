@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -42,7 +42,7 @@ export function MatchesChronologicalTable({
   return (
     <div
       className="rounded-2xl border overflow-x-auto"
-      style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "#1E293B" }}
+      style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.08)" }}
     >
       <table className="w-full text-xs sm:text-sm min-w-[36rem]">
         <thead>
@@ -100,7 +100,7 @@ export function MatchesChronologicalTable({
                 <td className="py-3 px-2 align-top text-center tabular-nums font-semibold text-emerald-200/95">
                   {ht ?? (mode === "upcoming" ? "—" : "—")}
                 </td>
-                <td className="py-3 px-2 align-top text-center tabular-nums font-semibold" style={{ color: ft ? "#BEF264" : "rgba(255,255,255,0.35)" }}>
+                <td className="py-3 px-2 align-top text-center tabular-nums font-semibold" style={{ color: ft ? "#60A5FA" : "rgba(255,255,255,0.35)" }}>
                   {ft ?? "—"}
                 </td>
                 <td className="py-3 px-2 align-top hidden sm:table-cell text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>

@@ -506,3 +506,24 @@ export function buildTeamIdToGroupKeyFromStandings(
   }
   return m;
 }
+
+type TeamsEnvelope = {
+  teams?: FootballDataTeam[];
+};
+
+/** Echipe înscrise într-o competiție (ex. CM 2026). */
+export async function fetchCompetitionTeams(
+  competitionCode: string,
+  season: string,
+): Promise<FootballDataTeam[]> {
+  const code = competitionCode.trim().toUpperCase();
+  const data = await fdFetch<TeamsEnvelope>(`/competitions/${code}/teams`, {
+    season: season.trim(),
+  });
+
+  return (data.teams ?? [])
+    .filter((t): t is FootballDataTeam & { id: number; name: string } =>
+      t.id != null && Boolean(t.name?.trim()),
+    )
+    .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "", "ro"));
+}

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useId, useRef, useState } from "react";
 
@@ -64,7 +64,7 @@ export function ColumnHeaderTip({
           role="tooltip"
           className={`md:hidden absolute z-30 top-[calc(100%+6px)] ${tipPos} w-[min(16rem,calc(100vw-2rem))] rounded-lg border px-2.5 py-2 text-[11px] leading-snug font-normal normal-case tracking-normal shadow-lg`}
           style={{
-            borderColor: "rgba(34,211,238,0.35)",
+            borderColor: "rgba(59,130,246,0.35)",
             backgroundColor: "#0f172a",
             color: "rgba(226,232,240,0.95)",
           }}
@@ -77,7 +77,7 @@ export function ColumnHeaderTip({
       <span
         className={`hidden md:block pointer-events-none absolute z-30 top-[calc(100%+6px)] ${tipPos} w-52 rounded-lg border px-2.5 py-2 text-[11px] leading-snug font-normal normal-case tracking-normal shadow-lg opacity-0 scale-95 transition-all duration-150 group-hover/th:opacity-100 group-hover/th:scale-100`}
         style={{
-          borderColor: "rgba(34,211,238,0.35)",
+          borderColor: "rgba(59,130,246,0.35)",
           backgroundColor: "#0f172a",
           color: "rgba(226,232,240,0.95)",
         }}

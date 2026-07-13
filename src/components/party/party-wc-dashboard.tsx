@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -238,9 +238,9 @@ export default function PartyWcDashboard({
               href="/matches"
               className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-xs font-bold border transition-opacity hover:opacity-90"
               style={{
-                borderColor: "rgba(190,242,100,0.35)",
-                color: "#BEF264",
-                backgroundColor: "rgba(190,242,100,0.08)",
+                borderColor: "rgba(96,165,250,0.35)",
+                color: "#60A5FA",
+                backgroundColor: "rgba(96,165,250,0.08)",
               }}
             >
               {t("party.scheduleStandings")}
@@ -263,9 +263,9 @@ export default function PartyWcDashboard({
               }}
               className="shrink-0 self-start px-4 py-2.5 rounded-xl text-xs font-bold border cursor-pointer disabled:opacity-40 transition-opacity"
               style={{
-                borderColor: "rgba(34,211,238,0.35)",
+                borderColor: "rgba(59,130,246,0.35)",
                 color: WC_CYAN,
-                backgroundColor: "rgba(34,211,238,0.08)",
+                backgroundColor: "rgba(59,130,246,0.08)",
               }}
             >
               {t("party.refreshMatches")}
@@ -277,7 +277,7 @@ export default function PartyWcDashboard({
       {isCreator && competitionActive && (
         <div
           className="rounded-2xl border px-4 py-4 flex flex-col gap-3"
-          style={{ backgroundColor: "#1E293B", borderColor: "rgba(255,255,255,0.08)" }}
+          style={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.08)" }}
         >
           <div>
             <p className="text-white text-sm font-semibold">{t("party.creatorOddsTitle")}</p>
@@ -326,7 +326,7 @@ export default function PartyWcDashboard({
               });
             }}
             className="self-start px-4 py-2 rounded-xl text-xs font-bold cursor-pointer disabled:opacity-40"
-            style={{ backgroundColor: "#0EA5E9", color: "#0f172a" }}
+            style={{ backgroundColor: "#2563EB", color: "#0f172a" }}
           >
             {t("party.refreshOdds")}
           </button>
@@ -363,8 +363,8 @@ export default function PartyWcDashboard({
                 onClick={() => setTab(id)}
                 className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors cursor-pointer"
                 style={{
-                  backgroundColor: tab === id ? "rgba(34,211,238,0.15)" : "transparent",
-                  color: tab === id ? "#22D3EE" : "rgba(255,255,255,0.55)",
+                  backgroundColor: tab === id ? "rgba(59,130,246,0.15)" : "transparent",
+                  color: tab === id ? "#3B82F6" : "rgba(255,255,255,0.55)",
                 }}
               >
                 {t(labelKey)}
@@ -376,7 +376,7 @@ export default function PartyWcDashboard({
             <div className="flex flex-col gap-5">
               <div
                 className="rounded-2xl border overflow-x-auto"
-                style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "#1E293B" }}
+                style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.08)" }}
               >
                 <table className="w-full text-sm min-w-[540px]">
                   <thead>
@@ -397,7 +397,7 @@ export default function PartyWcDashboard({
                         style={{
                           borderBottom: "1px solid rgba(255,255,255,0.06)",
                           backgroundColor:
-                            row.userId === currentUserId ? "rgba(34,211,238,0.06)" : undefined,
+                            row.userId === currentUserId ? "rgba(59,130,246,0.06)" : undefined,
                         }}
                       >
                         <td className="py-2.5 px-2 text-white font-bold tabular-nums align-top">{row.rank}</td>
@@ -447,7 +447,7 @@ export default function PartyWcDashboard({
                             </div>
                           : null}
                         </td>
-                        <td className="py-2.5 px-2 text-right font-bold tabular-nums align-top" style={{ color: "#BEF264" }}>
+                        <td className="py-2.5 px-2 text-right font-bold tabular-nums align-top" style={{ color: "#60A5FA" }}>
                           {row.total}
                         </td>
                       </tr>
@@ -482,16 +482,16 @@ export default function PartyWcDashboard({
                       className="shrink-0 w-9 h-9 rounded-lg text-xs font-bold transition-colors cursor-pointer"
                       style={{
                         backgroundColor:
-                          isSelected ? "#22D3EE"
-                          : isCurrent ? "rgba(190,242,100,0.15)"
+                          isSelected ? "#3B82F6"
+                          : isCurrent ? "rgba(96,165,250,0.15)"
                           : "rgba(255,255,255,0.06)",
                         color:
-                          isSelected ? "#0F172A"
-                          : isCurrent ? "#BEF264"
+                          isSelected ? "#0A0B1E"
+                          : isCurrent ? "#60A5FA"
                           : "rgba(255,255,255,0.55)",
                         border:
                           isCurrent && !isSelected ?
-                            "1px solid rgba(190,242,100,0.4)"
+                            "1px solid rgba(96,165,250,0.4)"
                           : "1px solid transparent",
                       }}
                     >
@@ -515,7 +515,7 @@ export default function PartyWcDashboard({
                       disabled={pending}
                       onClick={handleSaveAllMatchdayPredictions}
                       className="self-start px-6 py-3 rounded-xl font-bold text-sm disabled:opacity-50 cursor-pointer hover:opacity-90 active:scale-[0.98]"
-                      style={{ backgroundColor: WC_LIME, color: "#0F172A" }}
+                      style={{ backgroundColor: WC_LIME, color: "#0A0B1E" }}
                     >
                       {pending ? t("party.group.savingAll") : t("party.group.saveAllButton")}
                     </button>

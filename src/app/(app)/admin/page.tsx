@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+﻿import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -60,7 +60,7 @@ export default async function AdminPage() {
                   <div
                     key={t.id}
                     className="rounded-xl border px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
-                    style={{ backgroundColor: "#0D1422", borderColor: "rgba(255,255,255,0.08)", boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}
+                    style={{ backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.08)", boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}
                   >
                     <div className="flex flex-col gap-1">
                       <span className="text-white font-semibold">{t.name}</span>
@@ -73,7 +73,7 @@ export default async function AdminPage() {
                             <span
                               key={p.place}
                               className="text-xs px-2 py-0.5 rounded-md font-medium"
-                              style={{ backgroundColor: "rgba(190,242,100,0.1)", color: "#BEF264" }}
+                              style={{ backgroundColor: "rgba(96,165,250,0.1)", color: "#60A5FA" }}
                             >
                               {placeLabel(p.place)}: {p.prize}
                             </span>
@@ -84,14 +84,14 @@ export default async function AdminPage() {
                     <div className="flex items-center gap-3 flex-wrap">
                       <div
                         className="px-3 py-1 rounded-lg text-xs font-bold tracking-widest"
-                        style={{ backgroundColor: "rgba(34,211,238,0.1)", color: "#22D3EE" }}
+                        style={{ backgroundColor: "rgba(59,130,246,0.1)", color: "#3B82F6" }}
                       >
                         {t.inviteCode}
                       </div>
                       <Link
                         href={`/turnee/${t.id}`}
                         className="px-4 py-2 rounded-xl text-xs font-bold transition-opacity hover:opacity-90"
-                        style={{ backgroundColor: "#22D3EE", color: "#0F172A" }}
+                        style={{ backgroundColor: "#3B82F6", color: "#0A0B1E" }}
                       >
                         Deschide
                       </Link>
@@ -105,7 +105,7 @@ export default async function AdminPage() {
 
           <aside
             className="rounded-xl border p-5 flex flex-col gap-4"
-            style={{ backgroundColor: "#0D1422", borderColor: "rgba(255,255,255,0.08)", boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}
+            style={{ backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.08)", boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}
           >
             <div>
               <h2 className="text-white font-bold text-base">Creează turneu public</h2>

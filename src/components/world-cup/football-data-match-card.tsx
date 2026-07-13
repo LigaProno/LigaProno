@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { venueLabel } from "@/lib/football-data";
 import type { FootballDataMatch } from "@/lib/football-data";
@@ -29,7 +29,7 @@ export function FootballDataMatchCard({ m }: { m: FootballDataMatch }) {
     <div
       className="max-w-xl mx-auto w-full rounded-2xl border overflow-hidden relative"
       style={{
-        borderColor: live ? "rgba(248,113,113,0.35)" : "rgba(34,211,238,0.22)",
+        borderColor: live ? "rgba(248,113,113,0.35)" : "rgba(59,130,246,0.22)",
         background:
           "linear-gradient(145deg, rgba(15,23,42,0.96) 0%, rgba(30,41,59,0.88) 100%)",
       }}
@@ -38,7 +38,7 @@ export function FootballDataMatchCard({ m }: { m: FootballDataMatch }) {
         className="absolute inset-x-0 top-0 h-px opacity-70"
         style={{
           background:
-            "linear-gradient(90deg, transparent, #22D3EE, #BEF264, transparent)",
+            "linear-gradient(90deg, transparent, #3B82F6, #60A5FA, transparent)",
         }}
       />
       <div className="px-4 py-5 sm:px-6 sm:py-6">
@@ -100,7 +100,7 @@ export function FootballDataMatchCard({ m }: { m: FootballDataMatch }) {
                 </span>
                 <span
                   className="text-[10px] mt-2 font-medium tabular-nums"
-                  style={{ color: "#BEF264" }}
+                  style={{ color: "#60A5FA" }}
                 >
                   {when} {t("matches.romaniaTimeSuffix")}
                 </span>

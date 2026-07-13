@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -88,7 +88,7 @@ export default function MemberPredictionsView({
         </div>
       : <div
           className="rounded-2xl border overflow-x-auto"
-          style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "#1E293B" }}
+          style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.08)" }}
         >
           <table className="w-full text-xs sm:text-sm min-w-[32rem]">
             <thead>

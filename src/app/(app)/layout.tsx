@@ -1,4 +1,4 @@
-import { currentUser } from "@clerk/nextjs/server";
+﻿import { currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import Sidebar from "@/components/Sidebar";
 import PageWrapper from "@/components/PageWrapper";
@@ -35,7 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <LocaleProvider initialLocale={locale}>
-      <div className="flex flex-col md:flex-row h-screen overflow-hidden" style={{ backgroundColor: "#080B12" }}>
+      <div className="flex flex-col md:flex-row h-screen overflow-hidden" style={{ backgroundColor: "#0A0B1E" }}>
         <Sidebar isAdmin={admin} />
         <main className="flex-1 overflow-y-auto min-h-0 flex flex-col">
           <PageWrapper>{children}</PageWrapper>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import Link from "next/link";
@@ -110,7 +110,7 @@ export default function ChampionGame({
 
       <div
         className="rounded-2xl border p-6"
-        style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "#1E293B" }}
+        style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.08)" }}
       >
         <div className="flex justify-center mb-6">
           <ChampionPixelImage
@@ -138,7 +138,7 @@ export default function ChampionGame({
         {displayPlayer && (
           <div
             className="rounded-xl border px-4 py-4 mb-4 text-center"
-            style={{ borderColor: "rgba(34,211,238,0.2)", backgroundColor: "rgba(34,211,238,0.05)" }}
+            style={{ borderColor: "rgba(59,130,246,0.2)", backgroundColor: "rgba(59,130,246,0.05)" }}
           >
             <p className="text-lg font-bold text-white mb-1">{displayPlayer.name}</p>
             <p className="text-sm text-white/70">{displayPlayer.fact[locale]}</p>
@@ -161,7 +161,7 @@ export default function ChampionGame({
                 if (e.key === "Enter" && suggestions[0]) submit(suggestions[0].name);
               }}
               placeholder={t("miniGames.champion.placeholder")}
-              className="w-full px-4 py-3 rounded-xl border text-white text-sm outline-none focus:border-cyan-400/50"
+              className="w-full px-4 py-3 rounded-xl border text-white text-sm outline-none focus:border-blue-500/50"
               style={{
                 borderColor: "rgba(255,255,255,0.12)",
                 backgroundColor: "rgba(255,255,255,0.04)",
@@ -171,7 +171,7 @@ export default function ChampionGame({
             {suggestions.length > 0 && query.trim() && (
               <ul
                 className="absolute z-10 left-0 right-0 mt-1 rounded-xl border overflow-hidden shadow-xl"
-                style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "#0F172A" }}
+                style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "#0A0B1E" }}
               >
                 {suggestions.map((p) => (
                   <li key={p.id}>
@@ -193,7 +193,7 @@ export default function ChampionGame({
           <Link
             href="/mini-jocuri"
             className="block text-center mt-4 py-3 rounded-xl font-medium text-sm"
-            style={{ backgroundColor: "#22D3EE", color: "#0F172A" }}
+            style={{ backgroundColor: "#3B82F6", color: "#0A0B1E" }}
           >
             {t("miniGames.backToHub")}
           </Link>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useLocale } from "@/components/i18n/locale-provider";
 import type { MiniGameLeaderboardPeriod, MiniGameLeaderboardRow } from "@/lib/mini-games/types";
@@ -32,8 +32,8 @@ export default function MiniGamesLeaderboard({
             onClick={() => onPeriodChange(p.id)}
             className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer"
             style={{
-              backgroundColor: period === p.id ? "rgba(34,211,238,0.15)" : "rgba(255,255,255,0.05)",
-              color: period === p.id ? "#22D3EE" : "rgba(255,255,255,0.55)",
+              backgroundColor: period === p.id ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.05)",
+              color: period === p.id ? "#3B82F6" : "rgba(255,255,255,0.55)",
             }}
           >
             {p.label}
@@ -51,7 +51,7 @@ export default function MiniGamesLeaderboard({
       ) : (
         <div
           className="rounded-2xl border overflow-x-auto"
-          style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "#1E293B" }}
+          style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.08)" }}
         >
           <table className="w-full text-sm min-w-[480px]">
             <thead>
@@ -71,7 +71,7 @@ export default function MiniGamesLeaderboard({
                   style={{
                     borderBottom: "1px solid rgba(255,255,255,0.06)",
                     backgroundColor:
-                      row.userId === currentUserId ? "rgba(34,211,238,0.06)" : undefined,
+                      row.userId === currentUserId ? "rgba(59,130,246,0.06)" : undefined,
                   }}
                 >
                   <td className="py-2.5 px-3 text-white font-bold tabular-nums">{row.rank}</td>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import type { ThirdPlaceRankingEntry } from "@/lib/wc-standings";
@@ -55,7 +55,7 @@ export function ThirdPlaceRankingTable({
               <th className="px-2 py-3 font-bold text-center text-white/80">
                 {t("matches.standings.goalsAgainst")}
               </th>
-              <th className="px-3 py-3 font-bold text-right text-[#BEF264]">
+              <th className="px-3 py-3 font-bold text-right text-[#60A5FA]">
                 {t("matches.standings.points")}
               </th>
               <th className="px-3 py-3 font-bold text-right text-white/80">
@@ -76,7 +76,7 @@ export function ThirdPlaceRankingTable({
                   style={{
                     borderColor: "rgba(255,255,255,0.06)",
                     backgroundColor: entry.qualifies
-                      ? "rgba(34,211,238,0.06)"
+                      ? "rgba(59,130,246,0.06)"
                       : undefined,
                   }}
                 >
@@ -87,8 +87,8 @@ export function ThirdPlaceRankingTable({
                     <span
                       className="inline-flex w-8 h-8 rounded-lg items-center justify-center text-sm font-black"
                       style={{
-                        backgroundColor: "rgba(34,211,238,0.2)",
-                        color: "#22D3EE",
+                        backgroundColor: "rgba(59,130,246,0.2)",
+                        color: "#3B82F6",
                       }}
                     >
                       {entry.groupLetter}
@@ -131,7 +131,7 @@ export function ThirdPlaceRankingTable({
                   </td>
                   <td
                     className="px-3 py-3 text-right font-black tabular-nums align-middle"
-                    style={{ color: "#BEF264" }}
+                    style={{ color: "#60A5FA" }}
                     title={`GD ${gd}`}
                   >
                     {row.points}
@@ -139,7 +139,7 @@ export function ThirdPlaceRankingTable({
                   <td
                     className="px-3 py-3 text-right text-xs font-bold align-middle"
                     style={{
-                      color: entry.qualifies ? "#22D3EE" : "rgba(255,255,255,0.35)",
+                      color: entry.qualifies ? "#3B82F6" : "rgba(255,255,255,0.35)",
                     }}
                   >
                     {entry.qualifies
