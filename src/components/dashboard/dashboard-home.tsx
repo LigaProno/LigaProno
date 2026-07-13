@@ -70,12 +70,13 @@ function NewsCard({
       href={item.url}
       target="_blank"
       rel="noopener noreferrer"
-      className={`group block rounded-2xl border overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-xl ${
+      className={`group block rounded-xl border overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-xl ${
         featured ? "sm:col-span-2" : ""
       }`}
       style={{
-        borderColor: "rgba(255,255,255,0.1)",
-        backgroundColor: "rgba(255,255,255,0.04)",
+        borderColor: "rgba(255,255,255,0.08)",
+        backgroundColor: "#0D1422",
+        boxShadow: "0 2px 12px rgba(0,0,0,0.35)",
       }}
     >
       <div
@@ -103,13 +104,13 @@ function NewsCard({
             className="absolute inset-0 pointer-events-none"
             style={{
               background:
-                "linear-gradient(to top, rgba(15,23,42,0.75) 0%, transparent 50%)",
+                "linear-gradient(to top, rgba(8,11,18,0.75) 0%, transparent 50%)",
             }}
           />
           <span
             className="absolute top-3 left-3 text-xs font-bold px-2.5 py-1 rounded-lg"
             style={{
-              backgroundColor: "rgba(15,23,42,0.75)",
+              backgroundColor: "rgba(8,11,18,0.75)",
               color: WC_CYAN,
               backdropFilter: "blur(8px)",
             }}
@@ -205,7 +206,7 @@ export default function DashboardHome({
           className="absolute inset-0 motion-reduce:block hidden"
           style={{
             background:
-              "linear-gradient(160deg, rgba(15,23,42,0.98) 0%, rgba(22,101,52,0.25) 50%, rgba(15,23,42,0.98) 100%)",
+              "linear-gradient(160deg, rgba(8,11,18,0.98) 0%, rgba(22,101,52,0.25) 50%, rgba(8,11,18,0.98) 100%)",
           }}
         />
 
@@ -213,7 +214,7 @@ export default function DashboardHome({
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(to bottom, rgba(15,23,42,0.45) 0%, rgba(15,23,42,0.25) 40%, rgba(15,23,42,0.75) 100%)",
+              "linear-gradient(to bottom, rgba(8,11,18,0.45) 0%, rgba(8,11,18,0.25) 40%, rgba(8,11,18,0.75) 100%)",
           }}
         />
 

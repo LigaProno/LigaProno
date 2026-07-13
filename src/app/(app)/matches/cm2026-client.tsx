@@ -16,7 +16,7 @@ import { ThirdPlaceRankingTable } from "@/components/world-cup/third-place-ranki
 import {
   buildBestThirdPlacesRanking,
   getStandingsQualificationMarks,
-} from "@/lib/wc-scoring";
+} from "@/lib/wc-standings";
 import { getMatchAdvancingTeamId, getMatchScoreAfter90 } from "@/lib/match-score";
 
 // ---------------------------------------------------------------------------

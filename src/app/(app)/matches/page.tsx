@@ -86,11 +86,11 @@ export default async function MatchesPage({
       <LocaleProvider initialLocale={locale}>
         <main
           className="min-h-screen p-6 sm:p-10 lg:p-14 flex flex-col items-center justify-center"
-          style={{ backgroundColor: "#0F172A" }}
+          style={{ backgroundColor: "transparent" }}
         >
           <div className="mx-auto max-w-lg w-full">
             <div
-              className="rounded-2xl border p-6"
+              className="rounded-xl border p-6"
               style={{
                 borderColor: "rgba(248,113,113,0.45)",
                 backgroundColor: "rgba(248,113,113,0.08)",
@@ -118,7 +118,7 @@ export default async function MatchesPage({
     <LocaleProvider initialLocale={locale}>
       <main
         className="min-h-screen p-6 sm:p-10 lg:p-14 pb-24"
-        style={{ backgroundColor: "#0F172A" }}
+        style={{ backgroundColor: "transparent" }}
       >
         <Suspense fallback={<MatchesLoading />}>
           <Cm2026FootballDataClient

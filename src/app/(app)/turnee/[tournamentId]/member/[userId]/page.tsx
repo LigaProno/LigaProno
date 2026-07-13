@@ -2,13 +2,12 @@ import { auth } from "@clerk/nextjs/server";
 import { notFound, redirect } from "next/navigation";
 import MemberPredictionsView from "@/components/party/member-predictions-view";
 import {
-  collectTeamsFromMatches,
   fetchCompetitionMatches,
   type FootballDataMatch,
 } from "@/lib/football-data";
 import { parseStoredCompetition } from "@/lib/competition";
 import { prisma } from "@/lib/prisma";
-import { championLabelFromTeams, hasAnyMatchPrediction } from "@/lib/wc-pred-display";
+import { hasAnyMatchPrediction } from "@/lib/wc-pred-display";
 import { type MatchPredictionInput } from "@/lib/wc-scoring";
 
 function displayName(first?: string | null, last?: string | null): string {
@@ -73,8 +72,6 @@ export default async function PartyMemberPredictionsPage({
     loadError = e instanceof Error ? e.message : "Could not load matches.";
   }
 
-  const allTeams = matches.length > 0 ? collectTeamsFromMatches(matches) : [];
-
   const predsDb = await prisma.wcMatchPrediction.findMany({
     where: { tournamentId, userId: memberUserId },
   });
@@ -86,16 +83,8 @@ export default async function PartyMemberPredictionsPage({
       ftOutcome: p.ftOutcome ?? null,
       predHomeGoals: p.predHomeGoals ?? null,
       predAwayGoals: p.predAwayGoals ?? null,
-      predAdvancingTeamId: p.predAdvancingTeamId ?? null,
     });
   }
-
-  const extra = await prisma.wcExtraPrediction.findUnique({
-    where: { tournamentId_userId: { tournamentId, userId: memberUserId } },
-  });
-
-  const championPick = championLabelFromTeams(extra?.championTeamId ?? null, allTeams);
-  const advancingCount = extra?.advancingTeamIds?.length ?? 0;
 
   const rows = [...matches]
     .sort((a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate))
@@ -113,8 +102,6 @@ export default async function PartyMemberPredictionsPage({
         targetMembership.user.firstName,
         targetMembership.user.lastName,
       )}
-      championPick={championPick}
-      advancingCount={advancingCount}
       rows={rows}
       loadError={loadError}
     />

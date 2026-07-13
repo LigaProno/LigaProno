@@ -8,6 +8,7 @@ export const en: Messages = {
   "nav.miniGames": "Mini games",
   "nav.account": "Account",
   "nav.openMenu": "Open menu",
+  "nav.admin": "Admin",
   "common.copy": "Copy",
   "common.copied": "Copied!",
   "common.save": "Save",
@@ -49,11 +50,13 @@ export const en: Messages = {
   "tournament.create.competitionLoadError": "Could not load competitions",
   "tournament.create.noWorldCup":
     "No competitions available. Check your Football-Data token.",
-  "tournament.create.predictionWindowLabel": "Prediction window",
-  "tournament.create.predictionWindowLocked":
-    "Lock after competition starts (recommended)",
-  "tournament.create.predictionWindowPenalty":
-    "Allow changes after start (−10 pts / change)",
+  "tournament.create.predictionLockInfo":
+    "Predictions lock for each match at the moment the match kicks off.",
+  "tournament.create.fixturePeriodLabel": "Tournament period",
+  "tournament.create.fixturePeriodWhole": "Whole season",
+  "tournament.create.fixturePeriodMatchdays": "matchdays",
+  "tournament.create.fixturePeriodHint":
+    "Starts from the first upcoming matchday at creation time",
   "tournament.create.inviteCodeLabel": "Invite code",
   "tournament.create.submit": "Create tournament",
   "tournament.create.success": "Tournament created!",
@@ -71,10 +74,6 @@ export const en: Messages = {
   "party.oddsAt": "Odds",
   "party.oddsUnavailable": "Odds unavailable (×1)",
   "party.oddsMatchCount": "{count} matches",
-  "party.predictionsLocked":
-    "Predictions locked: this tournament only allows picks before the competition starts.",
-  "party.midCompetitionChanges":
-    "Changes after start: {count} · penalty {penalty} pts (each change: −{perChange} pts).",
   "party.refreshMatches": "Refresh matches",
   "party.creatorOddsTitle": "Betting odds",
   "party.creatorOddsHint":
@@ -160,10 +159,6 @@ export const en: Messages = {
   "party.phase.qualifiers": "Qualifiers",
   "party.phase.groups": "Groups",
   "party.phase.knockout": "Knockout",
-  "party.predictions.closedBanner":
-    "Group and extra predictions are closed: the competition has started and the creator chose lock-before-start. Knockout matches open when teams are known.",
-  "party.predictions.penaltyBanner":
-    "You can change predictions after start, but each save that changes data costs {points} points (match or extras), deducted from your total.",
   "party.champion.locked": "Champion pick is locked after competition start.",
   "party.champion.savePenalty": "Saving a changed selection costs {points} points.",
   "party.champion.saveButton": "Save champion",
@@ -204,7 +199,6 @@ export const en: Messages = {
   "party.match.home": "Home",
   "party.match.away": "Away",
   "party.match.points": "Points",
-  "party.match.changePenaltyHint": "Changing a saved prediction costs {points} points.",
   "party.match.pointsDetail": "({htLabel} {halfTime}, {ftLabel} {fullTime}, score {correctScore})",
   "potentialPoints.potentialTotal": "{total} pts potential",
   "potentialPoints.champion": "Champion",

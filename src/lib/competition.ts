@@ -1,11 +1,11 @@
 /** Hardcoded picker option — avoids an API call on the tournaments page. */
 export const COMPETITION_PICKER_OPTIONS: FootballDataCompetitionPickerOption[] = [
-  { storageKey: "PL_2025", code: "PL", season: "2025", label: "Premier League (2025–26)" },
-  { storageKey: "PD_2025", code: "PD", season: "2025", label: "La Liga (2025–26)" },
-  { storageKey: "FL1_2025", code: "FL1", season: "2025", label: "Ligue 1 (2025–26)" },
-  { storageKey: "BL1_2025", code: "BL1", season: "2025", label: "Bundesliga (2025–26)" },
-  { storageKey: "SA_2025", code: "SA", season: "2025", label: "Serie A (2025–26)" },
-  { storageKey: "RL1_2025", code: "RL1", season: "2025", label: "SuperLiga României (2025–26)" },
+  { storageKey: "PL_2026", code: "PL", season: "2026", label: "Premier League (2026–27)", maxMatchday: 38 },
+  { storageKey: "PD_2026", code: "PD", season: "2026", label: "La Liga (2026–27)", maxMatchday: 38 },
+  { storageKey: "FL1_2026", code: "FL1", season: "2026", label: "Ligue 1 (2026–27)", maxMatchday: 34 },
+  { storageKey: "BL1_2026", code: "BL1", season: "2026", label: "Bundesliga (2026–27)", maxMatchday: 34 },
+  { storageKey: "SA_2026", code: "SA", season: "2026", label: "Serie A (2026–27)", maxMatchday: 38 },
+  { storageKey: "RL1_2026", code: "RL1", season: "2026", label: "SuperLiga României (2026–27)", maxMatchday: 30 },
 ];
 
 /** Opțiune pentru select la creare / setare competiție (fără dependențe server-only). */
@@ -14,6 +14,7 @@ export type FootballDataCompetitionPickerOption = {
   code: string;
   season: string;
   label: string;
+  maxMatchday?: number;
 };
 
 export function formatStoredCompetition(

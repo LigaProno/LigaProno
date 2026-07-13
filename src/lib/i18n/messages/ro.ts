@@ -8,6 +8,7 @@ export const ro: Messages = {
   "nav.miniGames": "Mini jocuri",
   "nav.account": "Cont",
   "nav.openMenu": "Deschide meniul",
+  "nav.admin": "Admin",
   "common.copy": "Copiază",
   "common.copied": "Copiat!",
   "common.save": "Salvează",
@@ -50,11 +51,13 @@ export const ro: Messages = {
     "Nu s-a putut încărca lista de competiții",
   "tournament.create.noWorldCup":
     "Nicio competiție disponibilă. Verifică token-ul Football-Data.",
-  "tournament.create.predictionWindowLabel": "Fereastră pronosticuri",
-  "tournament.create.predictionWindowLocked":
-    "Blocare după startul competiției (recomandat)",
-  "tournament.create.predictionWindowPenalty":
-    "Permite modificări după start (−10 pct / schimbare)",
+  "tournament.create.predictionLockInfo":
+    "Pronosticurile se blochează pentru fiecare meci în momentul în care meciul începe.",
+  "tournament.create.fixturePeriodLabel": "Perioadă turneu",
+  "tournament.create.fixturePeriodWhole": "Tot sezonul",
+  "tournament.create.fixturePeriodMatchdays": "etape",
+  "tournament.create.fixturePeriodHint":
+    "Începe de la prima etapă viitoare la momentul creării",
   "tournament.create.inviteCodeLabel": "Cod invitație",
   "tournament.create.submit": "Creează turneu",
   "tournament.create.success": "Turneu creat!",
@@ -72,10 +75,6 @@ export const ro: Messages = {
   "party.oddsAt": "Cote",
   "party.oddsUnavailable": "Cote indisponibile (×1)",
   "party.oddsMatchCount": "{count} meciuri",
-  "party.predictionsLocked":
-    "Pronosticuri blocate: acest turneu permite doar pronosticuri înainte de startul competiției.",
-  "party.midCompetitionChanges":
-    "Modificări după start: {count} · penalizare {penalty} pct (fiecare schimbare: −{perChange} pct).",
   "party.refreshMatches": "Actualizează meciuri",
   "party.creatorOddsTitle": "Cote pariuri",
   "party.creatorOddsHint":
@@ -161,10 +160,6 @@ export const ro: Messages = {
   "party.phase.qualifiers": "Calificări",
   "party.phase.groups": "Grupe",
   "party.phase.knockout": "Eliminatoare",
-  "party.predictions.closedBanner":
-    "Pronosticurile la grupe și extras sunt închise: competiția a început, iar creatorul a ales varianta „doar înainte de start”. Meciurile din eliminatorii se deschid când echipele sunt cunoscute.",
-  "party.predictions.penaltyBanner":
-    "Poți modifica pronosticurile după start, dar fiecare salvare care schimbă datele costă {points} puncte (meci sau extras), scăzute din totalul tău.",
   "party.champion.locked": "Pronosticul de campion este blocat după startul competiției.",
   "party.champion.savePenalty": "Salvarea dacă schimbă selecția costă {points} puncte.",
   "party.champion.saveButton": "Salvează campionul",
@@ -205,7 +200,6 @@ export const ro: Messages = {
   "party.match.home": "Gazde",
   "party.match.away": "Oaspeți",
   "party.match.points": "Puncte",
-  "party.match.changePenaltyHint": "O schimbare față de pronosticul salvat costă {points} puncte.",
   "party.match.pointsDetail": "({htLabel} {halfTime}, {ftLabel} {fullTime}, scor {correctScore})",
   "potentialPoints.potentialTotal": "{total} pct potențial",
   "potentialPoints.champion": "Campion",

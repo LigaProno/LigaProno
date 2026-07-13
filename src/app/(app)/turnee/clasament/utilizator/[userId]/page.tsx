@@ -21,8 +21,6 @@ export default async function GlobalMemberPredictionsPage({
       tournamentId={data.tournamentId}
       tournamentName={data.tournamentName}
       memberDisplayName={data.memberDisplayName}
-      championPick={data.championPick}
-      advancingCount={data.advancingCount}
       rows={data.rows}
       loadError={data.loadError}
       backHref="/turnee/clasament"

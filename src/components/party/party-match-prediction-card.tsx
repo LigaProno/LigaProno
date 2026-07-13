@@ -9,17 +9,9 @@ import type { MatchOddsRow } from "@/lib/betting-odds";
 import { saveWcMatchPrediction } from "@/app/actions/wc-predictions";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { formatCaughtError } from "@/lib/i18n/errors";
-import { POINTS_PER_PREDICTION_CHANGE_AFTER_START } from "@/lib/prediction-window";
-import {
-  getPredictionLockMessage,
-  isKnockoutStage,
-  type PredictionLockedReason,
-} from "@/lib/knockout-predictions";
-import {
-  formatKnockoutDeciderSuffix,
-  getMatchScoreAfter90,
-  inferAdvancingTeamIdFromPredictedScore,
-} from "@/lib/match-score";
+import type { PredictionLockedReason } from "@/lib/knockout-predictions";
+import { getPredictionLockMessage } from "@/lib/knockout-predictions";
+import { getMatchScoreAfter90 } from "@/lib/match-score";
 import { computeMatchPoints } from "@/lib/wc-scoring";
 import { PotentialPoints } from "@/components/party/potential-points";
 import {
@@ -37,17 +29,10 @@ export type MatchPredState = {
   ftOutcome: string;
   predHomeGoals: string;
   predAwayGoals: string;
-  predAdvancingTeamId: string;
 };
 
 export function emptyMatchPred(): MatchPredState {
-  return {
-    htOutcome: "",
-    ftOutcome: "",
-    predHomeGoals: "",
-    predAwayGoals: "",
-    predAdvancingTeamId: "",
-  };
+  return { htOutcome: "", ftOutcome: "", predHomeGoals: "", predAwayGoals: "" };
 }
 
 export function predFromSaved(
@@ -57,7 +42,6 @@ export function predFromSaved(
         ftOutcome?: string | null;
         predHomeGoals?: number | null;
         predAwayGoals?: number | null;
-        predAdvancingTeamId?: number | null;
       }
     | undefined,
 ): MatchPredState {
@@ -73,8 +57,6 @@ export function predFromSaved(
       p.predAwayGoals !== null && p.predAwayGoals !== undefined ?
         String(p.predAwayGoals)
       : "",
-    predAdvancingTeamId:
-      p.predAdvancingTeamId != null ? String(p.predAdvancingTeamId) : "",
   };
 }
 
@@ -132,7 +114,7 @@ export type MatchPredictionSaveInput = {
   ftOutcome: string | null;
   predHomeGoals: number | null;
   predAwayGoals: number | null;
-  predAdvancingTeamId: number | null;
+  predAdvancingTeamId: null;
 };
 
 function toSaveInput(p: MatchPredState): MatchPredictionSaveInput {
@@ -141,8 +123,7 @@ function toSaveInput(p: MatchPredState): MatchPredictionSaveInput {
     ftOutcome: p.ftOutcome || null,
     predHomeGoals: p.predHomeGoals === "" ? null : Number(p.predHomeGoals),
     predAwayGoals: p.predAwayGoals === "" ? null : Number(p.predAwayGoals),
-    predAdvancingTeamId:
-      p.predAdvancingTeamId === "" ? null : Number(p.predAdvancingTeamId),
+    predAdvancingTeamId: null,
   };
 }
 
@@ -152,7 +133,6 @@ export function PartyMatchPredictionCard({
   matchOddsRow,
   initial,
   predictionLockedReason = null,
-  midCompetitionPenaltyMode = false,
   onSaved,
   onError,
   registerMatchDraft,
@@ -163,7 +143,6 @@ export function PartyMatchPredictionCard({
   matchOddsRow: MatchOddsRow | null;
   initial: MatchPredState;
   predictionLockedReason?: PredictionLockedReason | null;
-  midCompetitionPenaltyMode?: boolean;
   onSaved: () => void;
   onError: (msg: string) => void;
   registerMatchDraft?: (
@@ -179,9 +158,6 @@ export function PartyMatchPredictionCard({
   const [pending, startTransition] = useTransition();
   const finished = m.status === "FINISHED";
   const formLocked = finished || predictionLockedReason != null;
-  const isKnockout = isKnockoutStage(m.stage);
-  const homeTeamId = m.homeTeam.id;
-  const awayTeamId = m.awayTeam.id;
 
   useEffect(() => {
     setP(initial);
@@ -190,7 +166,6 @@ export function PartyMatchPredictionCard({
     initial.ftOutcome,
     initial.predHomeGoals,
     initial.predAwayGoals,
-    initial.predAdvancingTeamId,
   ]);
 
   useEffect(() => {
@@ -207,34 +182,12 @@ export function PartyMatchPredictionCard({
           ftOutcome: p.ftOutcome || null,
           predHomeGoals: p.predHomeGoals === "" ? null : Number(p.predHomeGoals),
           predAwayGoals: p.predAwayGoals === "" ? null : Number(p.predAwayGoals),
-          predAdvancingTeamId:
-            p.predAdvancingTeamId === "" ? null : Number(p.predAdvancingTeamId),
         },
         m,
         matchOddsRow,
       ),
     [p, m, matchOddsRow],
   );
-
-  function applyScoreChange(home: string, away: string) {
-    setP((s) => {
-      const hg = home === "" ? null : Number(home);
-      const ag = away === "" ? null : Number(away);
-      const inferred = inferAdvancingTeamIdFromPredictedScore(
-        hg,
-        ag,
-        homeTeamId,
-        awayTeamId,
-      );
-      return {
-        ...s,
-        predHomeGoals: home,
-        predAwayGoals: away,
-        predAdvancingTeamId:
-          inferred != null ? String(inferred) : s.predAdvancingTeamId,
-      };
-    });
-  }
 
   const venue = venueLabel(m);
   const when = formatMatchKickoff(m.utcDate);
@@ -244,14 +197,8 @@ export function PartyMatchPredictionCard({
   const al = m.awayTeam.crest;
   const ft90 = getMatchScoreAfter90(m);
   const ht = m.score?.halfTime;
-  const deciderSuffix = formatKnockoutDeciderSuffix(
-    m,
-    locale === "en" ? "en" : "ro",
-  );
-  const drawAt90 =
-    p.predHomeGoals !== "" &&
-    p.predAwayGoals !== "" &&
-    p.predHomeGoals === p.predAwayGoals;
+
+  void locale;
 
   function handleSave() {
     startTransition(async () => {
@@ -310,11 +257,6 @@ export function PartyMatchPredictionCard({
             {finished && ft90 ?
               <div className="font-black text-white text-xl tabular-nums">
                 {ft90.home}–{ft90.away}
-                {deciderSuffix ?
-                  <span className="block text-xs font-medium mt-1" style={{ color: WC_MUTED }}>
-                    {deciderSuffix}
-                  </span>
-                : null}
                 {ht?.home != null && ht?.away != null ?
                   <span className="block text-xs font-medium mt-1" style={{ color: WC_MUTED }}>
                     HT {ht.home}–{ht.away}
@@ -361,23 +303,7 @@ export function PartyMatchPredictionCard({
           </div>
         </div>
 
-        {predictionLockedReason === "ko_pending" && (
-          <div
-            className="rounded-xl border px-4 py-3 text-sm flex items-start gap-3"
-            style={{
-              borderColor: "rgba(251,191,36,0.35)",
-              backgroundColor: "rgba(120,53,15,0.22)",
-              color: "rgba(254,243,199,0.95)",
-            }}
-          >
-            <span className="text-lg shrink-0" aria-hidden>
-              🔒
-            </span>
-            <p>{getPredictionLockMessage("ko_pending")}</p>
-          </div>
-        )}
-
-        {predictionLockedReason && predictionLockedReason !== "ko_pending" && (
+        {predictionLockedReason && (
           <p className="text-sm text-amber-200/90">
             {getPredictionLockMessage(predictionLockedReason)}
           </p>
@@ -394,7 +320,7 @@ export function PartyMatchPredictionCard({
                 onChange={(val) => setP((s) => ({ ...s, htOutcome: val }))}
               />
               <OutcomeButtons
-                label={isKnockout ? t("party.match.fullTime90") : t("party.match.fullTime")}
+                label={t("party.match.fullTime")}
                 prefix="ft"
                 value={p.ftOutcome}
                 disabled={pending}
@@ -404,7 +330,7 @@ export function PartyMatchPredictionCard({
 
             <div className="flex flex-col gap-2">
               <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: WC_MUTED }}>
-                {isKnockout ? t("party.exactScore90") : t("party.exactScore")}
+                {t("party.exactScore")}
               </span>
               <div className="flex items-center justify-center gap-4">
                 <div className="flex flex-col items-center gap-1.5">
@@ -414,24 +340,15 @@ export function PartyMatchPredictionCard({
                   <input
                     value={p.predHomeGoals}
                     onChange={(e) =>
-                      applyScoreChange(
-                        e.target.value.replace(/\D/g, ""),
-                        p.predAwayGoals,
-                      )
+                      setP((s) => ({ ...s, predHomeGoals: e.target.value.replace(/\D/g, "") }))
                     }
                     maxLength={2}
                     placeholder="0"
                     className="w-12 h-12 text-lg text-center rounded-xl border outline-none font-bold"
-                    style={{
-                      backgroundColor: WC_NAVY,
-                      borderColor: WC_BORDER,
-                      color: "#fff",
-                    }}
+                    style={{ backgroundColor: WC_NAVY, borderColor: WC_BORDER, color: "#fff" }}
                   />
                 </div>
-                <span className="text-xl font-bold mt-5" style={{ color: WC_MUTED }}>
-                  –
-                </span>
+                <span className="text-xl font-bold mt-5" style={{ color: WC_MUTED }}>–</span>
                 <div className="flex flex-col items-center gap-1.5">
                   <span className="text-[10px]" style={{ color: WC_MUTED }}>
                     {t("party.match.away")}
@@ -439,66 +356,16 @@ export function PartyMatchPredictionCard({
                   <input
                     value={p.predAwayGoals}
                     onChange={(e) =>
-                      applyScoreChange(
-                        p.predHomeGoals,
-                        e.target.value.replace(/\D/g, ""),
-                      )
+                      setP((s) => ({ ...s, predAwayGoals: e.target.value.replace(/\D/g, "") }))
                     }
                     maxLength={2}
                     placeholder="0"
                     className="w-12 h-12 text-lg text-center rounded-xl border outline-none font-bold"
-                    style={{
-                      backgroundColor: WC_NAVY,
-                      borderColor: WC_BORDER,
-                      color: "#fff",
-                    }}
+                    style={{ backgroundColor: WC_NAVY, borderColor: WC_BORDER, color: "#fff" }}
                   />
                 </div>
               </div>
             </div>
-
-            {isKnockout && homeTeamId != null && awayTeamId != null && (
-              <div className="flex flex-col gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: WC_MUTED }}>
-                  {t("party.match.advancingTeam")}
-                </span>
-                {drawAt90 && (
-                  <p className="text-[11px]" style={{ color: "rgba(253,224,71,0.88)" }}>
-                    {t("party.match.advancingTeamDrawHint")}
-                  </p>
-                )}
-                <div className="grid grid-cols-2 gap-2">
-                  {[homeTeamId, awayTeamId].map((teamId, idx) => {
-                    const label = idx === 0 ? home : away;
-                    const selected = p.predAdvancingTeamId === String(teamId);
-                    return (
-                      <button
-                        key={teamId}
-                        type="button"
-                        disabled={pending}
-                        onClick={() =>
-                          setP((s) => ({
-                            ...s,
-                            predAdvancingTeamId: selected ? "" : String(teamId),
-                          }))
-                        }
-                        className="px-3 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 truncate"
-                        style={{
-                          backgroundColor: selected ? WC_CYAN : "rgba(255,255,255,0.08)",
-                          color: selected ? WC_NAVY : WC_MUTED,
-                          border:
-                            selected ?
-                              "1px solid rgba(34,211,238,0.5)"
-                            : "1px solid rgba(255,255,255,0.06)",
-                        }}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
             <PotentialPoints
               ht={p.htOutcome}
@@ -506,11 +373,6 @@ export function PartyMatchPredictionCard({
               hg={p.predHomeGoals}
               ag={p.predAwayGoals}
               matchOdds={matchOddsRow}
-              predAdvancingTeamId={
-                p.predAdvancingTeamId === "" ? null : Number(p.predAdvancingTeamId)
-              }
-              homeTeamId={homeTeamId}
-              awayTeamId={awayTeamId}
             />
 
             <button
@@ -523,13 +385,6 @@ export function PartyMatchPredictionCard({
               {pending ? t("party.savingPrediction") : t("party.savePrediction")}
             </button>
 
-            {midCompetitionPenaltyMode && (
-              <p className="text-[11px]" style={{ color: "rgba(253,224,71,0.88)" }}>
-                {t("party.match.changePenaltyHint", {
-                  points: POINTS_PER_PREDICTION_CHANGE_AFTER_START,
-                })}
-              </p>
-            )}
           </>
         )}
 
@@ -546,12 +401,6 @@ export function PartyMatchPredictionCard({
               fullTime: breakdown.fullTime,
               correctScore: breakdown.correctScore,
             })}
-            {isKnockout && (
-              <>
-                {", "}
-                {t("party.lb.predAdv")} {breakdown.advancing}
-              </>
-            )}
           </p>
         )}
       </div>

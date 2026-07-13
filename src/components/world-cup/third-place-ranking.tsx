@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import type { ThirdPlaceRankingEntry } from "@/lib/wc-scoring";
+import type { ThirdPlaceRankingEntry } from "@/lib/wc-standings";
 import { useLocale } from "@/components/i18n/locale-provider";
 
 export function ThirdPlaceRankingTable({

@@ -5,12 +5,9 @@ import PartyWcDashboard, {
   type LeaderboardRow,
 } from "@/components/party/party-wc-dashboard";
 import {
-  collectTeamsFromMatches,
   fetchCompetitionMatches,
-  fetchPartyStandings,
   venueLabel,
   type FootballDataMatch,
-  type GroupStanding,
 } from "@/lib/football-data";
 import { parseStoredCompetition } from "@/lib/competition";
 import { loadCompetitionOddsSnapshot } from "@/lib/competition-odds";
@@ -18,7 +15,6 @@ import { loadMatchesWithCompetitionVenues } from "@/lib/competition-match-venues
 import { canManualRefreshOddsToday } from "@/lib/odds-refresh-limit";
 import { prisma } from "@/lib/prisma";
 import {
-  championLabelFromTeams,
   fixtureTlaPair,
   getMatchPredDisplay,
   lastFinishedAndNextThree,
@@ -26,11 +22,6 @@ import {
 } from "@/lib/wc-pred-display";
 import type { NextThreeMatchPreds } from "@/components/party/next-three-predictions-panel";
 import { filterUsableMatchOdds, payloadToOddsMaps } from "@/lib/betting-odds";
-import {
-  isCompetitionUnderway,
-  isMidCompetitionPredictionChangesAllowed,
-  shouldApplyMidCompetitionChangePenalty,
-} from "@/lib/prediction-window";
 import {
   computeUserWcTotals,
   type MatchPredictionInput,
@@ -55,9 +46,7 @@ export default async function PartyTournamentPage({
   const { userId: clerkId } = await auth();
   if (!clerkId) redirect("/sign-in");
 
-  // Batch 1: user, tournament, matches, and predictions all run in parallel.
-  // Standings must wait for matches, so it runs in batch 2.
-  const [user, tournament, wcMatchPreds, wcExtras] =
+  const [user, tournament, wcMatchPreds] =
     await Promise.all([
       prisma.user.findUnique({ where: { clerkId } }),
       prisma.tournament.findUnique({
@@ -71,7 +60,6 @@ export default async function PartyTournamentPage({
         },
       }),
       prisma.wcMatchPrediction.findMany({ where: { tournamentId } }),
-      prisma.wcExtraPrediction.findMany({ where: { tournamentId } }),
     ]);
 
   if (!user) redirect("/sign-in");
@@ -105,24 +93,6 @@ export default async function PartyTournamentPage({
     );
   }
 
-  // Batch 2: standings needs matches from batch 1.
-  let standings: GroupStanding[] = [];
-  if (parsedCompetition && !loadError) {
-    try {
-      standings = await fetchPartyStandings(
-        parsedCompetition.code,
-        parsedCompetition.season,
-        matches,
-      );
-    } catch {
-      standings = [];
-    }
-  }
-
-  const allTeams =
-    parsedCompetition && matches.length > 0 ?
-      collectTeamsFromMatches(matches)
-    : [];
 
   const competitionOddsSnapshot =
     tournament.competition ?
@@ -141,19 +111,9 @@ export default async function PartyTournamentPage({
       ftOutcome: p.ftOutcome,
       predHomeGoals: p.predHomeGoals,
       predAwayGoals: p.predAwayGoals,
-      predAdvancingTeamId: p.predAdvancingTeamId,
     });
   }
 
-  const extraByUser = new Map(
-    wcExtras.map((e) => [
-      e.userId,
-      {
-        advancingTeamIds: e.advancingTeamIds,
-        championTeamId: e.championTeamId,
-      },
-    ]),
-  );
 
   const oddsPayload = competitionOddsSnapshot?.payload ?? null;
   const oddsMaps = payloadToOddsMaps(oddsPayload);
@@ -188,28 +148,19 @@ export default async function PartyTournamentPage({
         .map((m) => ({
           userId: m.userId,
           displayName: displayName(m.user.firstName, m.user.lastName),
-          pred: getMatchPredDisplay(predsByUser.get(m.userId)?.get(nm.id) ?? null, nm),
+          pred: getMatchPredDisplay(predsByUser.get(m.userId)?.get(nm.id) ?? null),
         }))
         .sort((a, b) => a.displayName.localeCompare(b.displayName, "ro")),
     };
   });
 
-  const competitionUnderway =
-    parsedCompetition && !loadError && matches.length > 0 ?
-      isCompetitionUnderway(matches)
-    : false;
-
   const leaderboardRows: LeaderboardRow[] = tournament.members.map((m) => {
     const totals = computeUserWcTotals(
       predsByUser.get(m.userId) ?? new Map(),
-      extraByUser.get(m.userId) ?? null,
       matches,
-      standings,
       oddsMaps ?? undefined,
-      m.midCompetitionPredictionChangeCount ?? 0,
     );
     const pmap = predsByUser.get(m.userId) ?? new Map();
-    const extra = extraByUser.get(m.userId) ?? null;
 
     const lastScores = lastFinished ? matchResultHtFt(lastFinished) : null;
     const lastMatch =
@@ -217,7 +168,7 @@ export default async function PartyTournamentPage({
         {
           matchId: lastFinished.id,
           fixture: fixtureTlaPair(lastFinished),
-          pred: getMatchPredDisplay(pmap.get(lastFinished.id) ?? null, lastFinished),
+          pred: getMatchPredDisplay(pmap.get(lastFinished.id) ?? null),
           actualHt: lastScores?.ht ?? null,
           actualFt: lastScores?.ft ?? null,
         }
@@ -229,7 +180,7 @@ export default async function PartyTournamentPage({
       return {
         matchId: nm.id,
         fixture: fixtureTlaPair(nm),
-        pred: getMatchPredDisplay(pmap.get(nm.id) ?? null, nm),
+        pred: getMatchPredDisplay(pmap.get(nm.id) ?? null),
       };
     });
 
@@ -241,11 +192,7 @@ export default async function PartyTournamentPage({
       pg: totals.halfTimeGuessPoints,
       sc: totals.correctScorePoints,
       correctScoreCount: totals.correctScoreCount,
-      cg: totals.qualifierPoints,
-      championPoints: totals.championPoints,
-      changePenalty: totals.predictionChangePenalty,
       total: totals.total,
-      championPick: championLabelFromTeams(extra?.championTeamId ?? null, allTeams),
       lastMatch,
       nextMatches,
     };
@@ -266,7 +213,6 @@ export default async function PartyTournamentPage({
       ftOutcome: string | null;
       predHomeGoals: number | null;
       predAwayGoals: number | null;
-      predAdvancingTeamId: number | null;
     }
   > = {};
 
@@ -278,23 +224,9 @@ export default async function PartyTournamentPage({
         ftOutcome: pred.ftOutcome ?? null,
         predHomeGoals: pred.predHomeGoals ?? null,
         predAwayGoals: pred.predAwayGoals ?? null,
-        predAdvancingTeamId: pred.predAdvancingTeamId ?? null,
       };
     }
   }
-
-  const myExtra = extraByUser.get(user.id) ?? null;
-
-  const myMembership = tournament.members.find((mem) => mem.userId === user.id);
-  const myMidCompetitionChangeCount =
-    myMembership?.midCompetitionPredictionChangeCount ?? 0;
-
-  const tournamentAllowChanges =
-    tournament.allowPredictionChangesDuringCompetition ?? false;
-  const effectiveAllowPredictionChanges =
-    isMidCompetitionPredictionChangesAllowed(tournamentAllowChanges);
-  const midCompetitionChangePenaltyEnabled =
-    shouldApplyMidCompetitionChangePenalty(tournamentAllowChanges);
 
   return (
     <div className="flex-1 p-4 sm:p-6 md:p-8 max-w-4xl mx-auto w-full">
@@ -326,21 +258,12 @@ export default async function PartyTournamentPage({
         tournamentName={tournament.name}
         inviteCode={tournament.inviteCode}
         competition={tournament.competition}
-        allowPredictionChangesDuringCompetition={effectiveAllowPredictionChanges}
-        midCompetitionChangePenaltyEnabled={midCompetitionChangePenaltyEnabled}
-        competitionUnderway={competitionUnderway}
-        myMidCompetitionChangeCount={myMidCompetitionChangeCount}
-        showDevClSimulator={process.env.NODE_ENV === "development"}
         isCreator={isCreator}
         currentUserId={user.id}
         matches={matches}
-        standings={standings}
         leaderboard={leaderboardRows}
         myPreds={myPredsRecord}
-        myExtra={myExtra}
-        allTeams={allTeams}
         bettingOddsByMatchId={usableMatchOddsById}
-        bettingOddsByTeamId={oddsPayload?.teams ?? {}}
         bettingOddsFetchedAt={competitionOddsSnapshot?.fetchedAt?.toISOString() ?? null}
         lastManualOddsRefreshAt={
           competitionOddsSnapshot?.lastManualRefreshAt?.toISOString() ?? null

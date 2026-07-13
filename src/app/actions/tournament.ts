@@ -26,7 +26,6 @@ export async function createTournament(
   name: string,
   customCode?: string,
   competitionStorage?: string | null,
-  allowPredictionChangesDuringCompetition = false,
 ): Promise<{ inviteCode: string }> {
   const { userId: clerkId } = await auth();
   if (!clerkId) throw new I18nError("errors.notAuthenticated");
@@ -47,9 +46,6 @@ export async function createTournament(
       inviteCode,
       creatorId: user.id,
       competition,
-      allowPredictionChangesDuringCompetition: Boolean(
-        allowPredictionChangesDuringCompetition,
-      ),
     },
   });
 
@@ -60,6 +56,49 @@ export async function createTournament(
   revalidatePath("/turnee");
   revalidatePath("/turnee/clasament");
   return { inviteCode };
+}
+
+export async function deleteTournament(tournamentId: string): Promise<void> {
+  const { userId: clerkId } = await auth();
+  if (!clerkId) throw new I18nError("errors.notAuthenticated");
+
+  const user = await prisma.user.findUnique({ where: { clerkId } });
+  if (!user) throw new I18nError("errors.userNotFound");
+
+  const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
+  if (!tournament) throw new I18nError("errors.tournamentNotFound");
+  if (tournament.creatorId !== user.id) throw new Error("Only the creator can delete this tournament");
+
+  await prisma.wcMatchPrediction.deleteMany({ where: { tournamentId } });
+  await prisma.wcExtraPrediction.deleteMany({ where: { tournamentId } });
+  await prisma.tournamentMember.deleteMany({ where: { tournamentId } });
+  await prisma.tournament.delete({ where: { id: tournamentId } });
+
+  revalidatePath("/turnee");
+  revalidatePath("/turnee/clasament");
+}
+
+export async function joinPublicTournament(tournamentId: string): Promise<void> {
+  const { userId: clerkId } = await auth();
+  if (!clerkId) throw new I18nError("errors.notAuthenticated");
+
+  const user = await prisma.user.findUnique({ where: { clerkId } });
+  if (!user) throw new I18nError("errors.userNotFound");
+
+  const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
+  if (!tournament || !tournament.isPublic) throw new I18nError("errors.tournamentNotFound");
+
+  const existing = await prisma.tournamentMember.findUnique({
+    where: { tournamentId_userId: { tournamentId: tournament.id, userId: user.id } },
+  });
+  if (existing) throw new I18nError("errors.alreadyInTournament");
+
+  await prisma.tournamentMember.create({
+    data: { tournamentId: tournament.id, userId: user.id },
+  });
+
+  revalidatePath("/turnee");
+  revalidatePath("/turnee/clasament");
 }
 
 export async function joinTournament(code: string): Promise<void> {

@@ -25,12 +25,16 @@ export default function TournamentActionsWidget({
 
   return (
     <div
-      className="rounded-2xl border p-5 sm:p-6 flex flex-col gap-4"
-      style={{ backgroundColor: "#1E293B", borderColor: "rgba(255,255,255,0.08)" }}
+      className="rounded-xl border flex flex-col gap-0 overflow-hidden"
+      style={{
+        backgroundColor: "#0D1422",
+        borderColor: "rgba(255,255,255,0.08)",
+        boxShadow: "0 2px 16px rgba(0,0,0,0.4)",
+      }}
     >
       <div
-        className="flex rounded-xl p-1 gap-1"
-        style={{ backgroundColor: "rgba(255,255,255,0.04)" }}
+        className="flex border-b"
+        style={{ borderColor: "rgba(255,255,255,0.07)" }}
         role="tablist"
       >
         {tabs.map(({ id, label }) => {
@@ -42,25 +46,24 @@ export default function TournamentActionsWidget({
               role="tab"
               aria-selected={active}
               onClick={() => setTab(id)}
-              className="flex-1 rounded-lg py-2.5 px-3 text-sm font-bold transition-all cursor-pointer"
-              style={
-                active
-                  ? {
-                      backgroundColor: id === "create" ? "rgba(34,211,238,0.2)" : "rgba(190,242,100,0.15)",
-                      color: id === "create" ? "#22D3EE" : "#BEF264",
-                      border: `1px solid ${id === "create" ? "rgba(34,211,238,0.4)" : "rgba(190,242,100,0.35)"}`,
-                    }
-                  : {
-                      color: "rgba(255,255,255,0.5)",
-                      border: "1px solid transparent",
-                    }
-              }
+              className="flex-1 py-3.5 px-4 text-sm font-semibold transition-colors duration-100 cursor-pointer relative"
+              style={{
+                color: active ? "#EEF2FF" : "rgba(255,255,255,0.35)",
+                backgroundColor: active ? "rgba(255,255,255,0.04)" : "transparent",
+              }}
             >
+              {active && (
+                <span
+                  className="absolute bottom-0 left-4 right-4 h-px"
+                  style={{ backgroundColor: id === "create" ? "#22D3EE" : "#BEF264" }}
+                />
+              )}
               {label}
             </button>
           );
         })}
       </div>
+      <div className="p-5 sm:p-6">
 
       {tab === "create" ?
         <CreateTournamentForm
@@ -69,6 +72,7 @@ export default function TournamentActionsWidget({
           competitionsLoadError={competitionsLoadError}
         />
       : <JoinTournamentForm embedded />}
+      </div>
     </div>
   );
 }

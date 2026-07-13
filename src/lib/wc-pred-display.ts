@@ -1,10 +1,40 @@
 import type { FootballDataMatch, FootballDataTeam } from "@/lib/football-data";
 import type { MatchPredictionInput } from "@/lib/wc-scoring";
-import {
-  formatKnockoutDeciderSuffix,
-  getMatchScoreAfter90,
-} from "@/lib/match-score";
-import { isKnockoutStage } from "@/lib/knockout-predictions";
+import { getMatchScoreAfter90 } from "@/lib/match-score";
+
+function isKnockoutStageLocal(stage: string | undefined): boolean {
+  return !!stage && stage !== "GROUP_STAGE" && stage !== "REGULAR_SEASON";
+}
+
+function formatKnockoutDeciderSuffix(
+  m: FootballDataMatch,
+  locale: "ro" | "en" = "ro",
+): string | null {
+  if (!isKnockoutStageLocal(m.stage) || m.status !== "FINISHED") return null;
+  const duration = m.score?.duration;
+  if (duration === "PENALTY_SHOOTOUT") {
+    const p = m.score?.penalties;
+    if (p?.home != null && p?.away != null) {
+      return locale === "ro" ? `a.p. ${p.home}–${p.away}` : `pens. ${p.home}–${p.away}`;
+    }
+    return locale === "ro" ? "a.p." : "pens.";
+  }
+  if (duration === "EXTRA_TIME") {
+    return locale === "ro" ? "prel." : "a.e.t.";
+  }
+  return null;
+}
+
+export function matchResultFtWithSuffix(
+  m: FootballDataMatch,
+  locale: "ro" | "en" = "ro",
+): string | null {
+  const ft90 = getMatchScoreAfter90(m);
+  if (!ft90) return null;
+  const suffix = formatKnockoutDeciderSuffix(m, locale);
+  const base = `${ft90.home}–${ft90.away}`;
+  return suffix ? `${base} (${suffix})` : base;
+}
 
 export function teamShort(t: FootballDataTeam | undefined): string {
   if (!t) return "?";
@@ -59,8 +89,6 @@ export type MatchPredDisplay = {
   ht: string;
   ft: string;
   score: string;
-  /** Echipă calificată (doar eliminatorii); null = nu se afișează coloana. */
-  advancing: string | null;
 };
 
 /** Pauză: doar 1/X/2 din pronostic (nu există scor separat la pauză în app). */
@@ -96,24 +124,14 @@ export function formatPredScorePart(p: MatchPredictionInput | null | undefined):
 /** Cele trei părți ale pronosticului (pauză, final 1X2, scor exact). */
 export function getMatchPredDisplay(
   p: MatchPredictionInput | null | undefined,
-  match?: FootballDataMatch | null,
 ): MatchPredDisplay {
-  const empty: MatchPredDisplay = { ht: "—", ft: "—", score: "—", advancing: null };
   if (!p || !hasAnyMatchPrediction(p)) {
-    if (match && isKnockoutStage(match.stage)) {
-      return { ...empty, advancing: "—" };
-    }
-    return empty;
+    return { ht: "—", ft: "—", score: "—" };
   }
-  const advancing =
-    match && isKnockoutStage(match.stage) ?
-      formatPredAdvancingTeam(p.predAdvancingTeamId, match) ?? "—"
-    : null;
   return {
     ht: formatPredHtPart(p),
     ft: formatPredFt1x2Part(p),
     score: formatPredScorePart(p),
-    advancing,
   };
 }
 
@@ -146,18 +164,6 @@ export function matchResultHtFt(m: FootballDataMatch): { ht: string | null; ft: 
   return { ht: htStr, ft: ftStr };
 }
 
-/** Scor final 90' + eventual sufix prelungiri / penalty-uri. */
-export function matchResultFtWithSuffix(
-  m: FootballDataMatch,
-  locale: "ro" | "en" = "ro",
-): string | null {
-  const ft90 = getMatchScoreAfter90(m);
-  if (!ft90) return null;
-  const base = `${ft90.home}–${ft90.away}`;
-  const suffix = formatKnockoutDeciderSuffix(m, locale);
-  return suffix ? `${base} (${suffix})` : base;
-}
-
 /** Rezumat scurt pentru leaderboard (scor sau 1/X/2). */
 export function formatPredShort(p: MatchPredictionInput | null | undefined): string {
   if (!p || !hasAnyMatchPrediction(p)) return "—";
@@ -188,32 +194,8 @@ export function formatActualFt(m: FootballDataMatch): string | null {
   return `${ft90.home}-${ft90.away}`;
 }
 
-export function formatPredAdvancingTeam(
-  predAdvancingTeamId: number | null | undefined,
-  m: FootballDataMatch,
-): string | null {
-  if (predAdvancingTeamId == null || !isKnockoutStage(m.stage)) return null;
-  if (predAdvancingTeamId === m.homeTeam.id) {
-    return teamShort(m.homeTeam);
-  }
-  if (predAdvancingTeamId === m.awayTeam.id) {
-    return teamShort(m.awayTeam);
-  }
-  return `#${predAdvancingTeamId}`;
-}
-
 export function fixtureTlaPair(m: FootballDataMatch): string {
   return `${teamShort(m.homeTeam)}–${teamShort(m.awayTeam)}`;
-}
-
-export function championLabelFromTeams(
-  championTeamId: number | null | undefined,
-  teams: FootballDataTeam[],
-): string | null {
-  if (championTeamId == null || championTeamId <= 0) return null;
-  const t = teams.find((x) => x.id === championTeamId);
-  if (!t) return `#${championTeamId}`;
-  return teamShort(t);
 }
 
 /** Ultimul meci terminat (cronologic) și următoarele 3 meciuri încă nedecise. */

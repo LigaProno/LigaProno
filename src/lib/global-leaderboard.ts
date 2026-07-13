@@ -11,16 +11,12 @@ import {
   type TournamentOddsMaps,
 } from "@/lib/betting-odds";
 import {
-  collectTeamsFromMatches,
   fetchCompetitionMatches,
-  fetchPartyStandings,
   venueLabel,
   type FootballDataMatch,
-  type GroupStanding,
 } from "@/lib/football-data";
 import { prisma } from "@/lib/prisma";
 import {
-  championLabelFromTeams,
   fixtureTlaPair,
   getMatchPredDisplay,
   hasAnyMatchPrediction,
@@ -52,11 +48,7 @@ export type GlobalLeaderboardRow = {
   pg: number;
   sc: number;
   correctScoreCount: number;
-  cg: number;
-  championPoints: number;
-  changePenalty: number;
   total: number;
-  championPick: string | null;
   lastMatch: GlobalLeaderboardLastMatch | null;
 };
 
@@ -83,40 +75,112 @@ function competitionDisplayLabel(competition: string): string {
   return parsed ? `${parsed.code} ${parsed.season}` : competition;
 }
 
-function buildLeaderboardPredictionFields(
+type CompetitionScoringContext = {
+  matches: FootballDataMatch[];
+  oddsMaps: TournamentOddsMaps | undefined;
+};
+
+type TournamentMemberData = {
+  predsByUser: Map<string, Map<number, MatchPredictionInput>>;
+};
+
+async function loadCompetitionOddsPayloadMap(
+  competitions: string[],
+): Promise<Map<string, BettingOddsPayload | null>> {
+  const entries = await Promise.all(
+    competitions.map(async (competition) => {
+      const snapshot = await loadCompetitionOddsSnapshot(competition);
+      return [competition, snapshot.payload] as const;
+    }),
+  );
+  return new Map(entries);
+}
+
+async function loadCompetitionScoringContext(
+  competition: string,
+  oddsPayload: BettingOddsPayload | null,
+): Promise<CompetitionScoringContext | null> {
+  const parsed = parseStoredCompetition(competition);
+  if (!parsed) return null;
+
+  let matches: FootballDataMatch[] = [];
+  try {
+    matches = await fetchCompetitionMatches(parsed.code, parsed.season);
+  } catch {
+    // API indisponibil
+  }
+
+  const oddsMaps = payloadToOddsMaps(oddsPayload);
+  return { matches, oddsMaps: oddsMaps ?? undefined };
+}
+
+async function loadTournamentMemberData(
+  tournamentId: string,
+): Promise<TournamentMemberData> {
+  const wcMatchPreds = await prisma.wcMatchPrediction.findMany({ where: { tournamentId } });
+
+  const predsByUser = new Map<string, Map<number, MatchPredictionInput>>();
+  for (const p of wcMatchPreds) {
+    if (!predsByUser.has(p.userId)) predsByUser.set(p.userId, new Map());
+    predsByUser.get(p.userId)!.set(p.matchId, {
+      htOutcome: p.htOutcome,
+      ftOutcome: p.ftOutcome,
+      predHomeGoals: p.predHomeGoals,
+      predAwayGoals: p.predAwayGoals,
+    });
+  }
+
+  return { predsByUser };
+}
+
+function scoreUser(
+  userId: string,
+  tournamentId: string,
+  tournamentName: string,
+  competitionCtx: CompetitionScoringContext,
+  memberData: TournamentMemberData,
+): Pick<
+  GlobalLeaderboardRow,
+  | "bestTournamentId"
+  | "bestTournamentName"
+  | "fg"
+  | "pg"
+  | "sc"
+  | "correctScoreCount"
+  | "total"
+> {
+  const totals = computeUserWcTotals(
+    memberData.predsByUser.get(userId) ?? new Map(),
+    competitionCtx.matches,
+    competitionCtx.oddsMaps,
+  );
+
+  return {
+    bestTournamentId: tournamentId,
+    bestTournamentName: tournamentName,
+    fg: totals.fullTimeGuessPoints,
+    pg: totals.halfTimeGuessPoints,
+    sc: totals.correctScorePoints,
+    correctScoreCount: totals.correctScoreCount,
+    total: totals.total,
+  };
+}
+
+function buildLastMatch(
   userId: string,
   memberData: TournamentMemberData,
   competitionCtx: CompetitionScoringContext,
-): Pick<GlobalLeaderboardRow, "championPick" | "correctScoreCount" | "lastMatch"> {
-  const allTeams = collectTeamsFromMatches(competitionCtx.matches);
-  const extra = memberData.extraByUser.get(userId) ?? null;
-  const pmap = memberData.predsByUser.get(userId) ?? new Map();
-  const totals = computeUserWcTotals(
-    pmap,
-    extra,
-    competitionCtx.matches,
-    competitionCtx.standings,
-    competitionCtx.oddsMaps,
-    memberData.changeCountByUser.get(userId) ?? 0,
-  );
-
+): GlobalLeaderboardLastMatch | null {
   const { lastFinished } = lastFinishedAndNextThree(competitionCtx.matches);
-  const lastScores = lastFinished ? matchResultHtFt(lastFinished) : null;
-  const lastMatch =
-    lastFinished ?
-      {
-        matchId: lastFinished.id,
-        fixture: fixtureTlaPair(lastFinished),
-        pred: getMatchPredDisplay(pmap.get(lastFinished.id) ?? null, lastFinished),
-        actualHt: lastScores?.ht ?? null,
-        actualFt: lastScores?.ft ?? null,
-      }
-    : null;
-
+  if (!lastFinished) return null;
+  const pmap = memberData.predsByUser.get(userId) ?? new Map();
+  const lastScores = matchResultHtFt(lastFinished);
   return {
-    championPick: championLabelFromTeams(extra?.championTeamId ?? null, allTeams),
-    correctScoreCount: totals.correctScoreCount,
-    lastMatch,
+    matchId: lastFinished.id,
+    fixture: fixtureTlaPair(lastFinished),
+    pred: getMatchPredDisplay(pmap.get(lastFinished.id) ?? null),
+    actualHt: lastScores?.ht ?? null,
+    actualFt: lastScores?.ft ?? null,
   };
 }
 
@@ -161,15 +225,14 @@ function buildNextThreeByCompetition(
           }
         : null,
         rows: relevantRows
-          .map((row) => ({
-            userId: row.userId,
-            displayName: row.displayName,
+          .map((leaderRow) => ({
+            userId: leaderRow.userId,
+            displayName: leaderRow.displayName,
             pred: getMatchPredDisplay(
               memberDataByTournament
-                .get(row.bestTournamentId)
-                ?.predsByUser.get(row.userId)
+                .get(leaderRow.bestTournamentId)
+                ?.predsByUser.get(leaderRow.userId)
                 ?.get(nm.id) ?? null,
-              nm,
             ),
           }))
           .sort((a, b) => a.displayName.localeCompare(b.displayName, "ro")),
@@ -186,145 +249,6 @@ function buildNextThreeByCompetition(
   return blocks;
 }
 
-type CompetitionScoringContext = {
-  matches: FootballDataMatch[];
-  standings: GroupStanding[];
-  oddsMaps: TournamentOddsMaps | undefined;
-};
-
-type TournamentMemberData = {
-  predsByUser: Map<string, Map<number, MatchPredictionInput>>;
-  extraByUser: Map<
-    string,
-    { advancingTeamIds: number[]; championTeamId: number | null }
-  >;
-  changeCountByUser: Map<string, number>;
-};
-
-async function loadCompetitionOddsPayloadMap(
-  competitions: string[],
-): Promise<Map<string, BettingOddsPayload | null>> {
-  const entries = await Promise.all(
-    competitions.map(async (competition) => {
-      const snapshot = await loadCompetitionOddsSnapshot(competition);
-      return [competition, snapshot.payload] as const;
-    }),
-  );
-  return new Map(entries);
-}
-
-async function loadCompetitionScoringContext(
-  competition: string,
-  oddsPayload: BettingOddsPayload | null,
-): Promise<CompetitionScoringContext | null> {
-  const parsed = parseStoredCompetition(competition);
-  if (!parsed) return null;
-
-  let matches: FootballDataMatch[] = [];
-  try {
-    matches = await fetchCompetitionMatches(parsed.code, parsed.season);
-  } catch {
-    // API indisponibil — continuăm; punctele pe meciuri FINISHED rămân 0 până revine API-ul.
-  }
-
-  let standings: GroupStanding[] = [];
-  try {
-    standings = await fetchPartyStandings(parsed.code, parsed.season, matches);
-  } catch {
-    standings = [];
-  }
-
-  const oddsMaps = payloadToOddsMaps(oddsPayload);
-  return {
-    matches,
-    standings,
-    oddsMaps: oddsMaps ?? undefined,
-  };
-}
-
-async function loadTournamentMemberData(
-  tournamentId: string,
-): Promise<TournamentMemberData> {
-  const [wcMatchPreds, wcExtras, members] = await Promise.all([
-    prisma.wcMatchPrediction.findMany({ where: { tournamentId } }),
-    prisma.wcExtraPrediction.findMany({ where: { tournamentId } }),
-    prisma.tournamentMember.findMany({
-      where: { tournamentId },
-      select: { userId: true, midCompetitionPredictionChangeCount: true },
-    }),
-  ]);
-
-  const predsByUser = new Map<string, Map<number, MatchPredictionInput>>();
-  for (const p of wcMatchPreds) {
-    if (!predsByUser.has(p.userId)) predsByUser.set(p.userId, new Map());
-    predsByUser.get(p.userId)!.set(p.matchId, {
-      htOutcome: p.htOutcome,
-      ftOutcome: p.ftOutcome,
-      predHomeGoals: p.predHomeGoals,
-      predAwayGoals: p.predAwayGoals,
-      predAdvancingTeamId: p.predAdvancingTeamId,
-    });
-  }
-
-  const extraByUser = new Map(
-    wcExtras.map((e) => [
-      e.userId,
-      {
-        advancingTeamIds: e.advancingTeamIds,
-        championTeamId: e.championTeamId,
-      },
-    ]),
-  );
-
-  const changeCountByUser = new Map(
-    members.map((m) => [m.userId, m.midCompetitionPredictionChangeCount ?? 0]),
-  );
-
-  return { predsByUser, extraByUser, changeCountByUser };
-}
-
-function scoreUser(
-  userId: string,
-  tournamentId: string,
-  tournamentName: string,
-  competitionCtx: CompetitionScoringContext,
-  memberData: TournamentMemberData,
-): Pick<
-  GlobalLeaderboardRow,
-  | "bestTournamentId"
-  | "bestTournamentName"
-  | "fg"
-  | "pg"
-  | "sc"
-  | "cg"
-  | "championPoints"
-  | "changePenalty"
-  | "total"
-> {
-  const totals = computeUserWcTotals(
-    memberData.predsByUser.get(userId) ?? new Map(),
-    memberData.extraByUser.get(userId) ?? null,
-    competitionCtx.matches,
-    competitionCtx.standings,
-    competitionCtx.oddsMaps,
-    memberData.changeCountByUser.get(userId) ?? 0,
-  );
-
-  return {
-    bestTournamentId: tournamentId,
-    bestTournamentName: tournamentName,
-    fg: totals.fullTimeGuessPoints,
-    pg: totals.halfTimeGuessPoints,
-    sc: totals.correctScorePoints,
-    cg: totals.qualifierPoints,
-    championPoints: totals.championPoints,
-    changePenalty: totals.predictionChangePenalty,
-    total: totals.total,
-  };
-}
-
-// Recomputes scores for every member of every competition tournament and
-// writes the results back to TournamentMember. Called by the cron job.
 export async function refreshAllScores(): Promise<{ updated: number; errors: number }> {
   const tournaments = await prisma.tournament.findMany({
     where: { competition: { not: null } },
@@ -349,7 +273,7 @@ export async function refreshAllScores(): Promise<{ updated: number; errors: num
       );
       if (ctx) competitionCtxByKey.set(competition, ctx);
     } catch {
-      // skip competition on hard failure
+      // skip on hard failure
     }
   }
 
@@ -360,10 +284,7 @@ export async function refreshAllScores(): Promise<{ updated: number; errors: num
     if (!tournament.competition) continue;
 
     const competitionCtx = competitionCtxByKey.get(tournament.competition);
-    if (!competitionCtx) {
-      errors++;
-      continue;
-    }
+    if (!competitionCtx) { errors++; continue; }
 
     let memberData: TournamentMemberData;
     try {
@@ -373,7 +294,6 @@ export async function refreshAllScores(): Promise<{ updated: number; errors: num
       continue;
     }
 
-    const now = new Date();
     await Promise.all(
       tournament.members.map(async (member) => {
         const score = scoreUser(
@@ -389,11 +309,8 @@ export async function refreshAllScores(): Promise<{ updated: number; errors: num
             cachedFg: score.fg,
             cachedPg: score.pg,
             cachedSc: score.sc,
-            cachedCg: score.cg,
-            cachedChampionPoints: score.championPoints,
-            cachedChangePenalty: score.changePenalty,
             cachedTotal: score.total,
-            scoreUpdatedAt: now,
+            scoreUpdatedAt: new Date(),
           },
         });
         updated++;
@@ -404,15 +321,13 @@ export async function refreshAllScores(): Promise<{ updated: number; errors: num
   return { updated, errors };
 }
 
-type UserBestEntry = {
-  row: GlobalLeaderboardRow;
+export async function loadGlobalMemberPredictions(memberUserId: string): Promise<{
   tournamentId: string;
-  competition: string;
-  memberData: TournamentMemberData;
-  competitionCtx: CompetitionScoringContext;
-};
-
-async function findUserBestGlobalEntry(memberUserId: string): Promise<UserBestEntry | null> {
+  tournamentName: string;
+  memberDisplayName: string;
+  rows: { match: FootballDataMatch; pred: MatchPredictionInput }[];
+  loadError: string | null;
+} | null> {
   const tournaments = await prisma.tournament.findMany({
     where: {
       competition: { not: null },
@@ -450,7 +365,15 @@ async function findUserBestGlobalEntry(memberUserId: string): Promise<UserBestEn
     }),
   );
 
-  let best: UserBestEntry | null = null;
+  let best: {
+    tournamentId: string;
+    tournamentName: string;
+    memberDisplayName: string;
+    competition: string;
+    total: number;
+    memberData: TournamentMemberData;
+    competitionCtx: CompetitionScoringContext;
+  } | null = null;
 
   for (const tournament of tournaments) {
     if (!tournament.competition) continue;
@@ -461,51 +384,21 @@ async function findUserBestGlobalEntry(memberUserId: string): Promise<UserBestEn
     if (!competitionCtx) continue;
 
     const memberData = await loadTournamentMemberData(tournament.id);
-    const score = scoreUser(
-      member.userId,
-      tournament.id,
-      tournament.name,
-      competitionCtx,
-      memberData,
-    );
-    const predictionFields = buildLeaderboardPredictionFields(
-      member.userId,
-      memberData,
-      competitionCtx,
-    );
-    const candidate: GlobalLeaderboardRow = {
-      rank: 0,
-      userId: member.userId,
-      displayName: displayName(member.user.firstName, member.user.lastName),
-      bestTournamentCompetition: tournament.competition,
-      ...score,
-      ...predictionFields,
-    };
+    const score = scoreUser(member.userId, tournament.id, tournament.name, competitionCtx, memberData);
 
-    if (!best || candidate.total > best.row.total) {
+    if (!best || score.total > best.total) {
       best = {
-        row: candidate,
         tournamentId: tournament.id,
+        tournamentName: tournament.name,
+        memberDisplayName: displayName(member.user.firstName, member.user.lastName),
         competition: tournament.competition,
+        total: score.total,
         memberData,
         competitionCtx,
       };
     }
   }
 
-  return best;
-}
-
-export async function loadGlobalMemberPredictions(memberUserId: string): Promise<{
-  tournamentId: string;
-  tournamentName: string;
-  memberDisplayName: string;
-  championPick: string | null;
-  advancingCount: number;
-  rows: { match: FootballDataMatch; pred: MatchPredictionInput }[];
-  loadError: string | null;
-} | null> {
-  const best = await findUserBestGlobalEntry(memberUserId);
   if (!best) return null;
 
   let matches = best.competitionCtx.matches;
@@ -525,9 +418,6 @@ export async function loadGlobalMemberPredictions(memberUserId: string): Promise
   }
 
   const pmap = best.memberData.predsByUser.get(memberUserId) ?? new Map();
-  const extra = best.memberData.extraByUser.get(memberUserId) ?? null;
-  const allTeams = collectTeamsFromMatches(matches.length > 0 ? matches : best.competitionCtx.matches);
-  const championPick = championLabelFromTeams(extra?.championTeamId ?? null, allTeams);
 
   const rows = [...(matches.length > 0 ? matches : best.competitionCtx.matches)]
     .sort((a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate))
@@ -539,16 +429,13 @@ export async function loadGlobalMemberPredictions(memberUserId: string): Promise
 
   return {
     tournamentId: best.tournamentId,
-    tournamentName: best.row.bestTournamentName,
-    memberDisplayName: best.row.displayName,
-    championPick,
-    advancingCount: extra?.advancingTeamIds?.length ?? 0,
+    tournamentName: best.tournamentName,
+    memberDisplayName: best.memberDisplayName,
     rows,
     loadError,
   };
 }
 
-// Calculează live (ca pagina de turneu) — cache-ul din DB poate fi incomplet sau învechit.
 export async function buildGlobalLeaderboard(): Promise<GlobalLeaderboardResult> {
   const tournaments = await prisma.tournament.findMany({
     where: { competition: { not: null } },
@@ -601,19 +488,15 @@ export async function buildGlobalLeaderboard(): Promise<GlobalLeaderboardResult>
         competitionCtx,
         memberData,
       );
-      const predictionFields = buildLeaderboardPredictionFields(
-        member.userId,
-        memberData,
-        competitionCtx,
-      );
+      const lastMatch = buildLastMatch(member.userId, memberData, competitionCtx);
       const name = displayName(member.user.firstName, member.user.lastName);
       const candidate: GlobalLeaderboardRow = {
         rank: 0,
         userId: member.userId,
         displayName: name,
         bestTournamentCompetition: tournament.competition,
+        lastMatch,
         ...score,
-        ...predictionFields,
       };
       const existing = bestByUser.get(member.userId);
       if (!existing || candidate.total > existing.total) {

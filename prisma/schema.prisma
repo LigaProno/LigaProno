@@ -32,8 +32,13 @@ model Tournament {
   creator              User                 @relation("CreatedTournaments", fields: [creatorId], references: [id])
   members              TournamentMember[]
   competition          String?
+  // Gameweek window: null = whole tournament. Set at creation time from current matchday.
+  startMatchday        Int?
+  endMatchday          Int?
   // Dacă false: pronosticurile se blochează după startul competiției. Dacă true: se pot modifica, cu penalizare per schimbare.
   allowPredictionChangesDuringCompetition Boolean            @default(false)
+  isPublic             Boolean            @default(false)
+  prizes               Json?
   wcMatchPredictions   WcMatchPrediction[]
   wcExtraPredictions   WcExtraPrediction[]
   bettingOdds          TournamentBettingOdds?

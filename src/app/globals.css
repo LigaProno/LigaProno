@@ -1,152 +1,188 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg:           #080B12;
+  --sidebar:      #06080D;
+  --surface:      #0D1422;
+  --surface-high: #131C2F;
+  --surface-low:  #060911;
+  --border:       rgba(255,255,255,0.07);
+  --border-md:    rgba(255,255,255,0.11);
+  --border-lg:    rgba(255,255,255,0.16);
+  --text-1:       #EEF2FF;
+  --text-2:       rgba(255,255,255,0.50);
+  --text-3:       rgba(255,255,255,0.28);
+  --cyan:         #22D3EE;
+  --lime:         #BEF264;
+
+  /* Card shadow with inset top highlight — the detail that separates premium from generic */
+  --card-shadow:  0 2px 12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05);
+  --card-shadow-lg: 0 8px 32px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--bg);
+  --color-foreground: var(--text-1);
   --font-sans: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Base ───────────────────────────────────────────────────────────── */
+body {
+  background-color: var(--bg);
+  /* subtle grid texture + top glow — breaks the flat AI look */
+  background-image:
+    radial-gradient(ellipse 80% 40% at 50% 0%, rgba(34,211,238,0.06) 0%, transparent 100%),
+    linear-gradient(rgba(255,255,255,0.014) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.014) 1px, transparent 1px);
+  background-size: 100% 100%, 40px 40px, 40px 40px;
+  color: var(--text-1);
+  font-family: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+/* ── Brand typography ───────────────────────────────────────────────── */
+/* Use ITC Novarese (brand font) for all headings */
+h1, h2, h3, h4 {
+  font-family: var(--font-novarese, var(--font-montserrat)), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.025em;
+  line-height: 1.18;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.09); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+
+/* ── Inputs ─────────────────────────────────────────────────────────── */
+.ph-input {
+  width: 100%;
+  padding: 11px 14px;
+  background: var(--surface-low);
+  color: var(--text-1);
+  border: 1px solid var(--border-md);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.ph-input:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 3px rgba(34,211,238,0.14);
+}
+.ph-input::placeholder { color: var(--text-3); }
+
+/* ── Buttons ─────────────────────────────────────────────────────────── */
+.ph-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 11px 20px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  background: linear-gradient(135deg, #22D3EE 0%, #0EA5E9 100%);
+  color: #080B12;
+  box-shadow: 0 0 18px rgba(34,211,238,0.22);
+  transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
+  cursor: pointer;
+  border: none;
+}
+.ph-btn-primary:hover   { opacity: 0.92; box-shadow: 0 0 26px rgba(34,211,238,0.32); }
+.ph-btn-primary:active  { transform: scale(0.98); }
+.ph-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+
+.ph-btn-lime {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 11px 20px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  background: linear-gradient(135deg, #BEF264 0%, #84CC16 100%);
+  color: #080B12;
+  box-shadow: 0 0 18px rgba(190,242,100,0.2);
+  transition: opacity 0.15s, transform 0.1s;
+  cursor: pointer;
+  border: none;
+}
+.ph-btn-lime:hover   { opacity: 0.92; }
+.ph-btn-lime:active  { transform: scale(0.98); }
+.ph-btn-lime:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Modal ──────────────────────────────────────────────────────────── */
+.ph-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(4, 6, 10, 0.82);
+  backdrop-filter: blur(10px) saturate(160%);
+  -webkit-backdrop-filter: blur(10px) saturate(160%);
+}
+
+.ph-modal {
+  background: var(--surface);
+  /* gradient border: cyan at top, invisible at bottom */
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  box-shadow: var(--card-shadow-lg), 0 0 0 1px rgba(34,211,238,0.18), 0 0 60px rgba(34,211,238,0.06);
 }
 
 /* ── Cursor ─────────────────────────────────────────────────────────── */
-button,
-[role="button"],
-label[for] {
-  cursor: pointer;
-}
-button:disabled {
-  cursor: not-allowed;
-}
+button, [role="button"], label[for] { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
 
 /* ── Page transition ─────────────────────────────────────────────────── */
 @keyframes pageEnter {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
+.page-transition { animation: pageEnter 0.2s ease-out both; }
 
-.page-transition {
-  animation: pageEnter 0.22s ease-out both;
-}
-
-/* ── Sidebar nav active indicator ───────────────────────────────────── */
-@keyframes navPulse {
-  0%   { opacity: 0.7; }
-  50%  { opacity: 1; }
-  100% { opacity: 0.7; }
-}
-
-
-/* ── Clerk component overrides ───────────────────────────────────────── */
-
-/* All text inside Clerk cards */
-.cl-card,
-.cl-userProfile-root,
-.cl-profilePage,
-.cl-profileSection,
-.cl-navbar {
+/* ── Clerk overrides ─────────────────────────────────────────────────── */
+.cl-card, .cl-userProfile-root, .cl-profilePage, .cl-profileSection, .cl-navbar {
   color: #ffffff !important;
 }
-
-/* Headers & titles */
-.cl-headerTitle,
-.cl-headerSubtitle,
-.cl-profileSectionTitle,
-.cl-profileSectionTitleText,
-.cl-navbarButton,
-.cl-navbarButton span,
-.cl-accordionTriggerButton,
-.cl-tableHead,
-.cl-formFieldLabel,
-.cl-formFieldLabelRow,
-.cl-identityPreviewText,
-.cl-userPreviewMainIdentifier,
-.cl-userPreviewSecondaryIdentifier,
-.cl-badge,
-.cl-badgeLabel {
+.cl-headerTitle, .cl-headerSubtitle, .cl-profileSectionTitle,
+.cl-profileSectionTitleText, .cl-navbarButton, .cl-navbarButton span,
+.cl-accordionTriggerButton, .cl-tableHead, .cl-formFieldLabel,
+.cl-formFieldLabelRow, .cl-identityPreviewText, .cl-userPreviewMainIdentifier,
+.cl-userPreviewSecondaryIdentifier, .cl-badge, .cl-badgeLabel {
   color: #ffffff !important;
 }
-
-/* Navbar */
-.cl-navbar {
-  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-
-.cl-navbarButton:hover {
-  background-color: rgba(255, 255, 255, 0.08) !important;
-}
-
-/* Inputs */
-.cl-formFieldInput,
-.cl-formFieldInput:focus {
-  background-color: #0F172A !important;
+.cl-navbar { border-right: 1px solid rgba(255,255,255,0.07) !important; }
+.cl-navbarButton:hover { background-color: rgba(255,255,255,0.05) !important; }
+.cl-formFieldInput, .cl-formFieldInput:focus {
+  background-color: #060911 !important;
   color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.15) !important;
+  border-color: rgba(255,255,255,0.11) !important;
 }
-
 .cl-formFieldInput:focus {
   border-color: #22D3EE !important;
   outline: none !important;
-  box-shadow: 0 0 0 1px #22D3EE !important;
+  box-shadow: 0 0 0 3px rgba(34,211,238,0.14) !important;
 }
-
-/* Dividers / separators */
-.cl-profileSectionContent__profile,
-.cl-profileSection {
-  border-color: rgba(255, 255, 255, 0.08) !important;
+.cl-profileSectionContent__profile, .cl-profileSection {
+  border-color: rgba(255,255,255,0.07) !important;
 }
-
-/* Action cards (e.g. "Add email" expanded form) */
-.cl-actionCard,
-.cl-accordionContent {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
+.cl-actionCard, .cl-accordionContent {
+  background-color: rgba(255,255,255,0.03) !important;
+  border-color: rgba(255,255,255,0.07) !important;
   color: #ffffff !important;
 }
+.cl-formButtonReset       { color: #94a3b8 !important; }
+.cl-formButtonReset:hover { color: #ffffff !important; }
+.cl-profileSectionContent *, .cl-accordionContent * { color: #ffffff !important; }
 
-/* Cancel / secondary buttons */
-.cl-formButtonReset {
-  color: #cbd5e1 !important;
-}
-
-.cl-formButtonReset:hover {
-  color: #ffffff !important;
-}
-
-/* Connected account text */
-.cl-profileSectionContent *,
-.cl-accordionContent * {
-  color: #ffffff !important;
-}
-
-/* ── Browser autofill override ───────────────────────────────────────── */
-/* Fix browser autofill overriding dark input backgrounds */
+/* ── Autofill ────────────────────────────────────────────────────────── */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0px 1000px #0F172A inset !important;
-  -webkit-text-fill-color: #F8FAFC !important;
-  caret-color: #F8FAFC;
+  -webkit-box-shadow: 0 0 0px 1000px #060911 inset !important;
+  -webkit-text-fill-color: #EEF2FF !important;
+  caret-color: #EEF2FF;
 }
