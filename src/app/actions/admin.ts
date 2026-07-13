@@ -25,6 +25,7 @@ export async function createPublicTournament(
   name: string,
   competitionStorage: string,
   prizes: TournamentPrize[],
+  matchdayCount?: number,
 ): Promise<{ inviteCode: string }> {
   const user = await assertAdmin();
 
@@ -46,6 +47,7 @@ export async function createPublicTournament(
       competition: t,
       isPublic: true,
       prizes: prizes.length > 0 ? prizes : undefined,
+      endMatchday: matchdayCount ?? null,
     },
   });
 

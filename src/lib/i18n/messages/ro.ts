@@ -10,6 +10,7 @@ export const ro: Messages = {
   "nav.account": "Cont",
   "nav.openMenu": "Deschide meniul",
   "nav.admin": "Admin",
+  "nav.support": "Suport",
   "common.copy": "Copiază",
   "common.copied": "Copiat!",
   "common.save": "Salvează",

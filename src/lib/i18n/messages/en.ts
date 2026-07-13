@@ -10,6 +10,7 @@ export const en: Messages = {
   "nav.account": "Account",
   "nav.openMenu": "Open menu",
   "nav.admin": "Admin",
+  "nav.support": "Support",
   "common.copy": "Copy",
   "common.copied": "Copied!",
   "common.save": "Save",

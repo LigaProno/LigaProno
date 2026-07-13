@@ -16,6 +16,7 @@ export default function CreatePublicTournamentForm({
   const router = useRouter();
   const [name, setName] = useState("");
   const [competitionKey, setCompetitionKey] = useState("");
+  const [matchdayCount, setMatchdayCount] = useState<number | "">(0);
   const [prizeCount, setPrizeCount] = useState(0);
   const [prizeSelections, setPrizeSelections] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
@@ -47,12 +48,14 @@ export default function CreatePublicTournamentForm({
     setError(null);
     setSuccess(null);
     const prizes = prizeSelections.map((prize, i) => ({ place: i + 1, prize }));
+    const fixtureCount = typeof matchdayCount === "number" && matchdayCount > 0 ? matchdayCount : undefined;
     startTransition(async () => {
       try {
-        const result = await createPublicTournament(name.trim(), competitionKey.trim(), prizes);
+        const result = await createPublicTournament(name.trim(), competitionKey.trim(), prizes, fixtureCount);
         setSuccess(`Turneu creat! Cod: ${result.inviteCode}`);
         setName("");
         setCompetitionKey("");
+        setMatchdayCount(0);
         setPrizeCount(0);
         setPrizeSelections([]);
         router.refresh();
@@ -103,6 +106,26 @@ export default function CreatePublicTournamentForm({
             </option>
           ))}
         </select>
+      </div>
+
+      {/* Fixture count */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
+          Număr etape
+        </label>
+        <input
+          type="number"
+          min={1}
+          max={100}
+          value={matchdayCount === 0 ? "" : matchdayCount}
+          placeholder="ex. 8"
+          onChange={(e) => {
+            const v = e.target.value === "" ? "" : Math.max(1, parseInt(e.target.value) || 1);
+            setMatchdayCount(v === "" ? 0 : (v as number));
+          }}
+          className="w-32 rounded-xl px-4 py-3 text-sm outline-none border"
+          style={{ backgroundColor: "#060911", color: "#fff", borderColor: "rgba(255,255,255,0.12)" }}
+        />
       </div>
 
       {/* Prize places count */}

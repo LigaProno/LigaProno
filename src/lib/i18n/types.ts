@@ -13,6 +13,7 @@ export type MessageKey =
   | "nav.account"
   | "nav.openMenu"
   | "nav.admin"
+  | "nav.support"
   | "common.copy"
   | "common.copied"
   | "common.save"
