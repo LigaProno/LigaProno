@@ -5,12 +5,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   deleteUserAccountData,
+  getFavoriteTeamOptions,
   getProfileData,
   syncProfileFields,
   updateFavoriteTeam,
+  type ProfileCompetitionOption,
   type ProfileData,
   type ProfileTeamOption,
 } from "@/app/actions/profile";
+import { DEFAULT_FAVORITE_TEAM_COMPETITION } from "@/lib/favorite-team";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { FavoriteTeamPicker } from "@/components/profile/favorite-team-picker";
 import {
@@ -24,10 +27,12 @@ import { getClerkErrorMessage } from "@/lib/clerk-errors";
 
 export function ProfilePageContent({
   initialProfile,
-  teams,
+  initialTeams,
+  competitions,
 }: {
   initialProfile: ProfileData;
-  teams: ProfileTeamOption[];
+  initialTeams: ProfileTeamOption[];
+  competitions: ProfileCompetitionOption[];
 }) {
   const { t, locale } = useLocale();
   const { user, isLoaded } = useUser();
@@ -42,6 +47,11 @@ export function ProfilePageContent({
   const [firstName, setFirstName] = useState(initialProfile.firstName ?? "");
   const [lastName, setLastName] = useState(initialProfile.lastName ?? "");
   const [favoriteTeamId, setFavoriteTeamId] = useState<number | null>(initialProfile.favoriteTeamId);
+  const [favoriteCompetition, setFavoriteCompetition] = useState(
+    initialProfile.favoriteTeamCompetition ?? DEFAULT_FAVORITE_TEAM_COMPETITION,
+  );
+  const [teams, setTeams] = useState(initialTeams);
+  const [teamsLoading, setTeamsLoading] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -116,6 +126,22 @@ export function ProfilePageContent({
     }
   };
 
+  const handleCompetitionChange = async (storageKey: string) => {
+    setFavoriteCompetition(storageKey);
+    setFavoriteTeamId(null);
+    setTeamMessage(undefined);
+    setTeamsLoading(true);
+    try {
+      const nextTeams = await getFavoriteTeamOptions(storageKey);
+      setTeams(nextTeams);
+    } catch {
+      setTeams([]);
+      setTeamMessage(t("errors.generic"));
+    } finally {
+      setTeamsLoading(false);
+    }
+  };
+
   const handleSaveTeam = async () => {
     if (favoriteTeamId == null) {
       setTeamMessage(t("profile.favoriteTeam.required"));
@@ -124,7 +150,7 @@ export function ProfilePageContent({
     setTeamSaving(true);
     setTeamMessage(undefined);
     try {
-      await updateFavoriteTeam(favoriteTeamId);
+      await updateFavoriteTeam(favoriteCompetition, favoriteTeamId);
       const refreshed = await getProfileData();
       setProfile(refreshed);
       setTeamMessage(t("profile.saved"));
@@ -281,7 +307,11 @@ export function ProfilePageContent({
         description={t("profile.favoriteTeam.description")}
       >
         <FavoriteTeamPicker
+          competitions={competitions}
+          competitionKey={favoriteCompetition}
+          onCompetitionChange={(key) => void handleCompetitionChange(key)}
           teams={teams}
+          teamsLoading={teamsLoading}
           value={favoriteTeamId}
           onChange={setFavoriteTeamId}
           disabled={teamSaving}

@@ -1,12 +1,22 @@
 import { Suspense } from "react";
 import { ProfilePageContent } from "@/components/profile/profile-page-content";
-import { getFavoriteTeamOptions, getProfileData } from "@/app/actions/profile";
+import {
+  getFavoriteTeamCompetitionOptions,
+  getFavoriteTeamOptions,
+  getProfileData,
+} from "@/app/actions/profile";
+import { DEFAULT_FAVORITE_TEAM_COMPETITION } from "@/lib/favorite-team";
 import { pageTitle } from "@/lib/site-metadata";
 
 export const metadata = pageTitle("Profil");
 
 export default async function ProfilPage() {
-  const [profile, teams] = await Promise.all([getProfileData(), getFavoriteTeamOptions()]);
+  const profile = await getProfileData();
+  const competitionKey = profile.favoriteTeamCompetition ?? DEFAULT_FAVORITE_TEAM_COMPETITION;
+  const [competitions, teams] = await Promise.all([
+    getFavoriteTeamCompetitionOptions(),
+    getFavoriteTeamOptions(competitionKey),
+  ]);
 
   return (
     <Suspense
@@ -16,7 +26,11 @@ export default async function ProfilPage() {
         </div>
       }
     >
-      <ProfilePageContent initialProfile={profile} teams={teams} />
+      <ProfilePageContent
+        initialProfile={profile}
+        initialTeams={teams}
+        competitions={competitions}
+      />
     </Suspense>
   );
 }

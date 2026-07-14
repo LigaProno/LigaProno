@@ -3,7 +3,11 @@
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { fetchCompetitionTeams } from "@/lib/football-data";
-import { FAVORITE_TEAM_COMPETITION } from "@/lib/favorite-team";
+import {
+  DEFAULT_FAVORITE_TEAM_COMPETITION,
+  FAVORITE_TEAM_COMPETITION_OPTIONS,
+  isFavoriteTeamCompetition,
+} from "@/lib/favorite-team";
 import { I18nError } from "@/lib/i18n/errors";
 import { prisma } from "@/lib/prisma";
 import { getOrSyncDbUser } from "@/lib/sync-clerk-user";
@@ -14,6 +18,11 @@ export type ProfileTeamOption = {
   crest: string | null;
 };
 
+export type ProfileCompetitionOption = {
+  storageKey: string;
+  label: string;
+};
+
 export type ProfileData = {
   email: string;
   firstName: string | null;
@@ -22,6 +31,7 @@ export type ProfileData = {
   favoriteTeamId: number | null;
   favoriteTeamName: string | null;
   favoriteTeamCrest: string | null;
+  favoriteTeamCompetition: string | null;
   createdAt: string;
 };
 
@@ -35,17 +45,33 @@ async function requireDbUser() {
   return user;
 }
 
-export async function getFavoriteTeamOptions(): Promise<ProfileTeamOption[]> {
+export async function getFavoriteTeamCompetitionOptions(): Promise<ProfileCompetitionOption[]> {
+  return FAVORITE_TEAM_COMPETITION_OPTIONS.map((o) => ({
+    storageKey: o.storageKey,
+    label: o.label,
+  }));
+}
+
+export async function getFavoriteTeamOptions(
+  competitionStorageKey: string = DEFAULT_FAVORITE_TEAM_COMPETITION,
+): Promise<ProfileTeamOption[]> {
+  if (!isFavoriteTeamCompetition(competitionStorageKey)) return [];
+
+  const competition = FAVORITE_TEAM_COMPETITION_OPTIONS.find(
+    (o) => o.storageKey === competitionStorageKey,
+  );
+  if (!competition) return [];
+
   try {
-    const teams = await fetchCompetitionTeams(
-      FAVORITE_TEAM_COMPETITION.code,
-      FAVORITE_TEAM_COMPETITION.season,
-    );
-    return teams.map((t) => ({
-      id: t.id!,
-      name: t.name!.trim(),
-      crest: t.crest ?? null,
-    }));
+    const teams = await fetchCompetitionTeams(competition.code, competition.season);
+    return teams
+      .filter((t) => t.id != null && t.name?.trim())
+      .map((t) => ({
+        id: t.id!,
+        name: t.name!.trim(),
+        crest: t.crest ?? null,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, "ro"));
   } catch {
     return [];
   }
@@ -61,13 +87,22 @@ export async function getProfileData(): Promise<ProfileData> {
     favoriteTeamId: user.favoriteTeamId,
     favoriteTeamName: user.favoriteTeamName,
     favoriteTeamCrest: user.favoriteTeamCrest,
+    favoriteTeamCompetition: user.favoriteTeamCompetition,
     createdAt: user.createdAt.toISOString(),
   };
 }
 
-export async function updateFavoriteTeam(teamId: number): Promise<void> {
+export async function updateFavoriteTeam(
+  competitionStorageKey: string,
+  teamId: number,
+): Promise<void> {
   const user = await requireDbUser();
-  const options = await getFavoriteTeamOptions();
+
+  if (!isFavoriteTeamCompetition(competitionStorageKey)) {
+    throw new I18nError("errors.invalidFavoriteTeam");
+  }
+
+  const options = await getFavoriteTeamOptions(competitionStorageKey);
   const team = options.find((t) => t.id === teamId);
   if (!team) throw new I18nError("errors.invalidFavoriteTeam");
 
@@ -77,6 +112,7 @@ export async function updateFavoriteTeam(teamId: number): Promise<void> {
       favoriteTeamId: team.id,
       favoriteTeamName: team.name,
       favoriteTeamCrest: team.crest,
+      favoriteTeamCompetition: competitionStorageKey,
     },
   });
 
