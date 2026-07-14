@@ -1,31 +1,15 @@
 ﻿import { currentUser } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/prisma";
 import Sidebar from "@/components/Sidebar";
 import PageWrapper from "@/components/PageWrapper";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
 import { isAdminEmail } from "@/lib/admin";
+import { syncClerkUser } from "@/lib/sync-clerk-user";
 
 async function syncUser() {
   const clerkUser = await currentUser();
   if (!clerkUser) return null;
-
-  const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
-  const data = {
-    email,
-    firstName: clerkUser.firstName,
-    lastName: clerkUser.lastName,
-    imageUrl: clerkUser.imageUrl,
-  };
-
-  const existing = await prisma.user.findUnique({ where: { clerkId: clerkUser.id } });
-  if (existing) {
-    await prisma.user.update({ where: { clerkId: clerkUser.id }, data });
-  } else {
-    await prisma.user.create({ data: { clerkId: clerkUser.id, ...data } });
-  }
-
-  return email;
+  return syncClerkUser(clerkUser);
 }
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {

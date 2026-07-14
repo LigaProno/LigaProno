@@ -43,3 +43,7 @@ next-env.d.ts
 /src/generated/prisma
 # clerk configuration (can include secrets)
 /.clerk/
+
+# clerk migration exports (emails / ids)
+/scripts/migration/*.json
+/scripts/migration/logs/

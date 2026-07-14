@@ -6,6 +6,7 @@ import { fetchCompetitionTeams } from "@/lib/football-data";
 import { FAVORITE_TEAM_COMPETITION } from "@/lib/favorite-team";
 import { I18nError } from "@/lib/i18n/errors";
 import { prisma } from "@/lib/prisma";
+import { getOrSyncDbUser } from "@/lib/sync-clerk-user";
 
 export type ProfileTeamOption = {
   id: number;
@@ -28,7 +29,7 @@ async function requireDbUser() {
   const { userId: clerkId } = await auth();
   if (!clerkId) throw new I18nError("errors.notAuthenticated");
 
-  const user = await prisma.user.findUnique({ where: { clerkId } });
+  const user = await getOrSyncDbUser();
   if (!user) throw new I18nError("errors.userNotFound");
 
   return user;
