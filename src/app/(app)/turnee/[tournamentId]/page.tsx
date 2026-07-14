@@ -19,6 +19,8 @@ import {
   getMatchPredDisplay,
   lastFinishedAndNextThree,
   matchResultHtFt,
+  matchesForMatchday,
+  resolveCurrentMatchday,
 } from "@/lib/wc-pred-display";
 import type { NextThreeMatchPreds } from "@/components/party/next-three-predictions-panel";
 import { filterUsableMatchOdds, payloadToOddsMaps } from "@/lib/betting-odds";
@@ -69,6 +71,7 @@ export default async function PartyTournamentPage({
   if (!isMember) redirect("/turnee");
 
   const isCreator = tournament.creatorId === user.id;
+  const tournamentMembers = tournament.members;
 
   const parsedCompetition = parseStoredCompetition(tournament.competition);
 
@@ -120,8 +123,10 @@ export default async function PartyTournamentPage({
   const usableMatchOddsById = filterUsableMatchOdds(oddsPayload?.matches ?? {});
 
   const { lastFinished, nextThree } = lastFinishedAndNextThree(matches);
+  const currentMatchday = resolveCurrentMatchday(matches);
+  const currentMatchdayMatches = matchesForMatchday(matches, currentMatchday);
 
-  const nextThreeMemberPreds: NextThreeMatchPreds[] = nextThree.map((nm) => {
+  function buildMemberPredsBlock(nm: FootballDataMatch): NextThreeMatchPreds {
     const row = usableMatchOddsById[String(nm.id)];
     return {
       matchId: nm.id,
@@ -144,7 +149,7 @@ export default async function PartyTournamentPage({
           away: row.ft1x2.AWAY,
         }
       : null,
-      rows: tournament.members
+      rows: tournamentMembers
         .map((m) => ({
           userId: m.userId,
           displayName: displayName(m.user.firstName, m.user.lastName),
@@ -152,9 +157,11 @@ export default async function PartyTournamentPage({
         }))
         .sort((a, b) => a.displayName.localeCompare(b.displayName, "ro")),
     };
-  });
+  }
 
-  const leaderboardRows: LeaderboardRow[] = tournament.members.map((m) => {
+  const matchdayMemberPreds: NextThreeMatchPreds[] = currentMatchdayMatches.map(buildMemberPredsBlock);
+
+  const leaderboardRows: LeaderboardRow[] = tournamentMembers.map((m) => {
     const totals = computeUserWcTotals(
       predsByUser.get(m.userId) ?? new Map(),
       matches,
@@ -269,7 +276,8 @@ export default async function PartyTournamentPage({
           competitionOddsSnapshot?.lastManualRefreshAt?.toISOString() ?? null
         }
         canManualRefreshOddsToday={canManualRefreshOddsTodayFlag}
-        nextThreeMemberPreds={nextThreeMemberPreds}
+        nextThreeMemberPreds={matchdayMemberPreds}
+        currentMatchday={currentMatchday}
       />
     </div>
   );

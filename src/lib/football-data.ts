@@ -527,3 +527,42 @@ export async function fetchCompetitionTeams(
     )
     .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "", "ro"));
 }
+
+/** Meciuri terminate recente pentru o echipă (toate competițiile). */
+export async function fetchTeamFinishedMatches(
+  teamId: number,
+  limit = 10,
+): Promise<FootballDataMatch[]> {
+  const data = await fdFetch<MatchesEnvelope>(`/teams/${teamId}/matches`, {
+    status: "FINISHED",
+    limit: String(Math.min(Math.max(limit, 1), 50)),
+  });
+  const list = data.matches ?? [];
+  list.sort((a, b) => new Date(b.utcDate).getTime() - new Date(a.utcDate).getTime());
+  return list;
+}
+
+type HeadToHeadEnvelope = {
+  matches?: FootballDataMatch[];
+  aggregates?: {
+    numberOfMatches?: number;
+    homeTeam?: FootballDataTeam;
+    awayTeam?: FootballDataTeam;
+    homeTeamWins?: number;
+    awayTeamWins?: number;
+    draws?: number;
+  };
+};
+
+/** Meciuri directe între echipele unui fixture (Football-Data head2head). */
+export async function fetchMatchHeadToHead(
+  matchId: number,
+  limit = 10,
+): Promise<{ matches: FootballDataMatch[]; aggregates: HeadToHeadEnvelope["aggregates"] }> {
+  const data = await fdFetch<HeadToHeadEnvelope>(`/matches/${matchId}/head2head`, {
+    limit: String(Math.min(Math.max(limit, 1), 50)),
+  });
+  const list = data.matches ?? [];
+  list.sort((a, b) => new Date(b.utcDate).getTime() - new Date(a.utcDate).getTime());
+  return { matches: list, aggregates: data.aggregates };
+}

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-export const SITE_NAME = "PronoHub";
+export const SITE_NAME = "Liga Prono";
 
 export const SITE_TAGLINE_RO =
   "Pronosticuri fotbal — turnee private, clasament live și program meciuri.";
@@ -9,7 +9,7 @@ export const SITE_TAGLINE_EN =
   "Football predictions — private tournaments, live leaderboard and fixtures.";
 
 const SITE_KEYWORDS = [
-  "PronoHub",
+  "Liga Prono",
   "pronosticuri fotbal",
   "turnee private",
   "clasament pronosticuri",
@@ -21,7 +21,7 @@ const SITE_KEYWORDS = [
   "Cupa Mondială",
 ];
 
-/** URL public al aplicației — setează NEXT_PUBLIC_APP_URL în producție (ex. https://pronohub.vercel.app). */
+/** URL public al aplicației — setează NEXT_PUBLIC_APP_URL în producție (ex. https://Liga Prono.vercel.app). */
 export function getSiteUrl(): URL {
   const explicit = process.env.NEXT_PUBLIC_APP_URL?.trim();
   if (explicit) {

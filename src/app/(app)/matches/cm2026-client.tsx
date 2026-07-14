@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -385,6 +385,8 @@ type MatchSubTabId = "__results__" | "__upcoming__" | "__knockout__" | string;
 
 export function Cm2026FootballDataClient(props: {
   initialTab?: TabId;
+  competitionKey: string;
+  competitionLabel: string;
   standings: GroupStanding[];
   groupKeysOrdered: string[];
   groupMatches: Record<string, FootballDataMatch[]>;
@@ -394,6 +396,8 @@ export function Cm2026FootballDataClient(props: {
 }) {
   const {
     initialTab = "standings",
+    competitionKey,
+    competitionLabel,
     standings,
     groupKeysOrdered,
     groupMatches,
@@ -414,16 +418,18 @@ export function Cm2026FootballDataClient(props: {
     }
   }, [searchParams]);
 
+  const isLeagueTable =
+    standings.length === 1 && standings[0]?.groupKey === "League";
+
   const setTab = useCallback(
     (next: TabId) => {
       setTabState(next);
-      // Update the URL bar without triggering a server re-render.
-      // router.replace would cause a new server fetch on every tab switch.
       const url = new URL(window.location.href);
       url.searchParams.set("tab", next);
+      url.searchParams.set("competition", competitionKey);
       window.history.replaceState(null, "", url.toString());
     },
-    [],
+    [competitionKey],
   );
 
   const totalMatches = useMemo(
@@ -451,7 +457,7 @@ export function Cm2026FootballDataClient(props: {
             {t("dashboard.hero.badge")}
           </p>
           <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-            {t("matches.page.title")}
+            {competitionLabel}
           </h1>
           <p
             className="mt-2 text-sm max-w-xl"
@@ -527,34 +533,38 @@ export function Cm2026FootballDataClient(props: {
 
       {tab === "standings" ? (
         <section className="space-y-10" aria-label={t("matches.tab.standings")}>
-          <div className="flex flex-wrap gap-4 text-xs mb-2">
-            <span className="inline-flex items-center gap-2">
-              <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: "rgba(96,165,250,0.35)" }} />
-              {t("matches.standings.legendDirect")}
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: "rgba(59,130,246,0.25)" }} />
-              {t("matches.standings.legendThird")}
-            </span>
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {!isLeagueTable ?
+            <div className="flex flex-wrap gap-4 text-xs mb-2">
+              <span className="inline-flex items-center gap-2">
+                <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: "rgba(96,165,250,0.35)" }} />
+                {t("matches.standings.legendDirect")}
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: "rgba(59,130,246,0.25)" }} />
+                {t("matches.standings.legendThird")}
+              </span>
+            </div>
+          : null}
+          <div className={isLeagueTable ? "max-w-3xl" : "grid grid-cols-1 lg:grid-cols-2 gap-8"}>
             {standings.map((g) => (
               <div key={`stand-${g.letter}`}>
-                <h2
-                  className="text-lg font-black mb-3 flex items-center gap-2"
-                  style={{ color: "#60A5FA" }}
-                >
-                  <span
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black"
-                    style={{
-                      backgroundColor: "rgba(59,130,246,0.2)",
-                      color: "#3B82F6",
-                    }}
+                {!isLeagueTable ?
+                  <h2
+                    className="text-lg font-black mb-3 flex items-center gap-2"
+                    style={{ color: "#60A5FA" }}
                   >
-                    {g.letter}
-                  </span>
-                  {g.groupKey}
-                </h2>
+                    <span
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black"
+                      style={{
+                        backgroundColor: "rgba(59,130,246,0.2)",
+                        color: "#3B82F6",
+                      }}
+                    >
+                      {g.letter}
+                    </span>
+                    {g.groupKey}
+                  </h2>
+                : null}
                 <div
                   className="rounded-2xl border overflow-hidden text-sm"
                   style={{ borderColor: "rgba(255,255,255,0.12)" }}
@@ -674,7 +684,7 @@ export function Cm2026FootballDataClient(props: {
               </div>
             ))}
           </div>
-          {thirdPlaceRanking.length > 0 ?
+          {thirdPlaceRanking.length > 0 && !isLeagueTable ?
             <ThirdPlaceRankingTable entries={thirdPlaceRanking} />
           : null}
         </section>

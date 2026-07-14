@@ -6,7 +6,7 @@ export const TRIVIA_QUESTIONS_PER_DAY = 10;
 /** Ancoră rotație — aceeași zi = același set pentru toți utilizatorii. */
 export const TRIVIA_ROTATION_ANCHOR = "2026-03-01";
 
-const MASTER_ORDER_SEED = "pronohub-trivia-master-v1";
+const MASTER_ORDER_SEED = "Liga Prono-trivia-master-v1";
 
 function hashString(input: string): number {
   let h = 2166136261;

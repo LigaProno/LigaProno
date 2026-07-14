@@ -8,6 +8,11 @@ import {
   isRomanianNewsPublisherUrl,
 } from "@/lib/news-publishers";
 import { NEWS_FALLBACK_IMAGES } from "@/lib/gemini-wc-news";
+import {
+  DASHBOARD_NEWS_LEAGUES,
+  type DashboardNewsLeague,
+  type DashboardNewsLeagueId,
+} from "@/lib/dashboard-news-leagues";
 
 export const WC_NEWS_SCRAPER_SOURCE = "rss-scraper";
 
@@ -16,7 +21,7 @@ const FETCH_TIMEOUT_MS = 15_000;
 
 const FETCH_HEADERS = {
   "User-Agent":
-    "Mozilla/5.0 (compatible; PronoHub/1.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (compatible; Liga Prono/1.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
   Accept: "application/rss+xml, application/xml, text/xml, application/atom+xml, */*",
   "Accept-Language": "ro-RO,ro;q=0.9,en;q=0.5",
 };
@@ -31,12 +36,15 @@ const NEWS_FEEDS: Array<{ feedUrl: string; source: string }> = [
   { feedUrl: "https://www.espn.co.uk/espn/rss/soccer/news", source: "ESPN" },
 ];
 
-/** Articole relevante pentru CM 2026 (fotbal), fără false positive pe alte sporturi. */
-const WC_TOPIC_RE =
-  /\b(cupa mondial[aă]|campionatul mondial|world cup|cm\s*2026|mondial(?:ul)?\s*(?:de\s*fotbal\s*)?2026|world-cup|fifa.*(?:world cup|2026)|(?:world cup|mundial).*(?:2026|fotbal|soccer))\b/i;
-
-const WC_TOPIC_EXCLUDE_RE =
-  /\b(canotaj|v[âa]sle|tenis|zverev|roland garros|super rally|piranha|prim[aă]rie|tribunal|mercato var[aă]|r[âa]zboi mondial)\b/i;
+/** Articole relevante pentru campionatul selectat. */
+function matchesLeagueTopic(
+  item: { title: string; link: string; description: string },
+  league: DashboardNewsLeague,
+): boolean {
+  const haystack = `${item.title} ${item.description} ${item.link}`.toLowerCase();
+  if (league.topicExcludeRe.test(haystack)) return false;
+  return league.topicRe.test(haystack);
+}
 
 function stripHtml(value: string): string {
   return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
@@ -128,15 +136,6 @@ function parseRssItems(xml: string): Array<{
   return items;
 }
 
-function isWorldCupArticle(item: {
-  title: string;
-  link: string;
-  description: string;
-}): boolean {
-  const haystack = `${item.title} ${item.description} ${item.link}`.toLowerCase();
-  if (WC_TOPIC_EXCLUDE_RE.test(haystack)) return false;
-  return WC_TOPIC_RE.test(haystack);
-}
 
 function publisherLabelForUrl(url: string, fallback: string): string {
   const host = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
@@ -158,7 +157,8 @@ function dedupeByUrl(items: WcNewsItem[]): WcNewsItem[] {
   return out;
 }
 
-function rankNews(items: WcNewsItem[]): WcNewsItem[] {
+function rankNews(items: WcNewsItem[], preferRomanianSources: boolean): WcNewsItem[] {
+  if (!preferRomanianSources) return dedupeByUrl(items);
   const ro = items.filter((i) => isRomanianNewsPublisherUrl(i.url));
   const intl = items.filter((i) => !isRomanianNewsPublisherUrl(i.url));
   return dedupeByUrl([...ro, ...intl]);
@@ -194,8 +194,13 @@ function getNewsSourceKey(url: string): string {
   }
 }
 
-function selectNewsCandidates(items: WcNewsItem[], limit: number): WcNewsItem[] {
-  const ranked = rankNews(items);
+function selectNewsCandidates(
+  items: WcNewsItem[],
+  limit: number,
+  preferRomanianSources: boolean,
+): WcNewsItem[] {
+  const ranked = rankNews(items, preferRomanianSources);
+  if (!preferRomanianSources) return diversifyBySource(ranked, limit).slice(0, limit);
   const ro = ranked.filter((i) => isRomanianNewsPublisherUrl(i.url));
   const intl = ranked.filter((i) => !isRomanianNewsPublisherUrl(i.url));
   const roPick = diversifyBySource(ro, limit);
@@ -235,13 +240,14 @@ function rssRowToNewsItem(
     imageUrl: string;
   },
   source: string,
+  league: DashboardNewsLeague,
 ): WcNewsItem | null {
   const title = row.title.trim();
   let url = row.link.trim();
   if (url && !url.startsWith("http")) url = `https://${url}`;
   if (!title || !url.startsWith("https://")) return null;
   if (!isAllowedNewsArticleUrl(url)) return null;
-  if (!isWorldCupArticle(row)) return null;
+  if (!matchesLeagueTopic(row, league)) return null;
 
   const summary = row.description.slice(0, 280) || title;
   let imageUrl = row.imageUrl.trim();
@@ -258,37 +264,45 @@ function rssRowToNewsItem(
   };
 }
 
-async function scrapeNewsFeeds(): Promise<WcNewsItem[]> {
+async function scrapeNewsFeeds(leagueId: DashboardNewsLeagueId): Promise<WcNewsItem[]> {
+  const league = DASHBOARD_NEWS_LEAGUES[leagueId];
   const batches = await Promise.all(
     NEWS_FEEDS.map(async ({ feedUrl, source }) => {
       const xml = await fetchFeedXml(feedUrl);
       if (!xml) return [] as WcNewsItem[];
 
       return parseRssItems(xml)
-        .map((row) => rssRowToNewsItem(row, source))
+        .map((row) => rssRowToNewsItem(row, source, league))
         .filter((item): item is WcNewsItem => item != null);
     }),
   );
 
-  return rankNews(batches.flat());
+  return rankNews(batches.flat(), league.preferRomanianSources);
 }
 
-/** Știri CM 2026 din RSS + validare URL real (fără Gemini). */
-export async function fetchWc2026NewsViaScraper(): Promise<{
+/** Știri fotbal din RSS + validare URL real, filtrate pe campionat. */
+export async function fetchLeagueNewsViaScraper(
+  leagueId: DashboardNewsLeagueId,
+): Promise<{
   items: WcNewsItem[];
   source: string;
 }> {
-  const scraped = await scrapeNewsFeeds();
+  const league = DASHBOARD_NEWS_LEAGUES[leagueId];
+  const scraped = await scrapeNewsFeeds(leagueId);
 
   if (scraped.length === 0) {
     throw new Error(
-      "Niciun articol CM 2026 în feed-urile RSS. Verifică conexiunea sau rulează /api/cron/wc-news mai târziu.",
+      `Niciun articol relevant pentru ${leagueId} în feed-urile RSS.`,
     );
   }
 
-  const toValidate = selectNewsCandidates(scraped, TARGET_NEWS_COUNT + 4);
+  const toValidate = selectNewsCandidates(
+    scraped,
+    TARGET_NEWS_COUNT + 4,
+    league.preferRomanianSources,
+  );
   const validated = await enrichAndValidateNewsItems(toValidate, NEWS_FALLBACK_IMAGES);
-  const items = selectNewsCandidates(validated, TARGET_NEWS_COUNT);
+  const items = selectNewsCandidates(validated, TARGET_NEWS_COUNT, league.preferRomanianSources);
 
   if (items.length === 0) {
     throw new Error(
@@ -298,9 +312,17 @@ export async function fetchWc2026NewsViaScraper(): Promise<{
 
   if (items.length < TARGET_NEWS_COUNT) {
     console.warn(
-      `fetchWc2026NewsViaScraper: ${items.length}/${TARGET_NEWS_COUNT} după validare.`,
+      `fetchLeagueNewsViaScraper(${leagueId}): ${items.length}/${TARGET_NEWS_COUNT} după validare.`,
     );
   }
 
   return { items, source: WC_NEWS_SCRAPER_SOURCE };
+}
+
+/** @deprecated Folosește fetchLeagueNewsViaScraper("RO") sau alt campionat. */
+export async function fetchWc2026NewsViaScraper(): Promise<{
+  items: WcNewsItem[];
+  source: string;
+}> {
+  return fetchLeagueNewsViaScraper("RO");
 }

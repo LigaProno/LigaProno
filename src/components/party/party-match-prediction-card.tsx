@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -14,6 +14,8 @@ import { getPredictionLockMessage } from "@/lib/knockout-predictions";
 import { getMatchScoreAfter90 } from "@/lib/match-score";
 import { computeMatchPoints } from "@/lib/wc-scoring";
 import { PotentialPoints } from "@/components/party/potential-points";
+import { MatchInsightsModal } from "@/components/party/match-insights-modal";
+import { formatTeamDisplayName } from "@/lib/team-display";
 import {
   WC_BORDER,
   WC_CARD_GRADIENT,
@@ -133,6 +135,7 @@ export function PartyMatchPredictionCard({
   matchOddsRow,
   initial,
   predictionLockedReason = null,
+  competition = null,
   onSaved,
   onError,
   registerMatchDraft,
@@ -143,6 +146,7 @@ export function PartyMatchPredictionCard({
   matchOddsRow: MatchOddsRow | null;
   initial: MatchPredState;
   predictionLockedReason?: PredictionLockedReason | null;
+  competition?: string | null;
   onSaved: () => void;
   onError: (msg: string) => void;
   registerMatchDraft?: (
@@ -156,6 +160,7 @@ export function PartyMatchPredictionCard({
   const pRef = useRef(p);
   pRef.current = p;
   const [pending, startTransition] = useTransition();
+  const [insightsOpen, setInsightsOpen] = useState(false);
   const finished = m.status === "FINISHED";
   const formLocked = finished || predictionLockedReason != null;
 
@@ -191,8 +196,10 @@ export function PartyMatchPredictionCard({
 
   const venue = venueLabel(m);
   const when = formatMatchKickoff(m.utcDate);
-  const home = m.homeTeam.name ?? m.homeTeam.shortName ?? "—";
-  const away = m.awayTeam.name ?? m.awayTeam.shortName ?? "—";
+  const home = formatTeamDisplayName(m.homeTeam);
+  const away = formatTeamDisplayName(m.awayTeam);
+  const homeId = m.homeTeam.id;
+  const awayId = m.awayTeam.id;
   const hl = m.homeTeam.crest;
   const al = m.awayTeam.crest;
   const ft90 = getMatchScoreAfter90(m);
@@ -303,6 +310,19 @@ export function PartyMatchPredictionCard({
           </div>
         </div>
 
+        {!finished && homeId != null && awayId != null ?
+          <div className="flex justify-center -mt-1">
+            <button
+              type="button"
+              onClick={() => setInsightsOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wide transition-colors hover:bg-white/5"
+              style={{ color: "#C5A059", border: "1px solid rgba(197,160,89,0.28)" }}
+            >
+              {t("party.insights.open")}
+            </button>
+          </div>
+        : null}
+
         {predictionLockedReason && (
           <p className="text-sm text-amber-200/90">
             {getPredictionLockMessage(predictionLockedReason)}
@@ -328,43 +348,55 @@ export function PartyMatchPredictionCard({
               />
             </div>
 
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: WC_MUTED }}>
-                {t("party.exactScore")}
-              </span>
-              <div className="flex items-center justify-center gap-4">
-                <div className="flex flex-col items-center gap-1.5">
-                  <span className="text-[10px]" style={{ color: WC_MUTED }}>
-                    {t("party.match.home")}
-                  </span>
-                  <input
-                    value={p.predHomeGoals}
-                    onChange={(e) =>
-                      setP((s) => ({ ...s, predHomeGoals: e.target.value.replace(/\D/g, "") }))
-                    }
-                    maxLength={2}
-                    placeholder="0"
-                    className="w-12 h-12 text-lg text-center rounded-xl border outline-none font-bold"
-                    style={{ backgroundColor: WC_NAVY, borderColor: WC_BORDER, color: "#fff" }}
-                  />
-                </div>
-                <span className="text-xl font-bold mt-5" style={{ color: WC_MUTED }}>–</span>
-                <div className="flex flex-col items-center gap-1.5">
-                  <span className="text-[10px]" style={{ color: WC_MUTED }}>
-                    {t("party.match.away")}
-                  </span>
-                  <input
-                    value={p.predAwayGoals}
-                    onChange={(e) =>
-                      setP((s) => ({ ...s, predAwayGoals: e.target.value.replace(/\D/g, "") }))
-                    }
-                    maxLength={2}
-                    placeholder="0"
-                    className="w-12 h-12 text-lg text-center rounded-xl border outline-none font-bold"
-                    style={{ backgroundColor: WC_NAVY, borderColor: WC_BORDER, color: "#fff" }}
-                  />
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+              <div className="flex flex-col gap-2 flex-1">
+                <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: WC_MUTED }}>
+                  {t("party.exactScore")}
+                </span>
+                <div className="flex items-center justify-center sm:justify-start gap-4">
+                  <div className="flex flex-col items-center gap-1.5">
+                    <span className="text-[10px]" style={{ color: WC_MUTED }}>
+                      {t("party.match.home")}
+                    </span>
+                    <input
+                      value={p.predHomeGoals}
+                      onChange={(e) =>
+                        setP((s) => ({ ...s, predHomeGoals: e.target.value.replace(/\D/g, "") }))
+                      }
+                      maxLength={2}
+                      placeholder="0"
+                      className="w-12 h-12 text-lg text-center rounded-xl border outline-none font-bold"
+                      style={{ backgroundColor: WC_NAVY, borderColor: WC_BORDER, color: "#fff" }}
+                    />
+                  </div>
+                  <span className="text-xl font-bold mt-5" style={{ color: WC_MUTED }}>–</span>
+                  <div className="flex flex-col items-center gap-1.5">
+                    <span className="text-[10px]" style={{ color: WC_MUTED }}>
+                      {t("party.match.away")}
+                    </span>
+                    <input
+                      value={p.predAwayGoals}
+                      onChange={(e) =>
+                        setP((s) => ({ ...s, predAwayGoals: e.target.value.replace(/\D/g, "") }))
+                      }
+                      maxLength={2}
+                      placeholder="0"
+                      className="w-12 h-12 text-lg text-center rounded-xl border outline-none font-bold"
+                      style={{ backgroundColor: WC_NAVY, borderColor: WC_BORDER, color: "#fff" }}
+                    />
+                  </div>
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={pending}
+                className="w-full sm:w-auto shrink-0 px-8 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50 cursor-pointer hover:opacity-90 active:scale-[0.98]"
+                style={{ backgroundColor: WC_LIME, color: WC_NAVY }}
+              >
+                {pending ? t("party.savingPrediction") : t("party.savePrediction")}
+              </button>
             </div>
 
             <PotentialPoints
@@ -374,17 +406,6 @@ export function PartyMatchPredictionCard({
               ag={p.predAwayGoals}
               matchOdds={matchOddsRow}
             />
-
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={pending}
-              className="w-full sm:w-auto sm:self-end px-8 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50 cursor-pointer hover:opacity-90 active:scale-[0.98]"
-              style={{ backgroundColor: WC_LIME, color: WC_NAVY }}
-            >
-              {pending ? t("party.savingPrediction") : t("party.savePrediction")}
-            </button>
-
           </>
         )}
 
@@ -404,6 +425,19 @@ export function PartyMatchPredictionCard({
           </p>
         )}
       </div>
+
+      {homeId != null && awayId != null ?
+        <MatchInsightsModal
+          open={insightsOpen}
+          onClose={() => setInsightsOpen(false)}
+          matchId={m.id}
+          homeId={homeId}
+          awayId={awayId}
+          homeName={home}
+          awayName={away}
+          competition={competition}
+        />
+      : null}
     </div>
   );
 }

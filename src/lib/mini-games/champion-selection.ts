@@ -1,7 +1,7 @@
 import { CHAMPION_PLAYERS } from "@/data/mini-games/champions";
 import { TRIVIA_ROTATION_ANCHOR } from "./trivia-selection";
 
-const MASTER_SEED = "pronohub-champion-master-v1";
+const MASTER_SEED = "Liga Prono-champion-master-v1";
 
 function hashString(input: string): number {
   let h = 2166136261;

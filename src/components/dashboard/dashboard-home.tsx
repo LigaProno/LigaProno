@@ -1,14 +1,17 @@
-﻿"use client";
+"use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useMemo } from "react";
 import type { WcNewsItem } from "@/lib/wc-dashboard-news";
+import type { DashboardNewsLeagueId } from "@/lib/dashboard-news-leagues";
 import {
   ALLOWED_NEWS_PUBLISHER_LABELS,
   NEWS_FALLBACK_IMAGES,
   resolveNewsImageUrl,
 } from "@/lib/gemini-wc-news";
 import NewsCardImage from "@/components/dashboard/news-card-image";
+import { DashboardNewsLeaguePicker } from "@/components/dashboard/dashboard-news-league-picker";
 import { useLocale } from "@/components/i18n/locale-provider";
 import {
   WC_CYAN,
@@ -18,8 +21,7 @@ import {
   WC_NAVY,
 } from "@/components/world-cup/wc-theme";
 
-const WC2026_EMBLEM = "/wc2026-emblem.svg";
-const WC2026_HERO_VIDEO = "/wc2026-hero.mp4";
+const HERO_IMAGE = "/newhero.jpg";
 
 function formatNewsDate(
   iso: string | undefined,
@@ -157,12 +159,14 @@ type DashboardHomeProps = {
   news: WcNewsItem[];
   newsFetchedAt: Date | null;
   newsDateKey: string;
+  leagueId: DashboardNewsLeagueId;
 };
 
 export default function DashboardHome({
   news,
   newsFetchedAt,
   newsDateKey,
+  leagueId,
 }: DashboardHomeProps) {
   const { t, dateLocale } = useLocale();
 
@@ -186,48 +190,25 @@ export default function DashboardHome({
   return (
     <div className="flex-1 min-h-0 overflow-y-auto">
       <section
-        className="relative overflow-hidden min-h-[min(88vh,780px)] flex items-center"
+        className="relative overflow-hidden min-h-[min(72vh,640px)] flex items-center"
         style={{ backgroundColor: WC_NAVY }}
       >
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          aria-hidden
-          className="absolute inset-0 w-full h-full object-cover motion-reduce:hidden"
-          poster={WC2026_EMBLEM}
-        >
-          <source src={WC2026_HERO_VIDEO} type="video/mp4" />
-        </video>
-
-        <div
-          className="absolute inset-0 motion-reduce:block hidden"
-          style={{
-            background:
-              "linear-gradient(160deg, rgba(8,11,18,0.98) 0%, rgba(22,101,52,0.25) 50%, rgba(8,11,18,0.98) 100%)",
-          }}
+        <Image
+          src={HERO_IMAGE}
+          alt=""
+          fill
+          priority
+          className="object-cover object-center"
+          sizes="100vw"
         />
 
         <div
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(to bottom, rgba(8,11,18,0.45) 0%, rgba(8,11,18,0.25) 40%, rgba(8,11,18,0.75) 100%)",
+              "linear-gradient(to bottom, rgba(8,11,18,0.55) 0%, rgba(8,11,18,0.35) 45%, rgba(8,11,18,0.82) 100%)",
           }}
         />
-
-        <div className="absolute top-5 left-5 sm:top-7 sm:left-8 lg:top-8 lg:left-10 z-20 pointer-events-none">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={WC2026_EMBLEM}
-            alt="FIFA World Cup 2026"
-            width={96}
-            height={148}
-            className="w-14 sm:w-16 md:w-20 h-auto drop-shadow-[0_4px_24px_rgba(0,0,0,0.65)]"
-          />
-        </div>
 
         <div className="relative z-10 w-full px-6 sm:px-10 lg:px-14 py-16 sm:py-20 max-w-6xl mx-auto flex flex-col items-center justify-center text-center min-h-[inherit]">
           <p
@@ -258,27 +239,30 @@ export default function DashboardHome({
 
       <div className="px-6 sm:px-10 lg:px-14 pb-16 max-w-6xl mx-auto space-y-12 mt-8">
         <section>
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">
-                {t("dashboard.news.title")}
-              </h2>
-              <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
-                {newsSourcesLine}
-                {updatedLabel ?
-                  t("dashboard.news.lastUpdate", { date: updatedLabel })
-                : ""}
-              </p>
+          <div className="flex flex-col gap-4 mb-5">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">
+                  {t("dashboard.news.title")}
+                </h2>
+                <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
+                  {newsSourcesLine}
+                  {updatedLabel ?
+                    t("dashboard.news.lastUpdate", { date: updatedLabel })
+                  : ""}
+                </p>
+              </div>
+              <span
+                className="text-xs font-mono px-3 py-1.5 rounded-lg shrink-0"
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.06)",
+                  color: "rgba(255,255,255,0.4)",
+                }}
+              >
+                {newsDateKey}
+              </span>
             </div>
-            <span
-              className="text-xs font-mono px-3 py-1.5 rounded-lg shrink-0"
-              style={{
-                backgroundColor: "rgba(255,255,255,0.06)",
-                color: "rgba(255,255,255,0.4)",
-              }}
-            >
-              {newsDateKey}
-            </span>
+            <DashboardNewsLeaguePicker activeLeagueId={leagueId} />
           </div>
 
           {news.length === 0 ?

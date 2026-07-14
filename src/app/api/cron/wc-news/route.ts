@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { refreshTodayWcNews } from "@/lib/wc-dashboard-news";
+import { refreshAllDashboardNews } from "@/lib/wc-dashboard-news";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -18,9 +18,9 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const result = await refreshTodayWcNews();
+    const results = await refreshAllDashboardNews();
     revalidatePath("/dashboard");
-    return NextResponse.json({ ok: true, ...result });
+    return NextResponse.json({ ok: true, results });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unknown error";
     console.error("wc-news cron:", e);

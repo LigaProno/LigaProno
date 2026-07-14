@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -69,6 +69,7 @@ export default function PartyWcDashboard({
   lastManualOddsRefreshAt = null,
   canManualRefreshOddsToday = true,
   nextThreeMemberPreds = [],
+  currentMatchday = 1,
 }: {
   tournamentId: string;
   tournamentName: string;
@@ -92,6 +93,7 @@ export default function PartyWcDashboard({
   lastManualOddsRefreshAt?: string | null;
   canManualRefreshOddsToday?: boolean;
   nextThreeMemberPreds?: NextThreeMatchPreds[];
+  currentMatchday?: number;
 }) {
   const router = useRouter();
   const { t, dateLocale } = useLocale();
@@ -160,6 +162,7 @@ export default function PartyWcDashboard({
         tournamentId={tournamentId}
         matchOddsRow={bettingOddsByMatchId[String(m.id)] ?? null}
         initial={predFromSaved(myPreds[m.id])}
+        competition={competition}
         predictionLockedReason={lockReasonForMatch(m)}
         registerMatchDraft={registerMatchDraft}
         unregisterMatchDraft={unregisterMatchDraft}
@@ -235,7 +238,11 @@ export default function PartyWcDashboard({
         {competitionActive ?
           <div className="flex flex-col sm:flex-row gap-2 shrink-0 self-start">
             <Link
-              href="/matches"
+              href={
+                competition ?
+                  `/matches?competition=${encodeURIComponent(competition)}`
+                : "/matches"
+              }
               className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-xs font-bold border transition-opacity hover:opacity-90"
               style={{
                 borderColor: "rgba(96,165,250,0.35)",
@@ -458,6 +465,7 @@ export default function PartyWcDashboard({
               <NextThreePredictionsPanel
                 matches={nextThreeMemberPreds}
                 currentUserId={currentUserId}
+                title={t("party.matchdayPreds.title", { matchday: currentMatchday })}
               />
             </div>
           )}

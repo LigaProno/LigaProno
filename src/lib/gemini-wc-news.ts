@@ -43,7 +43,7 @@ function allowedSitesBlock(): string {
 }
 
 function newsPrompt(todayIso: string): string {
-  return `Ești editor sportiv pentru PronoHub (România). Data: ${todayIso}.
+  return `Ești editor sportiv pentru Liga Prono (România). Data: ${todayIso}.
 
 Folosește Google Search. Găsește exact ${TARGET_NEWS_COUNT} articole REALE, publicate recent, despre Cupa Mondială 2026.
 

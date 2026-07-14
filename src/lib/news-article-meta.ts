@@ -11,7 +11,7 @@ export type WcNewsItem = {
 
 const FETCH_HEADERS = {
   "User-Agent":
-    "Mozilla/5.0 (compatible; PronoHub/1.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (compatible; Liga Prono/1.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
   Accept: "text/html,application/xhtml+xml",
   "Accept-Language": "ro-RO,ro;q=0.9,en;q=0.5",
 };

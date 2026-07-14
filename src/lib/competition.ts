@@ -38,3 +38,15 @@ export function parseStoredCompetition(
   return { code: m[1].toUpperCase(), season: m[2] };
 }
 
+/** Rezolvă cheia stocată (ex. RL1_2026) → opțiune picker; fallback prima competiție. */
+export function findCompetitionPickerOption(
+  storageKey: string | null | undefined,
+): FootballDataCompetitionPickerOption {
+  const key = storageKey?.trim();
+  if (key) {
+    const found = COMPETITION_PICKER_OPTIONS.find((o) => o.storageKey === key);
+    if (found) return found;
+  }
+  return COMPETITION_PICKER_OPTIONS[0];
+}
+

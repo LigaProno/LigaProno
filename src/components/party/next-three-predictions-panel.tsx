@@ -1,8 +1,9 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { formatMatchKickoff } from "@/lib/match-datetime";
+import { formatTeamDisplayName } from "@/lib/team-display";
 import type { MatchPredDisplay } from "@/lib/wc-pred-display";
 
 export type NextThreeTeamSide = {
@@ -44,8 +45,8 @@ function MatchPredictionsTable({
 }) {
   const when = formatMatchKickoff(block.utcDate, dateLocale);
   const venue = block.venue ?? stadiumTbd;
-  const homeLabel = block.homeTeam.shortName ?? block.homeTeam.name;
-  const awayLabel = block.awayTeam.shortName ?? block.awayTeam.name;
+  const homeLabel = formatTeamDisplayName(block.homeTeam);
+  const awayLabel = formatTeamDisplayName(block.awayTeam);
 
   return (
     <article
@@ -148,20 +149,24 @@ export function NextThreePredictionsPanel({
   matches,
   currentUserId,
   hideTitle = false,
+  title,
 }: {
   matches: NextThreeMatchPreds[];
   currentUserId: string;
   hideTitle?: boolean;
+  title?: string;
 }) {
   const { t, dateLocale } = useLocale();
 
   if (matches.length === 0) return null;
 
+  const heading = title ?? t("party.nextThree.title");
+
   return (
     <section className="flex flex-col gap-4">
       {!hideTitle ?
         <h3 className="text-white font-semibold text-base sm:text-lg px-0.5">
-          {t("party.nextThree.title")}
+          {heading}
         </h3>
       : null}
       <div className="flex flex-col gap-4">

@@ -1,6 +1,7 @@
 import type { FootballDataMatch, FootballDataTeam } from "@/lib/football-data";
 import type { MatchPredictionInput } from "@/lib/wc-scoring";
 import { getMatchScoreAfter90 } from "@/lib/match-score";
+import { formatTeamDisplayName } from "@/lib/team-display";
 
 function isKnockoutStageLocal(stage: string | undefined): boolean {
   return !!stage && stage !== "GROUP_STAGE" && stage !== "REGULAR_SEASON";
@@ -37,8 +38,7 @@ export function matchResultFtWithSuffix(
 }
 
 export function teamShort(t: FootballDataTeam | undefined): string {
-  if (!t) return "?";
-  return (t.tla ?? t.shortName ?? t.name ?? "?").trim() || "?";
+  return formatTeamDisplayName(t);
 }
 
 export function hasAnyMatchPrediction(p: MatchPredictionInput | null | undefined): boolean {
@@ -214,4 +214,33 @@ export function lastFinishedAndNextThree(matches: FootballDataMatch[]): {
     .slice(0, 3);
 
   return { lastFinished, nextThree: upcoming };
+}
+
+/** Etapa curentă: prima etapă cu meciuri nedecise; altfel ultima etapă. */
+export function resolveCurrentMatchday(matches: FootballDataMatch[]): number {
+  const byMatchday = new Map<number, FootballDataMatch[]>();
+  for (const m of matches) {
+    const md = m.matchday ?? 0;
+    if (md > 0) {
+      if (!byMatchday.has(md)) byMatchday.set(md, []);
+      byMatchday.get(md)!.push(m);
+    }
+  }
+  const sorted = [...byMatchday.keys()].sort((a, b) => a - b);
+  for (const md of sorted) {
+    const mdMatches = byMatchday.get(md)!;
+    if (mdMatches.some((m) => m.status !== "FINISHED" && m.status !== "AWARDED")) {
+      return md;
+    }
+  }
+  return sorted[sorted.length - 1] ?? 1;
+}
+
+export function matchesForMatchday(
+  matches: FootballDataMatch[],
+  matchday: number,
+): FootballDataMatch[] {
+  return matches
+    .filter((m) => (m.matchday ?? 0) === matchday)
+    .sort((a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate));
 }

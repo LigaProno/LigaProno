@@ -1,4 +1,4 @@
-/** Tokens vizuale partajate — PronoHub */
+/** Tokens vizuale partajate — Liga Prono */
 export const WC_NAVY = "#0F172A";
 export const WC_SLATE = "#1E293B";
 export const WC_CYAN = "#22D3EE";

@@ -88,7 +88,7 @@ export default function RulesModal() {
                 }}
               >
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] mb-1" style={{ color: CYAN }}>PronoHub</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] mb-1" style={{ color: CYAN }}>Liga Prono</p>
                   <h2 className="text-lg font-bold text-white">{ro ? "Cum funcționează?" : "How it works?"}</h2>
                 </div>
                 <button

@@ -1,4 +1,4 @@
-﻿import { Suspense } from "react";
+import { Suspense } from "react";
 import {
   fetchCompetitionMatchesFresh,
   fetchPartyStandings,
@@ -8,7 +8,7 @@ import {
   type FootballDataMatch,
   type GroupStanding,
 } from "@/lib/football-data";
-import { COMPETITION_PICKER_OPTIONS } from "@/lib/competition";
+import { findCompetitionPickerOption } from "@/lib/competition";
 import { Cm2026FootballDataClient } from "./cm2026-client";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { MatchesLoading } from "@/components/matches/matches-loading";
@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
 export default async function MatchesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; competition?: string }>;
 }) {
   const locale = await getLocaleFromCookies();
   const t = createTranslator(locale);
@@ -31,13 +31,14 @@ export default async function MatchesPage({
   const initialTab =
     sp.tab === "matches" ? ("matches" as const) : ("standings" as const);
 
+  const selectedComp = findCompetitionPickerOption(sp.competition);
+
   let standings: GroupStanding[] = [];
   let matches: FootballDataMatch[] = [];
   let loadError: string | null = null;
 
-  const defaultComp = COMPETITION_PICKER_OPTIONS[0];
   try {
-    matches = await fetchCompetitionMatchesFresh(defaultComp.code, defaultComp.season);
+    matches = await fetchCompetitionMatchesFresh(selectedComp.code, selectedComp.season);
   } catch (e) {
     loadError =
       e instanceof Error ? e.message : t("matches.loadErrorDefault");
@@ -45,7 +46,7 @@ export default async function MatchesPage({
 
   if (!loadError) {
     try {
-      standings = await fetchPartyStandings(defaultComp.code, defaultComp.season, matches);
+      standings = await fetchPartyStandings(selectedComp.code, selectedComp.season, matches);
     } catch {
       standings = [];
     }
@@ -123,6 +124,8 @@ export default async function MatchesPage({
         <Suspense fallback={<MatchesLoading />}>
           <Cm2026FootballDataClient
             initialTab={initialTab}
+            competitionKey={selectedComp.storageKey}
+            competitionLabel={selectedComp.label}
             standings={standings}
             groupKeysOrdered={groupKeysOrdered}
             groupMatches={groupMatches}

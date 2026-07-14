@@ -1,10 +1,11 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 import { useLocale } from "@/components/i18n/locale-provider";
 import type { MessageKey } from "@/lib/i18n";
 import RulesModal from "@/components/RulesModal";
@@ -46,7 +47,7 @@ function NavLinks({
   const { t } = useLocale();
 
   return (
-    <nav className="flex-1 px-3 py-3 flex flex-col gap-0.5 overflow-y-auto">
+    <>
       {items.map((item) => {
         const active = item.match(pathname);
         return (
@@ -86,16 +87,28 @@ function NavLinks({
           </Link>
         );
       })}
-    </nav>
+    </>
   );
 }
+
+const profileIcon = (
+  <svg className="w-[18px] h-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth={1.7} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+  </svg>
+);
+
+const supportIcon = (
+  <svg className="w-[18px] h-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth={1.7} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
 
 export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const { t } = useLocale();
 
-  const navItems: NavItem[] = [
+  const mainNavItems: NavItem[] = [
     {
       href: "/dashboard",
       labelKey: "nav.dashboard",
@@ -121,26 +134,6 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
         </svg>
       ),
     },
-    {
-      href: "/profil",
-      labelKey: "nav.profile",
-      match: (p) => p === "/profil" || p.startsWith("/profil/"),
-      icon: (
-        <svg className="w-[18px] h-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth={1.7} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-        </svg>
-      ),
-    },
-    {
-      href: "/support",
-      labelKey: "nav.support",
-      match: (p) => p === "/support",
-      icon: (
-        <svg className="w-[18px] h-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth={1.7} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-    },
     ...(isAdmin ? [{
       href: "/admin",
       labelKey: "nav.admin" as const,
@@ -154,6 +147,21 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
     }] : []),
   ];
 
+  const bottomNavItems: NavItem[] = [
+    {
+      href: "/profil",
+      labelKey: "nav.profile",
+      match: (p) => p === "/profil" || p.startsWith("/profil/"),
+      icon: profileIcon,
+    },
+    {
+      href: "/support",
+      labelKey: "nav.support",
+      match: (p) => p === "/support",
+      icon: supportIcon,
+    },
+  ];
+
   const logoArea = (onClick?: () => void) => (
     <div className="h-14 flex items-center px-4 shrink-0" style={{ borderBottom: `1px solid ${SIDEBAR_BDR}` }}>
       <Link href="/dashboard" className="flex items-center gap-2.5" onClick={onClick}>
@@ -165,9 +173,15 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
     </div>
   );
 
-  const bottomArea = () => (
+  const bottomArea = (onClick?: () => void) => (
     <div className="p-4 shrink-0 flex flex-col gap-3" style={{ borderTop: `1px solid ${SIDEBAR_BDR}` }}>
-      <LanguageSwitcher />
+      <div className="px-0 flex flex-col gap-0.5">
+        <NavLinks pathname={pathname} items={bottomNavItems} onClick={onClick} />
+      </div>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <LanguageSwitcher />
+        <SignOutButton />
+      </div>
     </div>
   );
 
@@ -185,6 +199,7 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
         </Link>
         <div className="flex items-center gap-2">
           <LanguageSwitcher compact />
+          <SignOutButton compact />
           <button
             onClick={() => setOpen(true)}
             className="p-1.5 rounded-md transition-colors hover:bg-white/8"
@@ -210,12 +225,14 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
         style={{ backgroundColor: SIDEBAR_BG, borderRight: `1px solid ${SIDEBAR_BDR}` }}
       >
         {logoArea(() => setOpen(false))}
-        <NavLinks pathname={pathname} items={navItems} onClick={() => setOpen(false)} />
+        <nav className="flex-1 px-3 py-3 flex flex-col gap-0.5 overflow-y-auto">
+          <NavLinks pathname={pathname} items={mainNavItems} onClick={() => setOpen(false)} />
+        </nav>
         <div className="px-3 pb-1">
           <div className="mb-1" style={{ borderTop: `1px solid ${SIDEBAR_BDR}` }} />
           <RulesModal />
         </div>
-        {bottomArea()}
+        {bottomArea(() => setOpen(false))}
       </aside>
 
       <aside
@@ -223,7 +240,9 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
         style={{ backgroundColor: SIDEBAR_BG, borderRight: `1px solid ${SIDEBAR_BDR}` }}
       >
         {logoArea()}
-        <NavLinks pathname={pathname} items={navItems} />
+        <nav className="flex-1 px-3 py-3 flex flex-col gap-0.5 overflow-y-auto">
+          <NavLinks pathname={pathname} items={mainNavItems} />
+        </nav>
         <div className="px-3 pb-1">
           <div className="mb-1" style={{ borderTop: `1px solid ${SIDEBAR_BDR}` }} />
           <RulesModal />

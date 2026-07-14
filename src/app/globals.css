@@ -652,6 +652,106 @@ button:disabled { cursor: not-allowed; }
 .app-btn-danger:hover:not(:disabled) { background: rgba(239,68,68,0.2); }
 .app-btn-danger:disabled { opacity: 0.55; cursor: not-allowed; }
 
+/* ── Turnee page ─────────────────────────────────────────────────────── */
+.turnee-page {
+  position: relative;
+}
+
+.turnee-kicker {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #C5A059;
+}
+
+.turnee-hero {
+  position: relative;
+  padding: 1.5rem 1.25rem 1.75rem;
+  border-radius: 1.25rem;
+  background:
+    radial-gradient(ellipse 80% 60% at 100% 0%, rgba(197,160,89,0.12) 0%, transparent 55%),
+    var(--surface);
+  border: 1px solid var(--border-md);
+  box-shadow: var(--card-shadow-lg);
+  overflow: hidden;
+}
+
+.turnee-hero-accent,
+.turnee-panel-accent {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #C5A059, transparent);
+}
+
+.turnee-step {
+  display: flex;
+  gap: 0.875rem;
+  align-items: flex-start;
+  padding: 1rem 1rem 1.05rem;
+  border-radius: 1rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+
+.turnee-step-num {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #C5A059;
+  padding-top: 0.125rem;
+  shrink: 0;
+  flex-shrink: 0;
+}
+
+.turnee-panel {
+  position: relative;
+  border-radius: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border-md);
+  box-shadow: var(--card-shadow-lg);
+  overflow: hidden;
+}
+
+.turnee-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #C5A059;
+  background: rgba(197,160,89,0.12);
+  border: 1px solid rgba(197,160,89,0.24);
+}
+
+.turnee-actions-widget {
+  position: relative;
+  border-radius: 1.125rem;
+  background: var(--surface);
+  border: 1px solid rgba(197,160,89,0.22);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 0 0 1px rgba(197,160,89,0.06) inset;
+  overflow: hidden;
+}
+
+.turnee-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #071428;
+  background: linear-gradient(135deg, #C5A059 0%, #D4AF37 100%);
+  box-shadow: 0 4px 16px rgba(197,160,89,0.22);
+  text-decoration: none;
+}
+
 /* ── Autofill ────────────────────────────────────────────────────────── */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,

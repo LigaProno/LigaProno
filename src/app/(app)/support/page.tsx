@@ -28,7 +28,7 @@ export default async function SupportPage() {
         {/* Header */}
         <div className="flex flex-col gap-1">
           <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: "#22D3EE" }}>
-            PronoHub
+            Liga Prono
           </p>
           <h1 className="text-3xl font-bold text-white">Support</h1>
           <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>
@@ -43,7 +43,7 @@ export default async function SupportPage() {
         >
           {[
             { icon: "⏱", label: "Timp răspuns", value: "< 24h" },
-            { icon: "📧", label: "Email direct", value: "pronohub6767@gmail.com" },
+            { icon: "📧", label: "Email direct", value: "Liga Prono6767@gmail.com" },
             { icon: "🐛", label: "Bug report?", value: "Include pașii de reproducere" },
           ].map(({ icon, label, value }) => (
             <div key={label} className="flex items-center gap-3 min-w-0">

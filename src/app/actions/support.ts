@@ -38,13 +38,13 @@ export async function sendSupportEmail(formData: {
   };
 
   await transporter.sendMail({
-    from: `"PronoHub Support" <${process.env.EMAIL_USER}>`,
-    to: "pronohub6767@gmail.com",
+    from: `"Liga Prono Support" <${process.env.EMAIL_USER}>`,
+    to: "Liga Prono6767@gmail.com",
     replyTo: email.trim(),
-    subject: `[PronoHub] ${categoryLabel[category] ?? category} — ${name.trim()}`,
+    subject: `[Liga Prono] ${categoryLabel[category] ?? category} — ${name.trim()}`,
     html: `
       <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
-        <h2 style="color:#22D3EE;margin-bottom:4px">PronoHub Support</h2>
+        <h2 style="color:#22D3EE;margin-bottom:4px">Liga Prono Support</h2>
         <p style="color:#888;font-size:13px;margin-top:0">${new Date().toLocaleString("ro-RO", { timeZone: "Europe/Bucharest" })}</p>
         <table style="border-collapse:collapse;width:100%;margin-top:16px">
           <tr><td style="padding:8px 0;color:#888;width:100px">Nume</td><td style="padding:8px 0;font-weight:600">${name.trim()}</td></tr>
