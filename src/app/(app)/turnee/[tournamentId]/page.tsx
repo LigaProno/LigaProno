@@ -30,6 +30,10 @@ import {
 } from "@/lib/wc-scoring";
 import { createTranslator } from "@/lib/i18n";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
+import {
+  fetchPublicTournamentsForNaming,
+  resolveTournamentDisplayName,
+} from "@/lib/public-tournaments";
 
 function displayName(first?: string | null, last?: string | null): string {
   const s = `${first ?? ""} ${last ?? ""}`.trim();
@@ -48,7 +52,7 @@ export default async function PartyTournamentPage({
   const { userId: clerkId } = await auth();
   if (!clerkId) redirect("/sign-in");
 
-  const [user, tournament, wcMatchPreds] =
+  const [user, tournament, wcMatchPreds, publicTournamentsForNaming] =
     await Promise.all([
       prisma.user.findUnique({ where: { clerkId } }),
       prisma.tournament.findUnique({
@@ -62,6 +66,7 @@ export default async function PartyTournamentPage({
         },
       }),
       prisma.wcMatchPrediction.findMany({ where: { tournamentId } }),
+      fetchPublicTournamentsForNaming(),
     ]);
 
   if (!user) redirect("/sign-in");
@@ -235,6 +240,12 @@ export default async function PartyTournamentPage({
     }
   }
 
+  const tournamentDisplayName = resolveTournamentDisplayName(
+    tournament,
+    publicTournamentsForNaming,
+    (key) => t(key),
+  );
+
   return (
     <div className="flex-1 p-4 sm:p-6 md:p-8 max-w-4xl mx-auto w-full">
       <Link
@@ -262,9 +273,10 @@ export default async function PartyTournamentPage({
 
       <PartyWcDashboard
         tournamentId={tournament.id}
-        tournamentName={tournament.name}
+        tournamentName={tournamentDisplayName}
         inviteCode={tournament.inviteCode}
         competition={tournament.competition}
+        isPublic={tournament.isPublic}
         isCreator={isCreator}
         currentUserId={user.id}
         matches={matches}

@@ -7,8 +7,13 @@ import { COMPETITION_PICKER_OPTIONS } from "@/lib/competition";
 import CreatePublicTournamentForm from "./CreatePublicTournamentForm";
 import DeletePublicTournamentButton from "./DeletePublicTournamentButton";
 import { parsePrizes, placeLabel } from "@/lib/tournament-prizes";
+import { createTranslator } from "@/lib/i18n";
+import { getLocaleFromCookies } from "@/lib/i18n/server";
+import { resolveTournamentDisplayName } from "@/lib/public-tournaments";
 
 export default async function AdminPage() {
+  const locale = await getLocaleFromCookies();
+  const t = createTranslator(locale);
   const { userId: clerkId } = await auth();
   if (!clerkId) redirect("/sign-in");
 
@@ -18,7 +23,7 @@ export default async function AdminPage() {
   const publicTournaments = await prisma.tournament.findMany({
     where: { isPublic: true },
     include: { _count: { select: { members: true } } },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: "asc" },
   });
 
   return (
@@ -56,20 +61,22 @@ export default async function AdminPage() {
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                {publicTournaments.map((t) => (
+                {publicTournaments.map((tournament) => (
                   <div
-                    key={t.id}
+                    key={tournament.id}
                     className="rounded-xl border px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
                     style={{ backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.08)", boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}
                   >
                     <div className="flex flex-col gap-1">
-                      <span className="text-white font-semibold">{t.name}</span>
-                      <span className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-                        {t.competition ?? "—"} · {t._count.members} membri
+                      <span className="text-white font-semibold">
+                        {resolveTournamentDisplayName(tournament, publicTournaments, (key) => t(key))}
                       </span>
-                      {parsePrizes(t.prizes).length > 0 && (
+                      <span className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
+                        {tournament._count.members} membri
+                      </span>
+                      {parsePrizes(tournament.prizes).length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-0.5">
-                          {parsePrizes(t.prizes).map((p) => (
+                          {parsePrizes(tournament.prizes).map((p) => (
                             <span
                               key={p.place}
                               className="text-xs px-2 py-0.5 rounded-md font-medium"
@@ -82,20 +89,14 @@ export default async function AdminPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-3 flex-wrap">
-                      <div
-                        className="px-3 py-1 rounded-lg text-xs font-bold tracking-widest"
-                        style={{ backgroundColor: "rgba(59,130,246,0.1)", color: "#3B82F6" }}
-                      >
-                        {t.inviteCode}
-                      </div>
                       <Link
-                        href={`/turnee/${t.id}`}
+                        href={`/turnee/${tournament.id}`}
                         className="px-4 py-2 rounded-xl text-xs font-bold transition-opacity hover:opacity-90"
                         style={{ backgroundColor: "#3B82F6", color: "#0A0B1E" }}
                       >
                         Deschide
                       </Link>
-                      <DeletePublicTournamentButton tournamentId={t.id} />
+                      <DeletePublicTournamentButton tournamentId={tournament.id} />
                     </div>
                   </div>
                 ))}

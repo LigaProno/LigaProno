@@ -23,12 +23,14 @@ export function PotentialPoints({
   hg,
   ag,
   matchOdds,
+  hideOddsUnavailable = false,
 }: {
   ht: string;
   ft: string;
   hg: string;
   ag: string;
   matchOdds: MatchOddsRow | null | undefined;
+  hideOddsUnavailable?: boolean;
 }) {
   const { t } = useLocale();
   const hasAny = ht || ft || (hg !== "" && ag !== "");
@@ -86,7 +88,7 @@ export function PotentialPoints({
       <span className="text-xs font-bold ml-auto" style={{ color: LIME }}>
         {t("potentialPoints.potentialTotal", { total })}
       </span>
-      {noOdds && (
+      {noOdds && !hideOddsUnavailable && (
         <span className="text-xs w-full" style={{ color: "rgba(251,146,60,0.7)" }}>
           {t("potentialPoints.oddsUnavailable")}
         </span>

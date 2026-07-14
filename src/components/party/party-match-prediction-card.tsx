@@ -136,6 +136,7 @@ export function PartyMatchPredictionCard({
   initial,
   predictionLockedReason = null,
   competition = null,
+  hideOddsUnavailable = false,
   onSaved,
   onError,
   registerMatchDraft,
@@ -147,6 +148,7 @@ export function PartyMatchPredictionCard({
   initial: MatchPredState;
   predictionLockedReason?: PredictionLockedReason | null;
   competition?: string | null;
+  hideOddsUnavailable?: boolean;
   onSaved: () => void;
   onError: (msg: string) => void;
   registerMatchDraft?: (
@@ -405,6 +407,7 @@ export function PartyMatchPredictionCard({
               hg={p.predHomeGoals}
               ag={p.predAwayGoals}
               matchOdds={matchOddsRow}
+              hideOddsUnavailable={hideOddsUnavailable}
             />
           </>
         )}

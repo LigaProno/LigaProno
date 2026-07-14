@@ -23,15 +23,14 @@ const GOLD = "#C5A059";
 
 function LogoMark() {
   return (
-    <div
-      className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg"
-      style={{
-        boxShadow: "0 0 16px rgba(197,160,89,0.22)",
-        border: "1px solid rgba(197,160,89,0.25)",
-      }}
-    >
-      <Image src="/logo-liga-prono.png" alt="" fill className="object-cover" sizes="32px" />
-    </div>
+    <Image
+      src="/logo-liga-prono.png"
+      alt="Liga Prono"
+      width={36}
+      height={36}
+      className="h-9 w-9 shrink-0 object-contain"
+      priority
+    />
   );
 }
 

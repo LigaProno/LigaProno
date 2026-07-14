@@ -4,6 +4,10 @@ import { createTranslator } from "@/lib/i18n";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
 import { pageTitle } from "@/lib/site-metadata";
 import { prisma } from "@/lib/prisma";
+import {
+  getVisiblePublicTournaments,
+  resolveTournamentDisplayName,
+} from "@/lib/public-tournaments";
 import TournamentActionsWidget from "@/components/turnee/tournament-actions-widget";
 import { TurneePageHeader } from "@/components/turnee/turnee-page-header";
 import { TurneeMyTournamentCard } from "@/components/turnee/turnee-my-tournament-card";
@@ -37,14 +41,19 @@ export default async function TurneePage() {
   const tournaments = user?.memberships.map((m) => m.tournament) ?? [];
   const userId = user?.id ?? null;
   const joinedIds = new Set(tournaments.map((tournament) => tournament.id));
+  const privateTournaments = tournaments.filter((tournament) => !tournament.isPublic);
 
   const publicTournaments = await prisma.tournament.findMany({
     where: { isPublic: true },
     include: { _count: { select: { members: true } } },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: "asc" },
   });
 
-  const unjoinedPublic = publicTournaments.filter((pt) => !joinedIds.has(pt.id));
+  const visiblePublicTournaments = getVisiblePublicTournaments(publicTournaments);
+
+  function displayName(tournament: { id: string; name: string; isPublic: boolean }) {
+    return resolveTournamentDisplayName(tournament, publicTournaments, (key) => t(key));
+  }
 
   function competitionLabel(competition: string | null) {
     if (!competition) return null;
@@ -78,13 +87,13 @@ export default async function TurneePage() {
           <div>
             <TurneeSectionTitle
               title={t("tournament.page.yourTournaments")}
-              count={tournaments.length}
+              count={privateTournaments.length}
             />
-            {tournaments.length === 0 ?
+            {privateTournaments.length === 0 ?
               <TurneeEmptyState message={t("tournament.page.noTournaments")} />
             : (
               <div className="flex flex-col gap-3">
-                {tournaments.map((tournament) => (
+                {privateTournaments.map((tournament) => (
                   <TurneeMyTournamentCard
                     key={tournament.id}
                     id={tournament.id}
@@ -104,22 +113,23 @@ export default async function TurneePage() {
             )}
           </div>
 
-          {unjoinedPublic.length > 0 ?
+          {visiblePublicTournaments.length > 0 ?
             <div>
               <TurneeSectionTitle
                 title={t("tournament.page.publicTitle")}
                 badge={t("tournament.page.publicBadge")}
-                count={unjoinedPublic.length}
+                count={visiblePublicTournaments.length}
               />
               <div className="flex flex-col gap-3">
-                {unjoinedPublic.map((pt) => (
+                {visiblePublicTournaments.map((pt) => (
                   <TurneePublicTournamentCard
                     key={pt.id}
                     id={pt.id}
-                    name={pt.name}
-                    competitionLabel={competitionLabel(pt.competition)}
+                    name={displayName(pt)}
                     memberCount={pt._count.members}
                     prizesRaw={pt.prizes}
+                    isJoined={joinedIds.has(pt.id)}
+                    openLabel={t("tournament.page.open")}
                   />
                 ))}
               </div>

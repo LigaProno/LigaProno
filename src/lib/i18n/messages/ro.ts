@@ -57,6 +57,8 @@ export const ro: Messages = {
   "tournament.page.joinTabHint": "Ai primit un cod? Introdu-l aici și intri în turneu.",
   "tournament.page.publicTitle": "Turnee publice",
   "tournament.page.publicBadge": "Deschise tuturor",
+  "tournament.page.publicContest1": "Concurs cu premii 1",
+  "tournament.page.publicContest2": "Concurs cu Premii 2",
   "tournament.create.title": "Creează turneu",
   "tournament.create.subtitle": "Pornește un party nou și invită prietenii",
   "tournament.create.nameLabel": "Nume turneu",
@@ -88,6 +90,7 @@ export const ro: Messages = {
 
   "party.privateTournament": "Turneu privat",
   "party.inviteCode": "Cod invitație",
+  "party.publicContest": "Concurs cu premii",
   "party.oddsAt": "Cote",
   "party.oddsUnavailable": "Cote indisponibile (×1)",
   "party.oddsMatchCount": "{count} meciuri",

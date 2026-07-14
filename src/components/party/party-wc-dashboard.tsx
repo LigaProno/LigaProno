@@ -59,6 +59,7 @@ export default function PartyWcDashboard({
   tournamentName,
   inviteCode,
   competition,
+  isPublic = false,
   isCreator,
   currentUserId,
   matches,
@@ -75,6 +76,7 @@ export default function PartyWcDashboard({
   tournamentName: string;
   inviteCode: string;
   competition: string | null;
+  isPublic?: boolean;
   isCreator: boolean;
   currentUserId: string;
   matches: FootballDataMatch[];
@@ -163,6 +165,7 @@ export default function PartyWcDashboard({
         matchOddsRow={bettingOddsByMatchId[String(m.id)] ?? null}
         initial={predFromSaved(myPreds[m.id])}
         competition={competition}
+        hideOddsUnavailable={isPublic}
         predictionLockedReason={lockReasonForMatch(m)}
         registerMatchDraft={registerMatchDraft}
         unregisterMatchDraft={unregisterMatchDraft}
@@ -210,28 +213,34 @@ export default function PartyWcDashboard({
       <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: WC_CYAN }}>
-            {competitionActive
-              ? (COMPETITION_PICKER_OPTIONS.find((o) => o.storageKey === competition)?.label ?? t("party.privateTournament"))
-              : t("party.privateTournament")}
+            {isPublic ?
+              t("party.publicContest")
+            : competitionActive ?
+              (COMPETITION_PICKER_OPTIONS.find((o) => o.storageKey === competition)?.label ??
+                t("party.privateTournament"))
+            : t("party.privateTournament")}
           </p>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">{tournamentName}</h1>
-          <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>
-            {t("party.inviteCode")}:{" "}
-            <span className="font-bold tracking-widest" style={{ color: WC_CYAN }}>
-              {inviteCode}
-            </span>
-          </p>
-          {competitionActive && (
+          {!isPublic ?
+            <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>
+              {t("party.inviteCode")}:{" "}
+              <span className="font-bold tracking-widest" style={{ color: WC_CYAN }}>
+                {inviteCode}
+              </span>
+            </p>
+          : null}
+          {!isPublic && competitionActive && (
             <p className="text-[10px] mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>
-              {t("party.competitionLabel")}: {COMPETITION_PICKER_OPTIONS.find((o) => o.storageKey === competition)?.label ?? competition}
+              {t("party.competitionLabel")}:{" "}
+              {COMPETITION_PICKER_OPTIONS.find((o) => o.storageKey === competition)?.label ?? competition}
             </p>
           )}
-          {competitionActive && bettingOddsFetchedAt ?
+          {!isPublic && competitionActive && bettingOddsFetchedAt ?
             <p className="text-[10px] mt-1.5" style={{ color: "rgba(167,243,208,0.8)" }}>
               {t("party.oddsAt")}: {formatOddsDate(bettingOddsFetchedAt)} ·{" "}
               {t("party.oddsMatchCount", { count: Object.keys(bettingOddsByMatchId).length })}
             </p>
-          : competitionActive ?
+          : !isPublic && competitionActive ?
             <p className="text-[10px] mt-1.5 text-amber-200/85">{t("party.oddsUnavailable")}</p>
           : null}
         </div>
@@ -297,7 +306,9 @@ export default function PartyWcDashboard({
               {t("party.oddsAt")}: {formatOddsDate(bettingOddsFetchedAt)} ·{" "}
               {t("party.oddsMatchCount", { count: Object.keys(bettingOddsByMatchId).length })}
             </p>
-          : <p className="text-[10px] text-amber-200/90">{t("party.oddsUnavailable")}</p>}
+          : !isPublic ?
+            <p className="text-[10px] text-amber-200/90">{t("party.oddsUnavailable")}</p>
+          : null}
           {lastManualOddsRefreshAt ?
             <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.45)" }}>
               {t("party.oddsManualLast", { date: formatOddsDate(lastManualOddsRefreshAt) ?? "—" })}

@@ -51,8 +51,8 @@ export default function CreatePublicTournamentForm({
     const fixtureCount = typeof matchdayCount === "number" && matchdayCount > 0 ? matchdayCount : undefined;
     startTransition(async () => {
       try {
-        const result = await createPublicTournament(name.trim(), competitionKey.trim(), prizes, fixtureCount);
-        setSuccess(`Turneu creat! Cod: ${result.inviteCode}`);
+        await createPublicTournament(name.trim(), competitionKey.trim(), prizes, fixtureCount);
+        setSuccess("Turneu public creat cu succes!");
         setName("");
         setCompetitionKey("");
         setMatchdayCount(0);

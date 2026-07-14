@@ -57,6 +57,8 @@ export const en: Messages = {
   "tournament.page.joinTabHint": "Got a code? Enter it here to join the tournament.",
   "tournament.page.publicTitle": "Public tournaments",
   "tournament.page.publicBadge": "Open to everyone",
+  "tournament.page.publicContest1": "Prize contest 1",
+  "tournament.page.publicContest2": "Prize contest 2",
   "tournament.create.title": "Create tournament",
   "tournament.create.subtitle": "Start a new party and invite friends",
   "tournament.create.nameLabel": "Tournament name",
@@ -87,6 +89,7 @@ export const en: Messages = {
 
   "party.privateTournament": "Private tournament",
   "party.inviteCode": "Invite code",
+  "party.publicContest": "Prize contest",
   "party.oddsAt": "Odds",
   "party.oddsUnavailable": "Odds unavailable (×1)",
   "party.oddsMatchCount": "{count} matches",
