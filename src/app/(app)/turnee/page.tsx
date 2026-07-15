@@ -4,10 +4,7 @@ import { createTranslator } from "@/lib/i18n";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
 import { pageTitle } from "@/lib/site-metadata";
 import { prisma } from "@/lib/prisma";
-import {
-  getVisiblePublicTournaments,
-  resolveTournamentDisplayName,
-} from "@/lib/public-tournaments";
+import { getVisiblePublicTournaments } from "@/lib/public-tournaments";
 import TournamentActionsWidget from "@/components/turnee/tournament-actions-widget";
 import { TurneePageHeader } from "@/components/turnee/turnee-page-header";
 import { TurneeMyTournamentCard } from "@/components/turnee/turnee-my-tournament-card";
@@ -50,10 +47,6 @@ export default async function TurneePage() {
   });
 
   const visiblePublicTournaments = getVisiblePublicTournaments(publicTournaments);
-
-  function displayName(tournament: { id: string; name: string; isPublic: boolean }) {
-    return resolveTournamentDisplayName(tournament, publicTournaments, (key) => t(key));
-  }
 
   function competitionLabel(competition: string | null) {
     if (!competition) return null;
@@ -125,7 +118,7 @@ export default async function TurneePage() {
                   <TurneePublicTournamentCard
                     key={pt.id}
                     id={pt.id}
-                    name={displayName(pt)}
+                    name={pt.name}
                     memberCount={pt._count.members}
                     prizesRaw={pt.prizes}
                     isJoined={joinedIds.has(pt.id)}

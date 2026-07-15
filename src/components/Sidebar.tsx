@@ -9,6 +9,7 @@ import { SignOutButton } from "@/components/auth/sign-out-button";
 import { useLocale } from "@/components/i18n/locale-provider";
 import type { MessageKey } from "@/lib/i18n";
 import RulesModal from "@/components/RulesModal";
+import { INSTAGRAM_URL, TIKTOK_URL } from "@/lib/social-links";
 
 type NavItem = {
   href: string;
@@ -102,6 +103,53 @@ const supportIcon = (
   </svg>
 );
 
+const instagramIcon = (
+  <svg className="w-[18px] h-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth={1.7} viewBox="0 0 24 24">
+    <rect x="3" y="3" width="18" height="18" rx="5" />
+    <circle cx="12" cy="12" r="4" />
+    <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+const tiktokIcon = (
+  <svg className="w-[18px] h-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth={1.7} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12a4 4 0 104 4V4a5 5 0 005 5" />
+  </svg>
+);
+
+function SocialLinks({ onClick }: { onClick?: () => void }) {
+  const { t } = useLocale();
+  const items = [
+    { href: INSTAGRAM_URL, label: t("nav.instagram"), icon: instagramIcon },
+    { href: TIKTOK_URL, label: t("nav.tiktok"), icon: tiktokIcon },
+  ];
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      {items.map((item) => (
+        <a
+          key={item.href}
+          href={item.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={onClick}
+          className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors duration-100"
+          style={{ color: "rgba(255,255,255,0.42)" }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.72)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.42)";
+          }}
+        >
+          <span style={{ color: "rgba(255,255,255,0.30)" }}>{item.icon}</span>
+          <span className="tracking-[-0.01em]">{item.label}</span>
+        </a>
+      ))}
+    </div>
+  );
+}
+
 export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -177,6 +225,7 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
       <div className="px-0 flex flex-col gap-0.5">
         <NavLinks pathname={pathname} items={bottomNavItems} onClick={onClick} />
       </div>
+      <SocialLinks onClick={onClick} />
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <LanguageSwitcher />
         <SignOutButton />

@@ -9,12 +9,6 @@ import { parseStoredCompetition } from "@/lib/competition";
 import { prisma } from "@/lib/prisma";
 import { hasAnyMatchPrediction } from "@/lib/wc-pred-display";
 import { type MatchPredictionInput } from "@/lib/wc-scoring";
-import { createTranslator } from "@/lib/i18n";
-import { getLocaleFromCookies } from "@/lib/i18n/server";
-import {
-  fetchPublicTournamentsForNaming,
-  resolveTournamentDisplayName,
-} from "@/lib/public-tournaments";
 
 function displayName(first?: string | null, last?: string | null): string {
   const s = `${first ?? ""} ${last ?? ""}`.trim();
@@ -27,8 +21,6 @@ export default async function PartyMemberPredictionsPage({
   params: Promise<{ tournamentId: string; userId: string }>;
 }) {
   const { tournamentId, userId: memberUserId } = await params;
-  const locale = await getLocaleFromCookies();
-  const t = createTranslator(locale);
 
   const { userId: clerkId } = await auth();
   if (!clerkId) redirect("/sign-in");
@@ -46,8 +38,6 @@ export default async function PartyMemberPredictionsPage({
       },
     },
   });
-
-  const publicTournamentsForNaming = await fetchPublicTournamentsForNaming();
 
   if (!tournament) notFound();
 
@@ -107,9 +97,7 @@ export default async function PartyMemberPredictionsPage({
   return (
     <MemberPredictionsView
       tournamentId={tournament.id}
-      tournamentName={resolveTournamentDisplayName(tournament, publicTournamentsForNaming, (key) =>
-        t(key),
-      )}
+      tournamentName={tournament.name}
       memberDisplayName={displayName(
         targetMembership.user.firstName,
         targetMembership.user.lastName,

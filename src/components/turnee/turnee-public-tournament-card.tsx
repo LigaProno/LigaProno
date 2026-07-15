@@ -1,5 +1,6 @@
 import Link from "next/link";
 import JoinPublicTournamentButton from "@/components/turnee/join-public-tournament-button";
+import { PublicTournamentPrizeNotice } from "@/components/turnee/public-tournament-prize-notice";
 import { TurneePrizesStrip } from "@/components/turnee/turnee-prizes-strip";
 import { TurneeMetaChip, TurneePanel } from "@/components/turnee/turnee-ui";
 import { parsePrizes } from "@/lib/tournament-prizes";
@@ -34,6 +35,11 @@ export function TurneePublicTournamentCard({
       <div className="px-4 py-4 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="min-w-0 flex-1">
           <h3 className="text-base font-bold text-white truncate">{name}</h3>
+          {hasPrizes ? (
+            <div className="mt-2">
+              <PublicTournamentPrizeNotice />
+            </div>
+          ) : null}
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">

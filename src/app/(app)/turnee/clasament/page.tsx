@@ -11,10 +11,6 @@ import { createTranslator } from "@/lib/i18n";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
 import { pageTitle } from "@/lib/site-metadata";
 import { prisma } from "@/lib/prisma";
-import {
-  fetchPublicTournamentsForNaming,
-  resolveTournamentDisplayName,
-} from "@/lib/public-tournaments";
 
 export const metadata = pageTitle("Clasament global");
 export const dynamic = "force-dynamic";
@@ -31,23 +27,9 @@ export default async function GlobalLeaderboardPage() {
   let nextThreeByCompetition: GlobalLeaderboardNextThreeBlock[] = [];
   let loadError: string | null = null;
 
-  const publicTournamentsForNaming = await fetchPublicTournamentsForNaming();
-  const publicTournamentIds = new Set(publicTournamentsForNaming.map((pt) => pt.id));
-
   try {
     const result = await buildGlobalLeaderboard();
-    rows = result.rows.map((row) =>
-      publicTournamentIds.has(row.bestTournamentId) ?
-        {
-          ...row,
-          bestTournamentName: resolveTournamentDisplayName(
-            { id: row.bestTournamentId, name: row.bestTournamentName, isPublic: true },
-            publicTournamentsForNaming,
-            (key) => t(key),
-          ),
-        }
-      : row,
-    );
+    rows = result.rows;
     nextThreeByCompetition = result.nextThreeByCompetition;
   } catch (e) {
     loadError =

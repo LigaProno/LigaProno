@@ -9,7 +9,6 @@ import DeletePublicTournamentButton from "./DeletePublicTournamentButton";
 import { parsePrizes, placeLabel } from "@/lib/tournament-prizes";
 import { createTranslator } from "@/lib/i18n";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
-import { resolveTournamentDisplayName } from "@/lib/public-tournaments";
 
 export default async function AdminPage() {
   const locale = await getLocaleFromCookies();
@@ -68,9 +67,7 @@ export default async function AdminPage() {
                     style={{ backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.08)", boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}
                   >
                     <div className="flex flex-col gap-1">
-                      <span className="text-white font-semibold">
-                        {resolveTournamentDisplayName(tournament, publicTournaments, (key) => t(key))}
-                      </span>
+                      <span className="text-white font-semibold">{tournament.name}</span>
                       <span className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
                         {tournament._count.members} membri
                       </span>

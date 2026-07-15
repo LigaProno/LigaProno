@@ -15,6 +15,7 @@ import {
 } from "@/app/actions/profile";
 import { DEFAULT_FAVORITE_TEAM_COMPETITION } from "@/lib/favorite-team";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { FavoriteTeamDisplay } from "@/components/profile/favorite-team-display";
 import { FavoriteTeamPicker } from "@/components/profile/favorite-team-picker";
 import {
   ProfileAlert,
@@ -52,6 +53,9 @@ export function ProfilePageContent({
   );
   const [teams, setTeams] = useState(initialTeams);
   const [teamsLoading, setTeamsLoading] = useState(false);
+  const [editingTeam, setEditingTeam] = useState(
+    () => onboarding || initialProfile.favoriteTeamId == null,
+  );
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -88,6 +92,34 @@ export function ProfilePageContent({
       .filter(Boolean)
       .join(" ")
       .trim() || profile.email;
+
+  const savedCompetitionLabel =
+    competitions.find((c) => c.storageKey === profile.favoriteTeamCompetition)?.label ??
+    profile.favoriteTeamCompetition ??
+    "";
+
+  const handleStartEditTeam = () => {
+    const comp = profile.favoriteTeamCompetition ?? DEFAULT_FAVORITE_TEAM_COMPETITION;
+    setFavoriteTeamId(profile.favoriteTeamId);
+    setFavoriteCompetition(comp);
+    setTeamMessage(undefined);
+    setEditingTeam(true);
+
+    if (comp === favoriteCompetition && teams.length > 0) return;
+
+    setTeamsLoading(true);
+    void getFavoriteTeamOptions(comp)
+      .then(setTeams)
+      .catch(() => setTeams([]))
+      .finally(() => setTeamsLoading(false));
+  };
+
+  const handleCancelEditTeam = () => {
+    setFavoriteTeamId(profile.favoriteTeamId);
+    setFavoriteCompetition(profile.favoriteTeamCompetition ?? DEFAULT_FAVORITE_TEAM_COMPETITION);
+    setTeamMessage(undefined);
+    setEditingTeam(false);
+  };
 
   const handleSaveName = async () => {
     if (!user) return;
@@ -154,6 +186,7 @@ export function ProfilePageContent({
       const refreshed = await getProfileData();
       setProfile(refreshed);
       setTeamMessage(t("profile.saved"));
+      setEditingTeam(false);
       if (onboarding) {
         router.replace("/dashboard");
       }
@@ -304,29 +337,54 @@ export function ProfilePageContent({
 
       <ProfileSection
         title={t("profile.favoriteTeam.title")}
-        description={t("profile.favoriteTeam.description")}
+        description={editingTeam ? t("profile.favoriteTeam.description") : undefined}
       >
-        <FavoriteTeamPicker
-          competitions={competitions}
-          competitionKey={favoriteCompetition}
-          onCompetitionChange={(key) => void handleCompetitionChange(key)}
-          teams={teams}
-          teamsLoading={teamsLoading}
-          value={favoriteTeamId}
-          onChange={setFavoriteTeamId}
-          disabled={teamSaving}
-        />
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <ProfileButton loading={teamSaving} onClick={() => void handleSaveTeam()}>
-            {onboarding ? t("profile.onboarding.continue") : t("common.save")}
-          </ProfileButton>
-          {teamMessage ? (
-            <ProfileAlert
-              message={teamMessage}
-              tone={teamMessage === t("profile.saved") ? "success" : "error"}
+        {editingTeam || profile.favoriteTeamId == null || !profile.favoriteTeamName ?
+          <>
+            <FavoriteTeamPicker
+              competitions={competitions}
+              competitionKey={favoriteCompetition}
+              onCompetitionChange={(key) => void handleCompetitionChange(key)}
+              teams={teams}
+              teamsLoading={teamsLoading}
+              value={favoriteTeamId}
+              onChange={setFavoriteTeamId}
+              disabled={teamSaving}
             />
-          ) : null}
-        </div>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <ProfileButton loading={teamSaving} onClick={() => void handleSaveTeam()}>
+                {onboarding ? t("profile.onboarding.continue") : t("common.save")}
+              </ProfileButton>
+              {!onboarding && profile.favoriteTeamId != null ?
+                <ProfileButton variant="ghost" onClick={handleCancelEditTeam}>
+                  {t("profile.favoriteTeam.cancel")}
+                </ProfileButton>
+              : null}
+              {teamMessage ?
+                <ProfileAlert
+                  message={teamMessage}
+                  tone={teamMessage === t("profile.saved") ? "success" : "error"}
+                />
+              : null}
+            </div>
+          </>
+        : <>
+            <FavoriteTeamDisplay
+              teamName={profile.favoriteTeamName}
+              teamCrest={profile.favoriteTeamCrest}
+              competitionLabel={savedCompetitionLabel}
+              onEdit={handleStartEditTeam}
+            />
+            {teamMessage ?
+              <div className="mt-4">
+                <ProfileAlert
+                  message={teamMessage}
+                  tone={teamMessage === t("profile.saved") ? "success" : "error"}
+                />
+              </div>
+            : null}
+          </>
+        }
       </ProfileSection>
 
       {!onboarding && user?.passwordEnabled ? (
