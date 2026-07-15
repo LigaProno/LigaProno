@@ -22,7 +22,11 @@ export default async function RootLayout({
   const locale = await getLocaleFromCookies();
 
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      taskUrls={{
+        "reset-password": "/reset-password",
+      }}
+    >
       <html lang={locale} className={`${montserrat.variable} h-full antialiased`}>
         <body className={`${montserrat.className} min-h-full flex flex-col`}>
           {children}

@@ -4,6 +4,7 @@ import { useClerk, useSignIn } from "@clerk/nextjs";
 import type { SignInSecondFactor } from "@clerk/shared/types";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Link from "next/link";
 import {
   AuthAlert,
   AuthCard,
@@ -16,6 +17,7 @@ import {
 import { VerificationStep } from "@/components/auth/verification-step";
 import { finalizeAuth } from "@/lib/auth-navigation";
 import { getClerkErrorMessage, getHookGlobalError } from "@/lib/clerk-errors";
+import { useLocale } from "@/components/i18n/locale-provider";
 
 type MfaMode = "client_trust" | "email_code" | "phone_code" | "totp" | "backup_code";
 
@@ -105,6 +107,7 @@ export function SignInForm() {
   const { loaded } = useClerk();
   const { signIn, errors, fetchStatus } = useSignIn();
   const router = useRouter();
+  const { t } = useLocale();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -173,6 +176,11 @@ export function SignInForm() {
         return;
       }
       await beginMfa(mode);
+      return;
+    }
+
+    if (signIn.status === "needs_new_password") {
+      router.push("/reset-password");
       return;
     }
 
@@ -311,6 +319,12 @@ export function SignInForm() {
           required
           error={errors.fields.password?.message}
         />
+
+        <p className="-mt-1 text-right text-sm">
+          <Link href="/reset-password" className="font-medium text-[#D4AF37] transition-colors hover:text-[#E8C878]">
+            {t("auth.resetPassword.forgotLink")}
+          </Link>
+        </p>
 
         <AuthPrimaryButton loading={loading}>Intră în cont</AuthPrimaryButton>
       </form>

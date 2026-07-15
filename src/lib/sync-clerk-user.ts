@@ -2,11 +2,27 @@ import { currentUser, type User as ClerkUser } from "@clerk/nextjs/server";
 import type { User as DbUser } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
-type ClerkProfile = Pick<ClerkUser, "id" | "firstName" | "lastName" | "imageUrl" | "emailAddresses">;
+type ClerkProfile = Pick<
+  ClerkUser,
+  "id" | "firstName" | "lastName" | "imageUrl" | "emailAddresses" | "primaryEmailAddressId"
+>;
+
+function resolveEmail(clerkUser: ClerkProfile): string {
+  const primary =
+    clerkUser.primaryEmailAddressId ?
+      clerkUser.emailAddresses.find((e) => e.id === clerkUser.primaryEmailAddressId)
+    : null;
+
+  return (
+    primary?.emailAddress ??
+    clerkUser.emailAddresses[0]?.emailAddress ??
+    `${clerkUser.id.replace(/^user_/, "")}@import.ligaprono.ro`
+  );
+}
 
 function profileFromClerk(clerkUser: ClerkProfile) {
   return {
-    email: clerkUser.emailAddresses[0]?.emailAddress ?? "",
+    email: resolveEmail(clerkUser),
     firstName: clerkUser.firstName,
     lastName: clerkUser.lastName,
     imageUrl: clerkUser.imageUrl,
@@ -65,12 +81,26 @@ export async function syncClerkUser(clerkUser: ClerkProfile): Promise<string> {
   return data.email;
 }
 
+/** Sync fără să blocheze layout-ul dacă DB e temporar indisponibil. */
+export async function syncClerkUserSafe(clerkUser: ClerkProfile): Promise<string | null> {
+  try {
+    return await syncClerkUser(clerkUser);
+  } catch (error) {
+    console.error("[syncClerkUser]", clerkUser.id, error);
+    return null;
+  }
+}
+
 /** Ensures the Clerk session has a matching Prisma user (links by email when clerkId changed). */
 export async function getOrSyncDbUser(): Promise<DbUser | null> {
   const clerkUser = await currentUser();
   if (!clerkUser) return null;
 
-  await syncClerkUser(clerkUser);
+  await syncClerkUserSafe(clerkUser);
 
-  return prisma.user.findUnique({ where: { clerkId: clerkUser.id } });
+  const byClerk = await prisma.user.findUnique({ where: { clerkId: clerkUser.id } });
+  if (byClerk) return byClerk;
+
+  const email = resolveEmail(clerkUser);
+  return prisma.user.findUnique({ where: { email } });
 }
