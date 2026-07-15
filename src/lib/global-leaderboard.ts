@@ -18,6 +18,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import {
   fixtureTlaPair,
+  filterMatchesForTournament,
   getMatchPredDisplay,
   hasAnyMatchPrediction,
   lastFinishedAndNextThree,
@@ -139,6 +140,7 @@ function scoreUser(
   tournamentName: string,
   competitionCtx: CompetitionScoringContext,
   memberData: TournamentMemberData,
+  tournamentMatchdayFields: { startMatchday: number | null; endMatchday: number | null },
 ): Pick<
   GlobalLeaderboardRow,
   | "bestTournamentId"
@@ -151,7 +153,7 @@ function scoreUser(
 > {
   const totals = computeUserWcTotals(
     memberData.predsByUser.get(userId) ?? new Map(),
-    competitionCtx.matches,
+    filterMatchesForTournament(competitionCtx.matches, tournamentMatchdayFields),
     competitionCtx.oddsMaps,
   );
 
@@ -170,8 +172,13 @@ function buildLastMatch(
   userId: string,
   memberData: TournamentMemberData,
   competitionCtx: CompetitionScoringContext,
+  tournamentMatchdayFields: { startMatchday: number | null; endMatchday: number | null },
 ): GlobalLeaderboardLastMatch | null {
-  const { lastFinished } = lastFinishedAndNextThree(competitionCtx.matches);
+  const tournamentMatches = filterMatchesForTournament(
+    competitionCtx.matches,
+    tournamentMatchdayFields,
+  );
+  const { lastFinished } = lastFinishedAndNextThree(tournamentMatches);
   if (!lastFinished) return null;
   const pmap = memberData.predsByUser.get(userId) ?? new Map();
   const lastScores = matchResultHtFt(lastFinished);
@@ -302,6 +309,7 @@ export async function refreshAllScores(): Promise<{ updated: number; errors: num
           tournament.name,
           competitionCtx,
           memberData,
+          tournament,
         );
         await prisma.tournamentMember.update({
           where: { id: member.id },
@@ -373,6 +381,7 @@ export async function loadGlobalMemberPredictions(memberUserId: string): Promise
     total: number;
     memberData: TournamentMemberData;
     competitionCtx: CompetitionScoringContext;
+    tournamentMatchdayFields: { startMatchday: number | null; endMatchday: number | null };
   } | null = null;
 
   for (const tournament of tournaments) {
@@ -384,7 +393,14 @@ export async function loadGlobalMemberPredictions(memberUserId: string): Promise
     if (!competitionCtx) continue;
 
     const memberData = await loadTournamentMemberData(tournament.id);
-    const score = scoreUser(member.userId, tournament.id, tournament.name, competitionCtx, memberData);
+    const score = scoreUser(
+      member.userId,
+      tournament.id,
+      tournament.name,
+      competitionCtx,
+      memberData,
+      tournament,
+    );
 
     if (!best || score.total > best.total) {
       best = {
@@ -395,6 +411,7 @@ export async function loadGlobalMemberPredictions(memberUserId: string): Promise
         total: score.total,
         memberData,
         competitionCtx,
+        tournamentMatchdayFields: tournament,
       };
     }
   }
@@ -416,6 +433,8 @@ export async function loadGlobalMemberPredictions(memberUserId: string): Promise
   } catch (e) {
     loadError = e instanceof Error ? e.message : "Could not load matches.";
   }
+
+  matches = filterMatchesForTournament(matches, best.tournamentMatchdayFields);
 
   const pmap = best.memberData.predsByUser.get(memberUserId) ?? new Map();
 
@@ -487,8 +506,9 @@ export async function buildGlobalLeaderboard(): Promise<GlobalLeaderboardResult>
         tournament.name,
         competitionCtx,
         memberData,
+        tournament,
       );
-      const lastMatch = buildLastMatch(member.userId, memberData, competitionCtx);
+      const lastMatch = buildLastMatch(member.userId, memberData, competitionCtx, tournament);
       const name = displayName(member.user.firstName, member.user.lastName);
       const candidate: GlobalLeaderboardRow = {
         rank: 0,

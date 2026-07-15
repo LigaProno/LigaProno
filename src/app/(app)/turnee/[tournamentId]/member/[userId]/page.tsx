@@ -7,7 +7,7 @@ import {
 } from "@/lib/football-data";
 import { parseStoredCompetition } from "@/lib/competition";
 import { prisma } from "@/lib/prisma";
-import { hasAnyMatchPrediction } from "@/lib/wc-pred-display";
+import { hasAnyMatchPrediction, filterMatchesForTournament } from "@/lib/wc-pred-display";
 import { type MatchPredictionInput } from "@/lib/wc-scoring";
 
 function displayName(first?: string | null, last?: string | null): string {
@@ -71,6 +71,8 @@ export default async function PartyMemberPredictionsPage({
   } catch (e) {
     loadError = e instanceof Error ? e.message : "Could not load matches.";
   }
+
+  matches = filterMatchesForTournament(matches, tournament);
 
   const predsDb = await prisma.wcMatchPrediction.findMany({
     where: { tournamentId, userId: memberUserId },

@@ -244,3 +244,74 @@ export function matchesForMatchday(
     .filter((m) => (m.matchday ?? 0) === matchday)
     .sort((a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate));
 }
+
+export type TournamentMatchdayWindow = {
+  startMatchday: number;
+  endMatchday: number;
+};
+
+export type TournamentMatchdayFields = {
+  startMatchday: number | null;
+  endMatchday: number | null;
+};
+
+/** Prima etapă cu meciuri nedecise (folosită ca start la crearea turneului). */
+export function resolveFirstUpcomingMatchday(matches: FootballDataMatch[]): number {
+  return resolveCurrentMatchday(matches);
+}
+
+/**
+ * Fereastra de etape a turneului.
+ * null = întreg sezonul. Suportă date vechi unde endMatchday era salvat ca număr de etape.
+ */
+export function resolveTournamentMatchdayWindow(
+  tournament: TournamentMatchdayFields,
+  matches: FootballDataMatch[],
+): TournamentMatchdayWindow | null {
+  const { startMatchday, endMatchday } = tournament;
+
+  if (startMatchday == null && endMatchday == null) return null;
+
+  if (startMatchday != null && endMatchday != null) {
+    return { startMatchday, endMatchday };
+  }
+
+  // Legacy: endMatchday = număr de etape, startMatchday nesetat
+  if (startMatchday == null && endMatchday != null && endMatchday > 0) {
+    const start = resolveFirstUpcomingMatchday(matches);
+    return { startMatchday: start, endMatchday: start + endMatchday - 1 };
+  }
+
+  if (startMatchday != null) {
+    const maxMd = Math.max(
+      startMatchday,
+      ...matches.map((m) => m.matchday ?? 0).filter((md) => md > 0),
+    );
+    return { startMatchday, endMatchday: maxMd };
+  }
+
+  return null;
+}
+
+export function filterMatchesForTournament(
+  matches: FootballDataMatch[],
+  tournament: TournamentMatchdayFields,
+): FootballDataMatch[] {
+  const window = resolveTournamentMatchdayWindow(tournament, matches);
+  if (!window) return matches;
+  return matches.filter((m) => {
+    const md = m.matchday ?? 0;
+    return md >= window.startMatchday && md <= window.endMatchday;
+  });
+}
+
+export function isMatchInTournamentWindow(
+  match: FootballDataMatch,
+  tournament: TournamentMatchdayFields,
+  allMatches: FootballDataMatch[],
+): boolean {
+  const window = resolveTournamentMatchdayWindow(tournament, allMatches);
+  if (!window) return true;
+  const md = match.matchday ?? 0;
+  return md >= window.startMatchday && md <= window.endMatchday;
+}

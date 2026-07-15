@@ -29,6 +29,7 @@ import {
 import { WC_CYAN, WC_LIME, WC_SLATE } from "@/components/world-cup/wc-theme";
 import { LeaderboardTh } from "@/components/ui/column-header-tip";
 import { MatchPredDisplayInline } from "@/components/party/match-pred-display-inline";
+import { PointsScoringLegend } from "@/components/party/potential-points";
 import type { MatchPredDisplay } from "@/lib/wc-pred-display";
 
 export type LeaderboardRow = {
@@ -483,6 +484,7 @@ export default function PartyWcDashboard({
 
           {tab === "predictions" && (
             <div className="flex flex-col gap-5">
+              <PointsScoringLegend />
               <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
                 {matchdayBlocks.map(({ matchday, matches: mdMatches }) => {
                   const allDone = mdMatches.every(

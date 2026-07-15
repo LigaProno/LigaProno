@@ -12,6 +12,7 @@ import {
   getMatchPredictionLockReason,
   getPredictionLockMessage,
 } from "@/lib/knockout-predictions";
+import { isMatchInTournamentWindow } from "@/lib/wc-pred-display";
 import { I18nError } from "@/lib/i18n/errors";
 
 function validOutcome(v: unknown): v is "HOME" | "AWAY" | "DRAW" | "" {
@@ -106,6 +107,10 @@ export async function saveWcMatchPrediction(
   const match = matches.find((m) => m.id === matchId);
   if (!match) {
     throw new Error("Meciul nu a fost găsit în programul competiției.");
+  }
+
+  if (!isMatchInTournamentWindow(match, tournament, matches)) {
+    throw new Error("Acest meci nu face parte din etapele turneului.");
   }
 
   const reason = getMatchPredictionLockReason(match);

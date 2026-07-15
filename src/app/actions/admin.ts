@@ -4,7 +4,9 @@ import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { isAdminEmail } from "@/lib/admin";
-import { COMPETITION_PICKER_OPTIONS } from "@/lib/competition";
+import { COMPETITION_PICKER_OPTIONS, parseStoredCompetition } from "@/lib/competition";
+import { fetchCompetitionMatches } from "@/lib/football-data";
+import { resolveFirstUpcomingMatchday } from "@/lib/wc-pred-display";
 import { I18nError } from "@/lib/i18n/errors";
 import type { TournamentPrize } from "@/lib/tournament-prizes";
 
@@ -39,6 +41,18 @@ export async function createPublicTournament(
     inviteCode = generateInviteCode();
   }
 
+  let startMatchday: number | null = null;
+  let endMatchday: number | null = null;
+
+  if (matchdayCount != null && matchdayCount > 0) {
+    const parsed = parseStoredCompetition(t);
+    if (!parsed) throw new I18nError("errors.invalidCompetition");
+
+    const matches = await fetchCompetitionMatches(parsed.code, parsed.season);
+    startMatchday = resolveFirstUpcomingMatchday(matches);
+    endMatchday = startMatchday + matchdayCount - 1;
+  }
+
   const tournament = await prisma.tournament.create({
     data: {
       name: name.trim(),
@@ -47,7 +61,8 @@ export async function createPublicTournament(
       competition: t,
       isPublic: true,
       prizes: prizes.length > 0 ? prizes : undefined,
-      endMatchday: matchdayCount ?? null,
+      startMatchday,
+      endMatchday,
     },
   });
 

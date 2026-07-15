@@ -16,6 +16,7 @@ import { canManualRefreshOddsToday } from "@/lib/odds-refresh-limit";
 import { prisma } from "@/lib/prisma";
 import {
   fixtureTlaPair,
+  filterMatchesForTournament,
   getMatchPredDisplay,
   lastFinishedAndNextThree,
   matchResultHtFt,
@@ -94,6 +95,8 @@ export default async function PartyTournamentPage({
       matches,
     );
   }
+
+  matches = filterMatchesForTournament(matches, tournament);
 
 
   const competitionOddsSnapshot =

@@ -2,6 +2,7 @@ import type { MatchOddsRow, Odds1x2Outcome } from "@/lib/betting-odds";
 
 type OddsBackEntry = {
   odds?: Record<string, Record<string, unknown>>;
+  mixedParameterName?: string | null;
 };
 
 type OddsFeedRoot = {
@@ -82,6 +83,46 @@ export function parseCorrectScoreFromFeed(data: unknown): Record<string, number>
   return out;
 }
 
+const HTFT_LABEL_TO_KEY: Record<string, string> = {
+  "1/1": "HOME/HOME",
+  "1/x": "HOME/DRAW",
+  "1/2": "HOME/AWAY",
+  "x/1": "DRAW/HOME",
+  "x/x": "DRAW/DRAW",
+  "x/2": "DRAW/AWAY",
+  "2/1": "AWAY/HOME",
+  "2/x": "AWAY/DRAW",
+  "2/2": "AWAY/AWAY",
+};
+
+/** HT/FT dublu (ex. 1/X = pauză 1, final X). Chei „HOME/DRAW”. */
+export function parseHtFtFromFeed(data: unknown): Record<string, number> {
+  const back = (data as OddsFeedRoot)?.d?.oddsdata?.back ?? {};
+  const out: Record<string, number> = {};
+
+  for (const entry of Object.values(back)) {
+    const label = entry?.mixedParameterName?.trim().toLowerCase();
+    if (!label) continue;
+    const key = HTFT_LABEL_TO_KEY[label];
+    if (!key) continue;
+
+    const oddsMap = entry?.odds ?? {};
+    const vals: number[] = [];
+    for (const bookOdds of Object.values(oddsMap)) {
+      const raw = bookOdds?.["0"];
+      if (typeof raw === "number" && Number.isFinite(raw)) vals.push(raw);
+      else if (typeof raw === "string") {
+        const n = Number(raw);
+        if (Number.isFinite(n)) vals.push(n);
+      }
+    }
+    const m = median(vals);
+    if (m != null) out[key] = m;
+  }
+
+  return out;
+}
+
 export type OutrightRow = { teamName: string; odd: number };
 
 type OutrightBackEntry = {
@@ -131,11 +172,13 @@ export function mergeMatchOddsRows(
   ft: Record<Odds1x2Outcome, number> | null,
   ht: Record<Odds1x2Outcome, number> | null,
   correctScore: Record<string, number>,
+  htFt: Record<string, number> = {},
 ): MatchOddsRow {
   const fallback1x2 = { HOME: 1, DRAW: 1, AWAY: 1 } as Record<Odds1x2Outcome, number>;
   return {
     ft1x2: ft ?? fallback1x2,
     ht1x2: ht ?? fallback1x2,
+    htFt,
     correctScore,
   };
 }

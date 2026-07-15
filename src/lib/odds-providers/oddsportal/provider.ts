@@ -20,6 +20,7 @@ import {
   mergeMatchOddsRows,
   parse1x2FromFeed,
   parseCorrectScoreFromFeed,
+  parseHtFtFromFeed,
   parseOutrightWinnerFromFeed,
 } from "@/lib/odds-providers/oddsportal/parse-odds";
 import {
@@ -70,11 +71,17 @@ export class OddsPortalProvider implements OddsProvider {
           }
           meta = { ...meta, home: fx.home, away: fx.away };
 
-          const { ft, ht, cs } = await fetchFtHtCsFeeds(meta, referer);
+          const { ft, ht, cs, htFt } = await fetchFtHtCsFeeds(meta, referer);
           const ft1x2 = parse1x2FromFeed(ft, 2);
           const ht1x2 = parse1x2FromFeed(ht, 3);
           const correctScore = parseCorrectScoreFromFeed(cs);
-          matches[String(fdMatchId)] = mergeMatchOddsRows(ft1x2, ht1x2, correctScore);
+          const htFtOdds = parseHtFtFromFeed(htFt);
+          matches[String(fdMatchId)] = mergeMatchOddsRows(
+            ft1x2,
+            ht1x2,
+            correctScore,
+            htFtOdds,
+          );
         } catch (e) {
           errors.push(
             `${fx.matchId}: ${e instanceof Error ? e.message : "eroare"}`,

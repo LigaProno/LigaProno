@@ -126,7 +126,9 @@ export default function RulesModal() {
                     {ro ? "Rolul cotelor" : "How odds work"}
                   </p>
                   <p className="text-sm leading-relaxed mb-3" style={{ color: "rgba(255,255,255,0.50)" }}>
-                    {ro ? "Punctele sunt înmulțite cu cotele bookmaker-ului. Un pronostic mai riscant aduce mai multe puncte dacă se adeverește." : "Points are multiplied by bookmaker odds. A riskier prediction earns more points if correct."}
+                    {ro ?
+                      "Pauză+final folosesc cota HT/FT combinată (0.5×1 × cotă). Scorul exact e independent și se adună."
+                    : "HT+FT use combined HT/FT odds (0.5×1 × odds). Exact score is independent and added on top."}
                   </p>
                   <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
                     <div className="flex items-center justify-between gap-2 px-4 py-3 border-b text-sm" style={{ borderColor: "rgba(255,255,255,0.05)", backgroundColor: "rgba(255,255,255,0.025)" }}>

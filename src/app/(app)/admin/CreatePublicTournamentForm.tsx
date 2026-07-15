@@ -40,7 +40,11 @@ export default function CreatePublicTournamentForm({
     });
   }
 
-  const canSubmit = name.trim() && competitionKey.trim();
+  const canSubmit =
+    name.trim() &&
+    competitionKey.trim() &&
+    typeof matchdayCount === "number" &&
+    matchdayCount > 0;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -117,6 +121,7 @@ export default function CreatePublicTournamentForm({
           type="number"
           min={1}
           max={100}
+          required
           value={matchdayCount === 0 ? "" : matchdayCount}
           placeholder="ex. 8"
           onChange={(e) => {
@@ -126,6 +131,9 @@ export default function CreatePublicTournamentForm({
           className="w-32 rounded-xl px-4 py-3 text-sm outline-none border"
           style={{ backgroundColor: "#060911", color: "#fff", borderColor: "rgba(255,255,255,0.12)" }}
         />
+        <p className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>
+          Turneul începe de la prima etapă viitoare; pronosticurile sunt permise doar pe acest număr de etape.
+        </p>
       </div>
 
       {/* Prize places count */}

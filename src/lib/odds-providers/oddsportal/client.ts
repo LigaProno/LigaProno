@@ -9,6 +9,7 @@ import {
   OP_MARKET_CORRECT_SCORE,
   OP_MARKET_FT_1X2,
   OP_MARKET_HT_1X2,
+  OP_MARKET_HT_FT,
   OP_MARKET_OUTRIGHT_WINNER,
 } from "@/lib/odds-providers/oddsportal/markets";
 import type { OddsPortalCompetitionConfig } from "@/lib/odds-providers/oddsportal/competition-map";
@@ -210,8 +211,8 @@ export async function fetchMatchMarketFeed(
 export async function fetchFtHtCsFeeds(
   meta: OpEventMeta,
   referer: string,
-): Promise<{ ft: unknown; ht: unknown; cs: unknown }> {
-  const [ft, ht, cs] = await Promise.all([
+): Promise<{ ft: unknown; ht: unknown; cs: unknown; htFt: unknown }> {
+  const [ft, ht, cs, htFt] = await Promise.all([
     fetchMatchMarketFeed(meta, OP_MARKET_FT_1X2.betType, OP_MARKET_FT_1X2.scope, referer),
     fetchMatchMarketFeed(meta, OP_MARKET_HT_1X2.betType, OP_MARKET_HT_1X2.scope, referer),
     fetchMatchMarketFeed(
@@ -220,8 +221,9 @@ export async function fetchFtHtCsFeeds(
       OP_MARKET_CORRECT_SCORE.scope,
       referer,
     ),
+    fetchMatchMarketFeed(meta, OP_MARKET_HT_FT.betType, OP_MARKET_HT_FT.scope, referer),
   ]);
-  return { ft, ht, cs };
+  return { ft, ht, cs, htFt };
 }
 
 export async function fetchOutrightWinnerFeed(

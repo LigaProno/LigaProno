@@ -9,6 +9,8 @@ export type Odds1x2Outcome = "HOME" | "DRAW" | "AWAY";
 export type MatchOddsRow = {
   ht1x2: Record<Odds1x2Outcome, number>;
   ft1x2: Record<Odds1x2Outcome, number>;
+  /** HT/FT dublu: chei „HOME/DRAW” (pauză/final). */
+  htFt?: Record<string, number>;
   /** Chei „home-away”, ex. „2-1”. */
   correctScore: Record<string, number>;
   /** Calificare din meci eliminatoriu (gazde / oaspeți). */
@@ -128,12 +130,26 @@ function normalizeToAdvance(src: unknown): { home: number; away: number } | null
   return { home: clampOdd(home), away: clampOdd(away) };
 }
 
+function normalizeHtFt(src: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (src && typeof src === "object") {
+    for (const [k, v] of Object.entries(src as Record<string, unknown>)) {
+      const key = k.trim().toUpperCase();
+      if (!/^(HOME|DRAW|AWAY)\/(HOME|DRAW|AWAY)$/.test(key)) continue;
+      out[key] = clampOdd(v);
+    }
+  }
+  return out;
+}
+
 export function normalizeMatchOddsRow(raw: unknown): MatchOddsRow | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
+  const htFt = normalizeHtFt(o.htFt);
   return {
     ht1x2: normalizeOutcomeRecord(o.ht1x2),
     ft1x2: normalizeOutcomeRecord(o.ft1x2),
+    htFt: Object.keys(htFt).length > 0 ? htFt : undefined,
     correctScore: normalizeCorrectScore(o.correctScore),
     toAdvance: normalizeToAdvance(o.toAdvance),
   };
@@ -309,6 +325,31 @@ export function lookup1x2Odd(
 ): number {
   if (!row) return 1;
   return clampOdd(row[which][outcome]);
+}
+
+export function htFtOddKey(ht: Odds1x2Outcome, ft: Odds1x2Outcome): string {
+  return `${ht}/${ft}`;
+}
+
+/** Cotă HT/FT dublu; dacă lipsește din piață, estimează din cotele 1X2 separate. */
+export function lookupHtFtOdd(
+  row: MatchOddsRow | null | undefined,
+  ht: Odds1x2Outcome,
+  ft: Odds1x2Outcome,
+): number {
+  if (!row) return 1;
+  const direct = row.htFt?.[htFtOddKey(ht, ft)];
+  if (direct != null && direct >= 1) return clampOdd(direct);
+  return clampOdd(lookup1x2Odd(row, "ht1x2", ht) * lookup1x2Odd(row, "ft1x2", ft));
+}
+
+export function hasDirectHtFtOdd(
+  row: MatchOddsRow | null | undefined,
+  ht: Odds1x2Outcome,
+  ft: Odds1x2Outcome,
+): boolean {
+  const direct = row?.htFt?.[htFtOddKey(ht, ft)];
+  return direct != null && direct >= 1;
 }
 
 export function lookupTeamQualifyOdd(
