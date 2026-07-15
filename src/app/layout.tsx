@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
 import { buildRootMetadata } from "@/lib/site-metadata";
 import "./globals.css";
@@ -29,7 +30,7 @@ export default async function RootLayout({
     >
       <html lang={locale} className={`${montserrat.variable} h-full antialiased`}>
         <body className={`${montserrat.className} min-h-full flex flex-col`}>
-          {children}
+          <LocaleProvider initialLocale={locale}>{children}</LocaleProvider>
         </body>
       </html>
     </ClerkProvider>
