@@ -8,11 +8,16 @@ type VerificationStepProps = {
   code: string;
   onCodeChange: (code: string) => void;
   onVerify: (e: React.FormEvent) => Promise<void>;
-  onResend: () => Promise<void>;
+  onResend?: () => Promise<void>;
   onBack: () => void;
   loading: boolean;
   codeError?: string;
   globalError?: string;
+  title?: string;
+  description?: string;
+  codeLabel?: string;
+  codePlaceholder?: string;
+  submitLabel?: string;
 };
 
 export function VerificationStep({
@@ -25,10 +30,17 @@ export function VerificationStep({
   loading,
   codeError,
   globalError,
+  title = "Verifică emailul",
+  description,
+  codeLabel = "Cod de verificare",
+  codePlaceholder = "Introdu codul din email",
+  submitLabel = "Verifică contul",
 }: VerificationStepProps) {
   const [resending, setResending] = useState(false);
+  const canResend = Boolean(onResend);
 
   const handleResend = async () => {
+    if (!onResend) return;
     setResending(true);
     try {
       await onResend();
@@ -38,10 +50,14 @@ export function VerificationStep({
   };
 
   return (
-    <AuthCard title="Verifică emailul">
+    <AuthCard title={title}>
       <p className="mb-5 text-center text-sm leading-relaxed text-white/55">
-        Am trimis un cod de verificare la{" "}
-        <span className="font-medium text-white/80">{email}</span>
+        {description ?? (
+          <>
+            Am trimis un cod de verificare la{" "}
+            <span className="font-medium text-white/80">{email}</span>
+          </>
+        )}
       </p>
 
       {globalError ? <div className="mb-4"><AuthAlert message={globalError} /></div> : null}
@@ -49,27 +65,29 @@ export function VerificationStep({
       <form onSubmit={onVerify} className="space-y-4">
         <AuthField
           id="code"
-          label="Cod de verificare"
+          label={codeLabel}
           value={code}
           onChange={(e) => onCodeChange(e.target.value)}
-          placeholder="Introdu codul din email"
+          placeholder={codePlaceholder}
           autoComplete="one-time-code"
           inputMode="numeric"
           error={codeError}
         />
 
-        <AuthPrimaryButton loading={loading}>Verifică contul</AuthPrimaryButton>
+        <AuthPrimaryButton loading={loading}>{submitLabel}</AuthPrimaryButton>
       </form>
 
       <div className="mt-4 flex flex-col items-center gap-2 text-sm">
-        <button
-          type="button"
-          onClick={handleResend}
-          disabled={resending || loading}
-          className="font-medium text-[#D4AF37] transition-colors hover:text-[#E8C878] disabled:opacity-50"
-        >
-          {resending ? "Se retrimite..." : "Retrimite codul"}
-        </button>
+        {canResend ? (
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={resending || loading}
+            className="font-medium text-[#D4AF37] transition-colors hover:text-[#E8C878] disabled:opacity-50"
+          >
+            {resending ? "Se retrimite..." : "Retrimite codul"}
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={onBack}

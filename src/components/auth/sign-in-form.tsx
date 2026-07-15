@@ -1,6 +1,7 @@
 "use client";
 
 import { useClerk, useSignIn } from "@clerk/nextjs";
+import type { SignInSecondFactor } from "@clerk/shared/types";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
@@ -16,6 +17,90 @@ import { VerificationStep } from "@/components/auth/verification-step";
 import { finalizeAuth } from "@/lib/auth-navigation";
 import { getClerkErrorMessage, getHookGlobalError } from "@/lib/clerk-errors";
 
+type MfaMode = "client_trust" | "email_code" | "phone_code" | "totp" | "backup_code";
+
+function pickSecondFactor(
+  factors: SignInSecondFactor[],
+  status: "needs_second_factor" | "needs_client_trust",
+): MfaMode | null {
+  const hasTotp = factors.some((f) => f.strategy === "totp");
+  const hasBackup = factors.some((f) => f.strategy === "backup_code");
+  const hasEmail = factors.some(
+    (f) => f.strategy === "email_code" || f.strategy === "email_link",
+  );
+  const hasPhone = factors.some((f) => f.strategy === "phone_code");
+
+  // Client Trust (legacy: uneori returnează needs_second_factor + email_code)
+  if (
+    (status === "needs_client_trust" || status === "needs_second_factor") &&
+    hasEmail &&
+    !hasTotp &&
+    !hasBackup &&
+    !hasPhone
+  ) {
+    return "client_trust";
+  }
+
+  if (hasEmail) return "email_code";
+  if (hasPhone) return "phone_code";
+  if (hasTotp) return "totp";
+  if (hasBackup) return "backup_code";
+  return null;
+}
+
+const MFA_COPY: Record<
+  MfaMode,
+  {
+    title: string;
+    description: string;
+    codeLabel: string;
+    codePlaceholder: string;
+    submitLabel: string;
+    canResend: boolean;
+  }
+> = {
+  client_trust: {
+    title: "Verifică dispozitivul",
+    description: "",
+    codeLabel: "Cod din email",
+    codePlaceholder: "Introdu codul primit",
+    submitLabel: "Continuă",
+    canResend: true,
+  },
+  email_code: {
+    title: "Autentificare în doi pași",
+    description: "Am trimis un cod la adresa ta de email. Introdu codul pentru a continua.",
+    codeLabel: "Cod din email",
+    codePlaceholder: "Introdu codul primit",
+    submitLabel: "Continuă",
+    canResend: true,
+  },
+  phone_code: {
+    title: "Autentificare în doi pași",
+    description: "Am trimis un cod prin SMS. Introdu codul pentru a continua.",
+    codeLabel: "Cod SMS",
+    codePlaceholder: "Introdu codul primit",
+    submitLabel: "Continuă",
+    canResend: true,
+  },
+  totp: {
+    title: "Autentificare în doi pași",
+    description: "Introdu codul din aplicația ta de autentificare (Google Authenticator, Authy etc.).",
+    codeLabel: "Cod autentificator",
+    codePlaceholder: "000000",
+    submitLabel: "Continuă",
+    canResend: false,
+  },
+  backup_code: {
+    title: "Cod de rezervă",
+    description: "Introdu unul dintre codurile de rezervă primite când ai activat 2FA.",
+    codeLabel: "Cod de rezervă",
+    codePlaceholder: "Introdu codul de rezervă",
+    submitLabel: "Continuă",
+    canResend: false,
+  },
+};
+
 export function SignInForm() {
   const { loaded } = useClerk();
   const { signIn, errors, fetchStatus } = useSignIn();
@@ -24,11 +109,11 @@ export function SignInForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
+  const [mfaMode, setMfaMode] = useState<MfaMode | null>(null);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [globalError, setGlobalError] = useState<string>();
 
   const loading = fetchStatus === "fetching";
-  const needsVerification = signIn.status === "needs_client_trust";
   const hookError = getHookGlobalError(errors);
 
   if (!loaded) {
@@ -38,6 +123,27 @@ export function SignInForm() {
       </AuthCard>
     );
   }
+
+  const beginMfa = async (mode: MfaMode) => {
+    if (mode === "email_code" || mode === "client_trust") {
+      const { error } = await signIn.mfa.sendEmailCode();
+      if (error) {
+        setGlobalError(getClerkErrorMessage(error) ?? "Nu am putut trimite codul pe email.");
+        return false;
+      }
+    }
+
+    if (mode === "phone_code") {
+      const { error } = await signIn.mfa.sendPhoneCode();
+      if (error) {
+        setGlobalError(getClerkErrorMessage(error) ?? "Nu am putut trimite codul prin SMS.");
+        return false;
+      }
+    }
+
+    setMfaMode(mode);
+    return true;
+  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,12 +161,18 @@ export function SignInForm() {
     }
 
     if (signIn.status === "needs_client_trust") {
-      await signIn.mfa.sendEmailCode();
+      const mode = pickSecondFactor(signIn.supportedSecondFactors, "needs_client_trust");
+      if (mode) await beginMfa(mode);
       return;
     }
 
     if (signIn.status === "needs_second_factor") {
-      setGlobalError("Este necesară autentificarea în doi pași.");
+      const mode = pickSecondFactor(signIn.supportedSecondFactors, "needs_second_factor");
+      if (!mode) {
+        setGlobalError("Contul necesită o verificare suplimentară, dar nu există o metodă disponibilă.");
+        return;
+      }
+      await beginMfa(mode);
       return;
     }
 
@@ -71,7 +183,25 @@ export function SignInForm() {
     e.preventDefault();
     setGlobalError(undefined);
 
-    const { error } = await signIn.mfa.verifyEmailCode({ code });
+    if (!mfaMode) return;
+
+    let error;
+    switch (mfaMode) {
+      case "client_trust":
+      case "email_code":
+        ({ error } = await signIn.mfa.verifyEmailCode({ code }));
+        break;
+      case "phone_code":
+        ({ error } = await signIn.mfa.verifyPhoneCode({ code }));
+        break;
+      case "totp":
+        ({ error } = await signIn.mfa.verifyTOTP({ code }));
+        break;
+      case "backup_code":
+        ({ error } = await signIn.mfa.verifyBackupCode({ code }));
+        break;
+    }
+
     if (error) {
       setGlobalError(getClerkErrorMessage(error) ?? "Cod invalid.");
       return;
@@ -79,6 +209,15 @@ export function SignInForm() {
 
     if (signIn.status === "complete") {
       await finalizeAuth(signIn, router);
+    }
+  };
+
+  const handleResend = async () => {
+    if (!mfaMode) return;
+    if (mfaMode === "email_code" || mfaMode === "client_trust") {
+      await signIn.mfa.sendEmailCode();
+    } else if (mfaMode === "phone_code") {
+      await signIn.mfa.sendPhoneCode();
     }
   };
 
@@ -100,24 +239,33 @@ export function SignInForm() {
 
   const handleBack = () => {
     setCode("");
+    setMfaMode(null);
     setGlobalError(undefined);
     void signIn.reset();
   };
 
-  if (needsVerification) {
+  if (mfaMode) {
+    const copy = MFA_COPY[mfaMode];
     return (
       <VerificationStep
         email={email}
         code={code}
         onCodeChange={setCode}
         onVerify={handleVerify}
-        onResend={async () => {
-          await signIn.mfa.sendEmailCode();
-        }}
+        onResend={copy.canResend ? handleResend : undefined}
         onBack={handleBack}
         loading={loading}
         codeError={errors.fields.code?.message}
         globalError={globalError ?? hookError}
+        title={copy.title}
+        description={
+          mfaMode === "client_trust"
+            ? undefined
+            : copy.description
+        }
+        codeLabel={copy.codeLabel}
+        codePlaceholder={copy.codePlaceholder}
+        submitLabel={copy.submitLabel}
       />
     );
   }
