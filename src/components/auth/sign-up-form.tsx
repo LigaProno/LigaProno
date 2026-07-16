@@ -1,6 +1,6 @@
 "use client";
 
-import { useClerk, useSignUp } from "@clerk/nextjs";
+import { useAuth, useClerk, useSignUp } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
@@ -14,10 +14,15 @@ import {
 } from "@/components/auth/auth-ui";
 import { VerificationStep } from "@/components/auth/verification-step";
 import { finalizeAuth } from "@/lib/auth-navigation";
-import { getClerkErrorMessage, getHookGlobalError } from "@/lib/clerk-errors";
+import {
+  getClerkErrorMessage,
+  getHookGlobalError,
+  isSessionExistsError,
+} from "@/lib/clerk-errors";
 
 export function SignUpForm() {
-  const { loaded } = useClerk();
+  const { loaded, signOut } = useClerk();
+  const { isSignedIn } = useAuth();
   const { signUp, errors, fetchStatus } = useSignUp();
   const router = useRouter();
 
@@ -30,6 +35,38 @@ export function SignUpForm() {
 
   const loading = fetchStatus === "fetching";
   const hookError = getHookGlobalError(errors);
+  const afterSignUp = "/profil?onboarding=1";
+
+  const goToApp = (path = afterSignUp) => {
+    window.location.assign(path);
+  };
+
+  const recoverSessionExists = async (
+    retry: () => Promise<{ error: unknown }>,
+  ): Promise<boolean> => {
+    if (isSignedIn) {
+      goToApp("/dashboard");
+      return true;
+    }
+
+    try {
+      await signOut();
+    } catch {
+      // Continuăm cu retry.
+    }
+
+    await signUp.reset();
+    const { error: retryError } = await retry();
+    if (retryError) {
+      if (isSessionExistsError(retryError)) {
+        goToApp("/dashboard");
+        return true;
+      }
+      setGlobalError(getClerkErrorMessage(retryError) ?? "Înregistrare eșuată.");
+      return true;
+    }
+    return false;
+  };
 
   if (!loaded) {
     return (
@@ -43,14 +80,22 @@ export function SignUpForm() {
     e.preventDefault();
     setGlobalError(undefined);
 
-    const { error } = await signUp.password({ emailAddress: email, password });
+    const attemptPassword = () =>
+      signUp.password({ emailAddress: email, password });
+
+    const { error } = await attemptPassword();
     if (error) {
-      setGlobalError(getClerkErrorMessage(error) ?? "Înregistrare eșuată.");
-      return;
+      if (isSessionExistsError(error)) {
+        const handled = await recoverSessionExists(attemptPassword);
+        if (handled) return;
+      } else {
+        setGlobalError(getClerkErrorMessage(error) ?? "Înregistrare eșuată.");
+        return;
+      }
     }
 
     if (signUp.status === "complete") {
-      await finalizeAuth(signUp, router, "/profil?onboarding=1");
+      await finalizeAuth(signUp, router, afterSignUp);
       return;
     }
 
@@ -76,26 +121,42 @@ export function SignUpForm() {
 
     const { error } = await signUp.verifications.verifyEmailCode({ code });
     if (error) {
+      if (isSessionExistsError(error)) {
+        goToApp("/dashboard");
+        return;
+      }
       setGlobalError(getClerkErrorMessage(error) ?? "Cod invalid.");
       return;
     }
 
     if (signUp.status === "complete") {
-      await finalizeAuth(signUp, router, "/profil?onboarding=1");
+      await finalizeAuth(signUp, router, afterSignUp);
+      return;
     }
+
+    setGlobalError("Înregistrarea nu s-a putut finaliza. Încearcă din nou.");
   };
 
   const handleGoogle = async () => {
     setOauthLoading(true);
     setGlobalError(undefined);
 
+    if (isSignedIn) {
+      goToApp("/dashboard");
+      return;
+    }
+
     const { error } = await signUp.sso({
       strategy: "oauth_google",
       redirectCallbackUrl: "/sso-callback",
-      redirectUrl: "/profil?onboarding=1",
+      redirectUrl: afterSignUp,
     });
 
     if (error) {
+      if (isSessionExistsError(error)) {
+        goToApp("/dashboard");
+        return;
+      }
       setGlobalError(getClerkErrorMessage(error) ?? "Înregistrarea cu Google a eșuat.");
       setOauthLoading(false);
     }
@@ -172,7 +233,8 @@ export function SignUpForm() {
         <AuthPrimaryButton loading={loading}>Creează cont</AuthPrimaryButton>
       </form>
 
-      <div id="clerk-captcha" className="hidden" />
+      {/* Nu folosi display:none — bot protection Clerk (Turnstile) poate eșua. */}
+      <div id="clerk-captcha" />
     </AuthCard>
   );
 }

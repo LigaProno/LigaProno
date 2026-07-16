@@ -1,6 +1,6 @@
 "use client";
 
-import { useClerk, useSignIn } from "@clerk/nextjs";
+import { useAuth, useClerk, useSignIn } from "@clerk/nextjs";
 import type { SignInSecondFactor } from "@clerk/shared/types";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -16,7 +16,11 @@ import {
 } from "@/components/auth/auth-ui";
 import { VerificationStep } from "@/components/auth/verification-step";
 import { finalizeAuth } from "@/lib/auth-navigation";
-import { getClerkErrorMessage, getHookGlobalError } from "@/lib/clerk-errors";
+import {
+  getClerkErrorMessage,
+  getHookGlobalError,
+  isSessionExistsError,
+} from "@/lib/clerk-errors";
 import { useLocale } from "@/components/i18n/locale-provider";
 
 type MfaMode = "client_trust" | "email_code" | "phone_code" | "totp" | "backup_code";
@@ -104,7 +108,8 @@ const MFA_COPY: Record<
 };
 
 export function SignInForm() {
-  const { loaded } = useClerk();
+  const { loaded, signOut } = useClerk();
+  const { isSignedIn } = useAuth();
   const { signIn, errors, fetchStatus } = useSignIn();
   const router = useRouter();
   const { t } = useLocale();
@@ -118,6 +123,38 @@ export function SignInForm() {
 
   const loading = fetchStatus === "fetching";
   const hookError = getHookGlobalError(errors);
+
+  const goToApp = () => {
+    window.location.assign("/dashboard");
+  };
+
+  /** Dacă Clerk spune „already signed in”: sesiune validă → app; stale → signOut + retry. */
+  const recoverSessionExists = async (
+    retry: () => Promise<{ error: unknown }>,
+  ): Promise<boolean> => {
+    if (isSignedIn) {
+      goToApp();
+      return true;
+    }
+
+    try {
+      await signOut();
+    } catch {
+      // Continuăm cu retry chiar dacă signOut eșuează parțial.
+    }
+
+    await signIn.reset();
+    const { error: retryError } = await retry();
+    if (retryError) {
+      if (isSessionExistsError(retryError)) {
+        goToApp();
+        return true;
+      }
+      setGlobalError(getClerkErrorMessage(retryError) ?? "Autentificare eșuată.");
+      return true;
+    }
+    return false;
+  };
 
   if (!loaded) {
     return (
@@ -152,10 +189,19 @@ export function SignInForm() {
     e.preventDefault();
     setGlobalError(undefined);
 
-    const { error } = await signIn.password({ emailAddress: email, password });
+    const attemptPassword = () =>
+      signIn.password({ emailAddress: email, password });
+
+    const { error } = await attemptPassword();
     if (error) {
-      setGlobalError(getClerkErrorMessage(error) ?? "Autentificare eșuată.");
-      return;
+      if (isSessionExistsError(error)) {
+        const handled = await recoverSessionExists(attemptPassword);
+        if (handled) return;
+        // retry a reușit fără error — continuăm cu status-ul curent
+      } else {
+        setGlobalError(getClerkErrorMessage(error) ?? "Autentificare eșuată.");
+        return;
+      }
     }
 
     if (signIn.status === "complete") {
@@ -165,7 +211,13 @@ export function SignInForm() {
 
     if (signIn.status === "needs_client_trust") {
       const mode = pickSecondFactor(signIn.supportedSecondFactors, "needs_client_trust");
-      if (mode) await beginMfa(mode);
+      if (!mode) {
+        setGlobalError(
+          "Contul necesită verificarea dispozitivului, dar nu există o metodă disponibilă.",
+        );
+        return;
+      }
+      await beginMfa(mode);
       return;
     }
 
@@ -211,13 +263,20 @@ export function SignInForm() {
     }
 
     if (error) {
+      if (isSessionExistsError(error)) {
+        goToApp();
+        return;
+      }
       setGlobalError(getClerkErrorMessage(error) ?? "Cod invalid.");
       return;
     }
 
     if (signIn.status === "complete") {
       await finalizeAuth(signIn, router);
+      return;
     }
+
+    setGlobalError("Autentificarea nu s-a putut finaliza. Încearcă din nou.");
   };
 
   const handleResend = async () => {
@@ -233,6 +292,11 @@ export function SignInForm() {
     setOauthLoading(true);
     setGlobalError(undefined);
 
+    if (isSignedIn) {
+      goToApp();
+      return;
+    }
+
     const { error } = await signIn.sso({
       strategy: "oauth_google",
       redirectCallbackUrl: "/sso-callback",
@@ -240,6 +304,10 @@ export function SignInForm() {
     });
 
     if (error) {
+      if (isSessionExistsError(error)) {
+        goToApp();
+        return;
+      }
       setGlobalError(getClerkErrorMessage(error) ?? "Autentificarea cu Google a eșuat.");
       setOauthLoading(false);
     }
