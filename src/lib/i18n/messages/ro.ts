@@ -270,7 +270,7 @@ export const ro: Messages = {
   "potentialPoints.baseTimesOdds": "× cotă",
   "potentialPoints.halfTimeFullTime": "Pauză+Final",
   "potentialPoints.htFtMarket": "cotă HT/FT",
-  "potentialPoints.htFtMarketHint": "cotă HT/FT de pe OddsPortal când ambele sunt completate",
+  "potentialPoints.htFtMarketHint": "cotă pauză × cotă final",
   "potentialPoints.scoreIndependent": "se adună separat",
   "potentialPoints.legendMultiplyHint":
     "Pauză și final folosesc cota HT/FT combinată (0.5×1 × cotă). Scorul exact e independent și se adună la total.",

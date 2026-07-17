@@ -1,7 +1,6 @@
 import {
   lookup1x2Odd,
   lookupCorrectScoreOdd,
-  lookupHtFtOdd,
   type MatchOddsRow,
   type Odds1x2Outcome,
   type TournamentOddsMaps,
@@ -11,7 +10,7 @@ import type { FootballDataMatch } from "@/lib/football-data";
 
 export type MatchOutcome = Odds1x2Outcome;
 
-export const POINTS_HT_BASE = 0.5;
+export const POINTS_HT_BASE = 1;
 export const POINTS_FT_BASE = 1;
 export const POINTS_CORRECT_SCORE_BASE = 3;
 
@@ -29,16 +28,8 @@ function parseOutcome(v: string | null | undefined): Odds1x2Outcome | null {
   return null;
 }
 
-/** Baza combinată pauză+final (0.5 × 1). */
+/** Baza pentru pauză+final ghicite amândouă (1). Totalul = bază × cotă_pauză × cotă_final. */
 export const POINTS_HT_FT_COMBO_BASE = POINTS_HT_BASE * POINTS_FT_BASE;
-
-function splitHtFtForColumns(combined: number): { halfTime: number; fullTime: number } {
-  const baseSum = POINTS_HT_BASE + POINTS_FT_BASE;
-  return {
-    halfTime: roundPoints(combined * (POINTS_HT_BASE / baseSum)),
-    fullTime: roundPoints(combined * (POINTS_FT_BASE / baseSum)),
-  };
-}
 
 function computeHtFtPoints(
   ht: Odds1x2Outcome | null,
@@ -48,10 +39,14 @@ function computeHtFtPoints(
   matchOdds?: MatchOddsRow | null,
 ): { halfTime: number; fullTime: number; combined: number } {
   if (htCorrect && ftCorrect && ht && ft) {
-    const odd = lookupHtFtOdd(matchOdds, ht, ft);
-    const combined = roundPoints(POINTS_HT_FT_COMBO_BASE * odd);
-    const split = splitHtFtForColumns(combined);
-    return { ...split, combined };
+    // Amândouă ghicite: bază × cotă_pauză × cotă_final.
+    const htOdd = lookup1x2Odd(matchOdds, "ht1x2", ht);
+    const ftOdd = lookup1x2Odd(matchOdds, "ft1x2", ft);
+    const combined = roundPoints(POINTS_HT_FT_COMBO_BASE * htOdd * ftOdd);
+    // Coloane: RF = recompensa de final (cota final); RP = restul (bonusul din combo). Suma = combined.
+    const fullTime = roundPoints(POINTS_FT_BASE * ftOdd);
+    const halfTime = roundPoints(combined - fullTime);
+    return { halfTime, fullTime, combined };
   }
   if (htCorrect && ht) {
     const combined = roundPoints(POINTS_HT_BASE * lookup1x2Odd(matchOdds, "ht1x2", ht));
@@ -95,8 +90,10 @@ export function computePotentialPointComponents(
   let mode: PotentialHtFtDisplay["mode"] = "none";
 
   if (ht && ft) {
-    htFtOdd = lookupHtFtOdd(matchOdds, ht, ft);
-    htFtPoints = roundPoints(POINTS_HT_FT_COMBO_BASE * htFtOdd);
+    const htOdd = lookup1x2Odd(matchOdds, "ht1x2", ht);
+    const ftOdd = lookup1x2Odd(matchOdds, "ft1x2", ft);
+    htFtOdd = roundPoints(htOdd * ftOdd);
+    htFtPoints = roundPoints(POINTS_HT_FT_COMBO_BASE * htOdd * ftOdd);
     mode = "combo";
   } else if (ht) {
     htFtOdd = lookup1x2Odd(matchOdds, "ht1x2", ht);

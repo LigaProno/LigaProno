@@ -269,7 +269,7 @@ export const en: Messages = {
   "potentialPoints.baseTimesOdds": "× odds",
   "potentialPoints.halfTimeFullTime": "HT+FT",
   "potentialPoints.htFtMarket": "HT/FT odds",
-  "potentialPoints.htFtMarketHint": "HT/FT odds from OddsPortal when both are filled",
+  "potentialPoints.htFtMarketHint": "half-time odds × full-time odds",
   "potentialPoints.scoreIndependent": "added separately",
   "potentialPoints.legendMultiplyHint":
     "Half-time and full-time use the combined HT/FT odds (0.5×1 × odds). Exact score is independent and added to the total.",
