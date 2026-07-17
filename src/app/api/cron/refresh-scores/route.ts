@@ -17,8 +17,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { updated, errors } = await refreshAllScores();
+  const { updated, errors, badgesAwarded } = await refreshAllScores();
   revalidatePath("/turnee/clasament");
+  if (badgesAwarded > 0) revalidatePath("/turnee");
 
-  return NextResponse.json({ ok: true, updated, errors });
+  return NextResponse.json({ ok: true, updated, errors, badgesAwarded });
 }

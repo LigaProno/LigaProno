@@ -16,6 +16,8 @@ import {
   type FootballDataMatch,
 } from "@/lib/football-data";
 import { prisma } from "@/lib/prisma";
+import { awardTournamentWinIfComplete, loadWinBadgesByUser } from "@/lib/tournament-wins";
+import type { WinnerBadgeEntry } from "@/components/ui/winner-badge";
 import {
   fixtureTlaPair,
   filterMatchesForTournament,
@@ -42,6 +44,7 @@ export type GlobalLeaderboardRow = {
   rank: number;
   userId: string;
   displayName: string;
+  wins: WinnerBadgeEntry[];
   bestTournamentId: string;
   bestTournamentName: string;
   bestTournamentCompetition: string;
@@ -256,7 +259,11 @@ function buildNextThreeByCompetition(
   return blocks;
 }
 
-export async function refreshAllScores(): Promise<{ updated: number; errors: number }> {
+export async function refreshAllScores(): Promise<{
+  updated: number;
+  errors: number;
+  badgesAwarded: number;
+}> {
   const tournaments = await prisma.tournament.findMany({
     where: { competition: { not: null } },
     include: { members: true },
@@ -286,6 +293,7 @@ export async function refreshAllScores(): Promise<{ updated: number; errors: num
 
   let updated = 0;
   let errors = 0;
+  let badgesAwarded = 0;
 
   for (const tournament of tournaments) {
     if (!tournament.competition) continue;
@@ -324,9 +332,18 @@ export async function refreshAllScores(): Promise<{ updated: number; errors: num
         updated++;
       }),
     );
+
+    // Scorurile tocmai s-au scris, deci `cachedTotal` reflectă clasamentul final.
+    try {
+      const awarded = await awardTournamentWinIfComplete(tournament, competitionCtx.matches);
+      if (awarded) badgesAwarded++;
+    } catch (error) {
+      console.error("[refreshAllScores] award failed", tournament.id, error);
+      errors++;
+    }
   }
 
-  return { updated, errors };
+  return { updated, errors, badgesAwarded };
 }
 
 export async function loadGlobalMemberPredictions(memberUserId: string): Promise<{
@@ -514,6 +531,7 @@ export async function buildGlobalLeaderboard(): Promise<GlobalLeaderboardResult>
         rank: 0,
         userId: member.userId,
         displayName: name,
+        wins: [], // completat după deduplicare, într-o singură interogare
         bestTournamentCompetition: tournament.competition,
         lastMatch,
         ...score,
@@ -530,8 +548,12 @@ export async function buildGlobalLeaderboard(): Promise<GlobalLeaderboardResult>
     if (b.total !== a.total) return b.total - a.total;
     return a.displayName.localeCompare(b.displayName, "ro");
   });
+
+  // O singură interogare pentru tot clasamentul, după deduplicare.
+  const winsByUser = await loadWinBadgesByUser(rows.map((r) => r.userId));
   rows.forEach((r, i) => {
     r.rank = i + 1;
+    r.wins = winsByUser.get(r.userId) ?? [];
   });
 
   return {

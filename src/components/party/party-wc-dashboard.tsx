@@ -29,6 +29,7 @@ import {
 import { WC_CYAN, WC_LIME, WC_SLATE } from "@/components/world-cup/wc-theme";
 import { LeaderboardTh } from "@/components/ui/column-header-tip";
 import { LeaderboardGapRow, LeaderboardToggle } from "@/components/ui/leaderboard-collapse";
+import { WinnerBadge, type WinnerBadgeEntry } from "@/components/ui/winner-badge";
 import { buildLeaderboardView, canCollapseLeaderboard } from "@/lib/leaderboard-view";
 import { getLeaderboardRowStyle, getPodiumStyle } from "@/lib/leaderboard-podium";
 import { MatchPredDisplayInline } from "@/components/party/match-pred-display-inline";
@@ -39,6 +40,7 @@ export type LeaderboardRow = {
   rank: number;
   userId: string;
   displayName: string;
+  wins: WinnerBadgeEntry[];
   fg: number;
   pg: number;
   sc: number;
@@ -444,17 +446,20 @@ export default function PartyWcDashboard({
                           {row.rank}
                         </td>
                         <td className="py-2.5 px-2 align-top max-w-[7rem] sm:max-w-[9rem]">
-                          {isPublic ?
-                            <span className="text-left w-full inline-block text-white truncate font-medium">
-                              {row.displayName}
-                            </span>
-                          : <Link
-                              href={`/turnee/${tournamentId}/member/${row.userId}`}
-                              className="text-left w-full inline-block text-white truncate hover:underline decoration-cyan-400/80 underline-offset-2 font-medium"
-                            >
-                              {row.displayName}
-                            </Link>
-                          }
+                          <span className="flex items-center gap-1 min-w-0">
+                            {isPublic ?
+                              <span className="text-left text-white truncate font-medium">
+                                {row.displayName}
+                              </span>
+                            : <Link
+                                href={`/turnee/${tournamentId}/member/${row.userId}`}
+                                className="text-left text-white truncate hover:underline decoration-cyan-400/80 underline-offset-2 font-medium"
+                              >
+                                {row.displayName}
+                              </Link>
+                            }
+                            <WinnerBadge wins={row.wins} />
+                          </span>
                         </td>
                         <td className="py-2.5 px-1.5 align-top text-[10px] leading-snug min-w-[5.5rem]" style={{ color: "rgba(255,255,255,0.82)" }}>
                           {row.lastMatch ?

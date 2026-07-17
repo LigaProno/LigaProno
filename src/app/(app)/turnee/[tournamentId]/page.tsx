@@ -31,6 +31,7 @@ import {
 } from "@/lib/wc-scoring";
 import { createTranslator } from "@/lib/i18n";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
+import { loadWinBadgesByUser } from "@/lib/tournament-wins";
 
 function displayName(first?: string | null, last?: string | null): string {
   const s = `${first ?? ""} ${last ?? ""}`.trim();
@@ -165,6 +166,9 @@ export default async function PartyTournamentPage({
   const matchdayMemberPreds: NextThreeMatchPreds[] =
     tournament.isPublic ? [] : currentMatchdayMatches.map(buildMemberPredsBlock);
 
+  // O singură interogare pentru badge-urile tuturor membrilor, nu una per rând.
+  const winsByUser = await loadWinBadgesByUser(tournamentMembers.map((m) => m.userId));
+
   const leaderboardRows: LeaderboardRow[] = tournamentMembers.map((m) => {
     const totals = computeUserWcTotals(
       predsByUser.get(m.userId) ?? new Map(),
@@ -199,6 +203,7 @@ export default async function PartyTournamentPage({
       rank: 0,
       userId: m.userId,
       displayName: displayName(m.user.firstName, m.user.lastName),
+      wins: winsByUser.get(m.userId) ?? [],
       fg: totals.fullTimeGuessPoints,
       pg: totals.halfTimeGuessPoints,
       sc: totals.correctScorePoints,

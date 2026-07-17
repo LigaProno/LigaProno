@@ -7,6 +7,7 @@ import { MatchPredDisplayInline } from "@/components/party/match-pred-display-in
 import { NextThreePredictionsPanel } from "@/components/party/next-three-predictions-panel";
 import { LeaderboardTh } from "@/components/ui/column-header-tip";
 import { LeaderboardGapRow, LeaderboardToggle } from "@/components/ui/leaderboard-collapse";
+import { WinnerBadge } from "@/components/ui/winner-badge";
 import { buildLeaderboardView, canCollapseLeaderboard } from "@/lib/leaderboard-view";
 import { getLeaderboardRowStyle, getPodiumStyle } from "@/lib/leaderboard-podium";
 import type {
@@ -93,12 +94,15 @@ export default function GlobalLeaderboardTable({
                   {row.rank}
                 </td>
                 <td className="py-2.5 px-2 align-top max-w-[7rem] sm:max-w-[9rem]">
-                  <Link
-                    href={`/turnee/clasament/utilizator/${row.userId}`}
-                    className="text-left w-full inline-block text-white truncate hover:underline decoration-cyan-400/80 underline-offset-2 font-medium"
-                  >
-                    {row.displayName}
-                  </Link>
+                  <span className="flex items-center gap-1 min-w-0">
+                    <Link
+                      href={`/turnee/clasament/utilizator/${row.userId}`}
+                      className="text-left text-white truncate hover:underline decoration-cyan-400/80 underline-offset-2 font-medium"
+                    >
+                      {row.displayName}
+                    </Link>
+                    <WinnerBadge wins={row.wins} />
+                  </span>
                 </td>
                 <td
                   className="py-2.5 px-1.5 align-top text-[10px] leading-snug min-w-[5.5rem]"

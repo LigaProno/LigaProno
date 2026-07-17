@@ -26,6 +26,7 @@ model User {
   wcExtraPredictions  WcExtraPrediction[]
   miniGamePlays       MiniGamePlay[]
   supportMessages     SupportMessage[]
+  tournamentWins      TournamentWin[]
 }
 
 // Competiție activă în party: null = fără pronosticuri; altfel `{COD_API}_{anSezon}` (ex. WC_2026, PL_2024) din Football-Data.
@@ -48,6 +49,10 @@ model Tournament {
   wcExtraPredictions   WcExtraPrediction[]
   bettingOdds          TournamentBettingOdds?
   lastManualOddsRefreshAt DateTime?
+  // Setat de cron când toate meciurile din fereastra turneului s-au terminat.
+  // Odată setat, clasamentul e final și badge-ul nu se mai recalculează.
+  closedAt             DateTime?
+  win                  TournamentWin?
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
 }
@@ -211,4 +216,22 @@ enum SupportCategory {
 enum SupportStatus {
   OPEN
   DONE
+}
+
+// Badge câștigat la un turneu public. Snapshot: odată acordat nu se recalculează,
+// chiar dacă scorurile se schimbă ulterior (cotele se actualizează zilnic).
+model TournamentWin {
+  id            String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String     @db.ObjectId
+  user          User       @relation(fields: [userId], references: [id])
+  tournamentId  String     @db.ObjectId
+  tournament    Tournament @relation(fields: [tournamentId], references: [id])
+  // Numele turneului la momentul câștigării — supraviețuiește redenumirii.
+  tournamentName String
+  // Scorul final îngheţat, pentru tooltip/istoric.
+  finalTotal    Float
+  awardedAt     DateTime   @default(now())
+
+  @@unique([tournamentId])
+  @@index([userId])
 }
