@@ -81,7 +81,7 @@ export { venueLabel };
 async function fdFetch<T>(
   path: string,
   searchParams?: Record<string, string>,
-  options?: { fresh?: boolean },
+  options?: { fresh?: boolean; revalidate?: number },
 ): Promise<T> {
   const url = new URL(path.startsWith("http") ? path : `${BASE_URL}${path}`);
   if (searchParams) {
@@ -91,7 +91,7 @@ async function fdFetch<T>(
   }
 
   const revalidateSeconds =
-    process.env.WC_LIVE_MODE === "true" ? 300 : 900;
+    options?.revalidate ?? (process.env.WC_LIVE_MODE === "true" ? 300 : 900);
 
   const res = await fetch(url.toString(), {
     headers: {
@@ -201,6 +201,24 @@ export async function fetchCompetitionMatchesFresh(
   );
 
   return collected;
+}
+
+/**
+ * Doar meciurile în desfășurare (IN_PLAY = live, PAUSED = pauză) ale competiției.
+ * Cache scurt (60s) și partajat: Football-Data e lovit cel mult o dată/60s per
+ * competiție, indiferent câți useri deschid pagina — sub limita de ~10 req/min.
+ */
+export async function fetchCompetitionLiveMatches(
+  competitionCode: string,
+  season: string,
+): Promise<FootballDataMatch[]> {
+  const code = competitionCode.trim().toUpperCase();
+  const data = await fdFetch<MatchesEnvelope>(
+    `/competitions/${code}/matches`,
+    { season: season.trim(), status: "IN_PLAY,PAUSED" },
+    { revalidate: 60 },
+  );
+  return data.matches ?? [];
 }
 
 

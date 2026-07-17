@@ -37,6 +37,8 @@ import { PointsScoringLegend } from "@/components/party/potential-points";
 import { fixtureTlaPair, getMatchPredDisplay, type MatchPredDisplay } from "@/lib/wc-pred-display";
 import { ShareButton } from "@/components/ui/share-button";
 import { buildMyMatchdayShareText } from "@/lib/share-predictions";
+import { LiveFixtureBanner } from "@/components/party/live-fixture-banner";
+import type { LiveFixture } from "@/lib/live-fixtures";
 
 export type LeaderboardRow = {
   rank: number;
@@ -79,6 +81,7 @@ export default function PartyWcDashboard({
   canManualRefreshOddsToday = true,
   nextThreeMemberPreds = [],
   currentMatchday = 1,
+  liveFixtures = [],
 }: {
   tournamentId: string;
   tournamentName: string;
@@ -104,6 +107,7 @@ export default function PartyWcDashboard({
   canManualRefreshOddsToday?: boolean;
   nextThreeMemberPreds?: NextThreeMatchPreds[];
   currentMatchday?: number;
+  liveFixtures?: LiveFixture[];
 }) {
   const router = useRouter();
   const { t, dateLocale } = useLocale();
@@ -406,6 +410,7 @@ export default function PartyWcDashboard({
 
           {tab === "leaderboard" && (
             <div className="flex flex-col gap-5">
+              <LiveFixtureBanner tournamentId={tournamentId} initial={liveFixtures} />
               <div
                 className="rounded-2xl border overflow-x-auto"
                 style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.08)" }}

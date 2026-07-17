@@ -200,6 +200,8 @@ export const ro: Messages = {
   "memberPred.actualFtTip": "Scor oficial final",
   "party.nextThree.title": "Următoarele 3 meciuri — pronosticuri grupă",
   "party.matchdayPreds.title": "Etapa {matchday} — pronosticuri grupă",
+  "party.live.live": "Live",
+  "party.live.paused": "Pauză",
   "party.share.button": "Trimite pronosticurile mele",
   "party.share.myTitle": "Pronosticurile mele",
   "party.share.fixture": "Meci",

@@ -181,6 +181,8 @@ export type MessageKey =
   | "memberPred.actualFtTip"
   | "party.nextThree.title"
   | "party.matchdayPreds.title"
+  | "party.live.live"
+  | "party.live.paused"
   | "party.share.button"
   | "party.share.myTitle"
   | "party.share.fixture"

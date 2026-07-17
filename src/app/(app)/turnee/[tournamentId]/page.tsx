@@ -33,6 +33,7 @@ import { createTranslator } from "@/lib/i18n";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
 import { loadWinBadgesByUser } from "@/lib/tournament-wins";
 import { isAdminEmail } from "@/lib/admin";
+import { loadTournamentLiveFixtures } from "@/lib/live-fixtures";
 
 function displayName(first?: string | null, last?: string | null): string {
   const s = `${first ?? ""} ${last ?? ""}`.trim();
@@ -172,6 +173,9 @@ export default async function PartyTournamentPage({
   // O singură interogare pentru badge-urile tuturor membrilor, nu una per rând.
   const winsByUser = await loadWinBadgesByUser(tournamentMembers.map((m) => m.userId));
 
+  // Meciurile live din fereastra turneului (cache 60s, partajat) pentru banner.
+  const liveFixtures = await loadTournamentLiveFixtures(tournament);
+
   const leaderboardRows: LeaderboardRow[] = tournamentMembers.map((m) => {
     const totals = computeUserWcTotals(
       predsByUser.get(m.userId) ?? new Map(),
@@ -291,6 +295,7 @@ export default async function PartyTournamentPage({
         canManualRefreshOddsToday={canManualRefreshOddsTodayFlag}
         nextThreeMemberPreds={matchdayMemberPreds}
         currentMatchday={currentMatchday}
+        liveFixtures={liveFixtures}
       />
     </div>
   );

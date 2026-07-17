@@ -199,6 +199,8 @@ export const en: Messages = {
   "memberPred.actualFtTip": "Official full-time score",
   "party.nextThree.title": "Next 3 matches — group predictions",
   "party.matchdayPreds.title": "Matchday {matchday} — group predictions",
+  "party.live.live": "Live",
+  "party.live.paused": "Half-time",
   "party.share.button": "Share my predictions",
   "party.share.myTitle": "My predictions",
   "party.share.fixture": "Match",
