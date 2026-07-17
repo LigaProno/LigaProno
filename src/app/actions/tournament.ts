@@ -1,10 +1,10 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { COMPETITION_PICKER_OPTIONS } from "@/lib/competition";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { I18nError } from "@/lib/i18n/errors";
+import { requireDbUser } from "@/lib/sync-clerk-user";
 
 function resolveValidatedCompetition(token: string | null | undefined): string {
   if (token == null || token === "" || token === "__none__") {
@@ -27,11 +27,7 @@ export async function createTournament(
   customCode?: string,
   competitionStorage?: string | null,
 ): Promise<{ inviteCode: string }> {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) throw new I18nError("errors.notAuthenticated");
-
-  const user = await prisma.user.findUnique({ where: { clerkId } });
-  if (!user) throw new I18nError("errors.userNotFound");
+  const user = await requireDbUser();
 
   let inviteCode = customCode?.trim().toUpperCase() || generateInviteCode();
 
@@ -59,11 +55,7 @@ export async function createTournament(
 }
 
 export async function deleteTournament(tournamentId: string): Promise<void> {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) throw new I18nError("errors.notAuthenticated");
-
-  const user = await prisma.user.findUnique({ where: { clerkId } });
-  if (!user) throw new I18nError("errors.userNotFound");
+  const user = await requireDbUser();
 
   const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
   if (!tournament) throw new I18nError("errors.tournamentNotFound");
@@ -79,11 +71,7 @@ export async function deleteTournament(tournamentId: string): Promise<void> {
 }
 
 export async function joinPublicTournament(tournamentId: string): Promise<void> {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) throw new I18nError("errors.notAuthenticated");
-
-  const user = await prisma.user.findUnique({ where: { clerkId } });
-  if (!user) throw new I18nError("errors.userNotFound");
+  const user = await requireDbUser();
 
   const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
   if (!tournament || !tournament.isPublic) throw new I18nError("errors.tournamentNotFound");
@@ -102,11 +90,7 @@ export async function joinPublicTournament(tournamentId: string): Promise<void> 
 }
 
 export async function joinTournament(code: string): Promise<void> {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) throw new I18nError("errors.notAuthenticated");
-
-  const user = await prisma.user.findUnique({ where: { clerkId } });
-  if (!user) throw new I18nError("errors.userNotFound");
+  const user = await requireDbUser();
 
   const tournament = await prisma.tournament.findUnique({
     where: { inviteCode: code.trim().toUpperCase() },

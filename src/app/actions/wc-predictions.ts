@@ -1,8 +1,8 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireDbUser } from "@/lib/sync-clerk-user";
 import {
   fetchCompetitionMatches,
   fetchCompetitionMatchesFresh,
@@ -31,11 +31,7 @@ export async function setTournamentCompetition(
   tournamentId: string,
   competition: string | null,
 ): Promise<void> {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) throw new I18nError("errors.notAuthenticated");
-
-  const user = await prisma.user.findUnique({ where: { clerkId } });
-  if (!user) throw new I18nError("errors.userNotFound");
+  const user = await requireDbUser();
 
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
@@ -82,11 +78,7 @@ export async function saveWcMatchPrediction(
     predAdvancingTeamId?: null;
   },
 ): Promise<void> {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) throw new Error("Not authenticated.");
-
-  const user = await prisma.user.findUnique({ where: { clerkId } });
-  if (!user) throw new Error("User not found.");
+  const user = await requireDbUser();
 
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
@@ -178,11 +170,7 @@ export async function saveWcMatchPrediction(
 export async function refreshTournamentMatches(
   tournamentId: string,
 ): Promise<{ matchCount: number }> {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) throw new Error("Not authenticated.");
-
-  const user = await prisma.user.findUnique({ where: { clerkId } });
-  if (!user) throw new Error("User not found.");
+  const user = await requireDbUser();
 
   await assertMember(tournamentId, user.id);
 

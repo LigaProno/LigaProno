@@ -1,9 +1,9 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { isAdminEmail } from "@/lib/admin";
+import { requireDbUser } from "@/lib/sync-clerk-user";
 import { COMPETITION_PICKER_OPTIONS, parseStoredCompetition } from "@/lib/competition";
 import { fetchCompetitionMatches } from "@/lib/football-data";
 import { resolveFirstUpcomingMatchday } from "@/lib/wc-pred-display";
@@ -11,10 +11,8 @@ import { I18nError } from "@/lib/i18n/errors";
 import type { TournamentPrize } from "@/lib/tournament-prizes";
 
 async function assertAdmin() {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) throw new I18nError("errors.notAuthenticated");
-  const user = await prisma.user.findUnique({ where: { clerkId } });
-  if (!user || !isAdminEmail(user.email)) throw new Error("Acces interzis.");
+  const user = await requireDbUser();
+  if (!isAdminEmail(user.email)) throw new Error("Acces interzis.");
   return user;
 }
 

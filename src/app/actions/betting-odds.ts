@@ -1,8 +1,8 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { refreshOddsForCompetition } from "@/lib/refresh-competition-odds";
+import { requireDbUser } from "@/lib/sync-clerk-user";
 import { canManualRefreshOddsToday } from "@/lib/odds-refresh-limit";
 import { I18nError } from "@/lib/i18n/errors";
 
@@ -15,11 +15,7 @@ export async function refreshTournamentBettingOdds(
   oddsSource: string;
   usedFallback: boolean;
 }> {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) throw new I18nError("errors.notAuthenticated");
-
-  const user = await prisma.user.findUnique({ where: { clerkId } });
-  if (!user) throw new I18nError("errors.userNotFound");
+  const user = await requireDbUser();
 
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },

@@ -1,6 +1,5 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { fetchCompetitionTeams } from "@/lib/football-data";
 import {
@@ -10,7 +9,7 @@ import {
 } from "@/lib/favorite-team";
 import { I18nError } from "@/lib/i18n/errors";
 import { prisma } from "@/lib/prisma";
-import { getOrSyncDbUser } from "@/lib/sync-clerk-user";
+import { requireDbUser } from "@/lib/sync-clerk-user";
 
 export type ProfileTeamOption = {
   id: number;
@@ -34,16 +33,6 @@ export type ProfileData = {
   favoriteTeamCompetition: string | null;
   createdAt: string;
 };
-
-async function requireDbUser() {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) throw new I18nError("errors.notAuthenticated");
-
-  const user = await getOrSyncDbUser();
-  if (!user) throw new I18nError("errors.userNotFound");
-
-  return user;
-}
 
 export async function getFavoriteTeamCompetitionOptions(): Promise<ProfileCompetitionOption[]> {
   return FAVORITE_TEAM_COMPETITION_OPTIONS.map((o) => ({

@@ -28,6 +28,9 @@ import {
 } from "@/components/party/next-three-predictions-panel";
 import { WC_CYAN, WC_LIME, WC_SLATE } from "@/components/world-cup/wc-theme";
 import { LeaderboardTh } from "@/components/ui/column-header-tip";
+import { LeaderboardGapRow, LeaderboardToggle } from "@/components/ui/leaderboard-collapse";
+import { buildLeaderboardView, canCollapseLeaderboard } from "@/lib/leaderboard-view";
+import { getLeaderboardRowStyle, getPodiumStyle } from "@/lib/leaderboard-podium";
 import { MatchPredDisplayInline } from "@/components/party/match-pred-display-inline";
 import { PointsScoringLegend } from "@/components/party/potential-points";
 import type { MatchPredDisplay } from "@/lib/wc-pred-display";
@@ -101,6 +104,7 @@ export default function PartyWcDashboard({
   const router = useRouter();
   const { t, dateLocale } = useLocale();
   const [tab, setTab] = useState<"leaderboard" | "predictions">("leaderboard");
+  const [showAllLeaderboard, setShowAllLeaderboard] = useState(false);
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -118,6 +122,11 @@ export default function PartyWcDashboard({
   const unregisterMatchDraft = useCallback((matchId: number) => {
     matchDraftGettersRef.current.delete(matchId);
   }, []);
+
+  const leaderboardView = useMemo(
+    () => buildLeaderboardView(leaderboard, currentUserId, showAllLeaderboard),
+    [leaderboard, currentUserId, showAllLeaderboard],
+  );
 
   const competitionActive = parseStoredCompetition(competition) != null;
 
@@ -410,16 +419,30 @@ export default function PartyWcDashboard({
                     </tr>
                   </thead>
                   <tbody>
-                    {leaderboard.map((row) => (
+                    {leaderboardView.map((entry, i) => {
+                      if (entry.kind === "gap") {
+                        return (
+                          <LeaderboardGapRow
+                            key={`gap-${i}`}
+                            colSpan={7}
+                            hiddenCount={entry.hiddenCount}
+                            onExpand={() => setShowAllLeaderboard(true)}
+                          />
+                        );
+                      }
+                      const row = entry.row;
+                      const podium = getPodiumStyle(row.rank);
+                      return (
                       <tr
                         key={row.userId}
-                        style={{
-                          borderBottom: "1px solid rgba(255,255,255,0.06)",
-                          backgroundColor:
-                            row.userId === currentUserId ? "rgba(59,130,246,0.06)" : undefined,
-                        }}
+                        style={getLeaderboardRowStyle(row.rank, row.userId === currentUserId)}
                       >
-                        <td className="py-2.5 px-2 text-white font-bold tabular-nums align-top">{row.rank}</td>
+                        <td
+                          className="py-2.5 px-2 font-bold tabular-nums align-top"
+                          style={{ color: podium?.rankColor ?? "#FFFFFF" }}
+                        >
+                          {row.rank}
+                        </td>
                         <td className="py-2.5 px-2 align-top max-w-[7rem] sm:max-w-[9rem]">
                           <Link
                             href={`/turnee/${tournamentId}/member/${row.userId}`}
@@ -470,10 +493,18 @@ export default function PartyWcDashboard({
                           {row.total}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
+              {canCollapseLeaderboard(leaderboard.length) ? (
+                <LeaderboardToggle
+                  showAll={showAllLeaderboard}
+                  totalCount={leaderboard.length}
+                  onToggle={() => setShowAllLeaderboard((v) => !v)}
+                />
+              ) : null}
               <NextThreePredictionsPanel
                 matches={nextThreeMemberPreds}
                 currentUserId={currentUserId}

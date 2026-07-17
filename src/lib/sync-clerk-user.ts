@@ -1,6 +1,7 @@
-import { currentUser, type User as ClerkUser } from "@clerk/nextjs/server";
+import { auth, currentUser, type User as ClerkUser } from "@clerk/nextjs/server";
 import type { User as DbUser } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { I18nError } from "@/lib/i18n/errors";
 
 type ClerkProfile = Pick<
   ClerkUser,
@@ -103,4 +104,19 @@ export async function getOrSyncDbUser(): Promise<DbUser | null> {
 
   const email = resolveEmail(clerkUser);
   return prisma.user.findUnique({ where: { email } });
+}
+
+/**
+ * User DB garantat pentru server actions — sincronizează la cerere dacă rândul
+ * încă nu există (user nou sau migrat al cărui clerkId s-a schimbat). Aruncă
+ * erori i18n în loc să presupună că sync-ul din layout a rulat deja.
+ */
+export async function requireDbUser(): Promise<DbUser> {
+  const { userId: clerkId } = await auth();
+  if (!clerkId) throw new I18nError("errors.notAuthenticated");
+
+  const user = await getOrSyncDbUser();
+  if (!user) throw new I18nError("errors.userNotFound");
+
+  return user;
 }

@@ -1,9 +1,9 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { I18nError } from "@/lib/i18n/errors";
+import { requireDbUser } from "@/lib/sync-clerk-user";
 import { todayDateKeyBucharest } from "@/lib/mini-games/date";
 import { compareChampionGuess } from "@/lib/mini-games/champion-clues";
 import {
@@ -24,11 +24,7 @@ import type { BingoCells } from "@/lib/mini-games/types";
 import { getOrCreatePlay } from "@/lib/mini-games/leaderboard";
 
 async function requireUser() {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) throw new I18nError("errors.notAuthenticated");
-  const user = await prisma.user.findUnique({ where: { clerkId } });
-  if (!user) throw new I18nError("errors.userNotFound");
-  return user;
+  return requireDbUser();
 }
 
 function parseBingoCells(raw: unknown): BingoCells {

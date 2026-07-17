@@ -1,10 +1,14 @@
 ﻿"use client";
 
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { MatchPredDisplayInline } from "@/components/party/match-pred-display-inline";
 import { NextThreePredictionsPanel } from "@/components/party/next-three-predictions-panel";
 import { LeaderboardTh } from "@/components/ui/column-header-tip";
+import { LeaderboardGapRow, LeaderboardToggle } from "@/components/ui/leaderboard-collapse";
+import { buildLeaderboardView, canCollapseLeaderboard } from "@/lib/leaderboard-view";
+import { getLeaderboardRowStyle, getPodiumStyle } from "@/lib/leaderboard-podium";
 import type {
   GlobalLeaderboardNextThreeBlock,
   GlobalLeaderboardRow,
@@ -20,6 +24,12 @@ export default function GlobalLeaderboardTable({
   currentUserId?: string;
 }) {
   const { t } = useLocale();
+  const [showAll, setShowAll] = useState(false);
+
+  const view = useMemo(
+    () => buildLeaderboardView(rows, currentUserId ?? "", showAll),
+    [rows, currentUserId, showAll],
+  );
 
   if (rows.length === 0) {
     return (
@@ -58,16 +68,30 @@ export default function GlobalLeaderboardTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {view.map((entry, i) => {
+              if (entry.kind === "gap") {
+                return (
+                  <LeaderboardGapRow
+                    key={`gap-${i}`}
+                    colSpan={8}
+                    hiddenCount={entry.hiddenCount}
+                    onExpand={() => setShowAll(true)}
+                  />
+                );
+              }
+              const row = entry.row;
+              const podium = getPodiumStyle(row.rank);
+              return (
               <tr
                 key={row.userId}
-                style={{
-                  borderBottom: "1px solid rgba(255,255,255,0.06)",
-                  backgroundColor:
-                    row.userId === currentUserId ? "rgba(59,130,246,0.06)" : undefined,
-                }}
+                style={getLeaderboardRowStyle(row.rank, row.userId === currentUserId)}
               >
-                <td className="py-2.5 px-2 text-white font-bold tabular-nums align-top">{row.rank}</td>
+                <td
+                  className="py-2.5 px-2 font-bold tabular-nums align-top"
+                  style={{ color: podium?.rankColor ?? "#FFFFFF" }}
+                >
+                  {row.rank}
+                </td>
                 <td className="py-2.5 px-2 align-top max-w-[7rem] sm:max-w-[9rem]">
                   <Link
                     href={`/turnee/clasament/utilizator/${row.userId}`}
@@ -143,10 +167,19 @@ export default function GlobalLeaderboardTable({
                   {row.total}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
+
+      {canCollapseLeaderboard(rows.length) ? (
+        <LeaderboardToggle
+          showAll={showAll}
+          totalCount={rows.length}
+          onToggle={() => setShowAll((v) => !v)}
+        />
+      ) : null}
 
       {nextThreeByCompetition.map((block) =>
         block.matches.length > 0 ?
