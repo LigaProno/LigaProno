@@ -454,17 +454,12 @@ export default function PartyWcDashboard({
                         </td>
                         <td className="py-2.5 px-2 align-top max-w-[7rem] sm:max-w-[9rem]">
                           <span className="flex items-center gap-1 min-w-0">
-                            {isPublic ?
-                              <span className="text-left text-white truncate font-medium">
-                                {row.displayName}
-                              </span>
-                            : <Link
-                                href={`/turnee/${tournamentId}/member/${row.userId}`}
-                                className="text-left text-white truncate hover:underline decoration-cyan-400/80 underline-offset-2 font-medium"
-                              >
-                                {row.displayName}
-                              </Link>
-                            }
+                            <Link
+                              href={`/turnee/${tournamentId}/member/${row.userId}`}
+                              className="text-left text-white truncate hover:underline decoration-cyan-400/80 underline-offset-2 font-medium"
+                            >
+                              {row.displayName}
+                            </Link>
                             <WinnerBadge wins={row.wins} />
                           </span>
                         </td>

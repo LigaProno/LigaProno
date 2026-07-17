@@ -9,6 +9,7 @@ import {
 import { parseStoredCompetition } from "@/lib/competition";
 import { prisma } from "@/lib/prisma";
 import { hasAnyMatchPrediction, filterMatchesForTournament } from "@/lib/wc-pred-display";
+import { isMatchKickoffPassed } from "@/lib/knockout-predictions";
 import { type MatchPredictionInput } from "@/lib/wc-scoring";
 
 function displayName(first?: string | null, last?: string | null): string {
@@ -46,11 +47,10 @@ export default async function PartyMemberPredictionsPage({
   const isMember = tournament.members.some((m) => m.userId === user.id);
   if (!isMember && !isAdmin) redirect("/turnee");
 
-  // În turneele publice pronosticurile altora sunt private — doar ale tale sunt vizibile.
-  // Adminii pot inspecta orice membru pentru management.
-  if (tournament.isPublic && memberUserId !== user.id && !isAdmin) {
-    redirect(`/turnee/${tournamentId}`);
-  }
+  // La pronosticurile ALTORA arătăm doar meciurile deja începute (live) sau încheiate;
+  // cele viitoare rămân ascunse ca să nu fie copiate înainte de start. La propriile
+  // pronosticuri se vede tot. Se aplică peste tot (public, privat, chiar și admin).
+  const restrictToStarted = memberUserId !== user.id;
 
   const parsedCompetition = parseStoredCompetition(tournament.competition);
   if (!parsedCompetition) {
@@ -99,6 +99,7 @@ export default async function PartyMemberPredictionsPage({
   const rows = [...matches]
     .sort((a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate))
     .filter((m) => hasAnyMatchPrediction(predsByMatchId.get(m.id)))
+    .filter((m) => !restrictToStarted || isMatchKickoffPassed(m))
     .map((m) => ({
       match: m,
       pred: predsByMatchId.get(m.id)!,
