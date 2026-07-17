@@ -25,6 +25,7 @@ model User {
   wcMatchPredictions  WcMatchPrediction[]
   wcExtraPredictions  WcExtraPrediction[]
   miniGamePlays       MiniGamePlay[]
+  supportMessages     SupportMessage[]
 }
 
 // Competiție activă în party: null = fără pronosticuri; altfel `{COD_API}_{anSezon}` (ex. WC_2026, PL_2024) din Football-Data.
@@ -179,4 +180,35 @@ model MiniGamePlay {
   @@unique([userId, dateKey])
   @@index([dateKey])
   @@index([userId])
+}
+
+// Mesaje trimise din formularul de support; citite din panoul de admin.
+model SupportMessage {
+  id          String              @id @default(auto()) @map("_id") @db.ObjectId
+  // Autorul rămâne legat de user ca să putem urmări cine a scris, chiar dacă schimbă numele/emailul din formular.
+  userId      String?             @db.ObjectId
+  user        User?               @relation(fields: [userId], references: [id])
+  name        String
+  email       String
+  category    SupportCategory
+  message     String
+  status      SupportStatus       @default(OPEN)
+  resolvedAt  DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([status, createdAt])
+  @@index([category])
+}
+
+enum SupportCategory {
+  BUG
+  QUESTION
+  SUGGESTION
+  OTHER
+}
+
+enum SupportStatus {
+  OPEN
+  DONE
 }

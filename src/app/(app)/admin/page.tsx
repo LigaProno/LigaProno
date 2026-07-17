@@ -6,11 +6,17 @@ import { isAdminEmail } from "@/lib/admin";
 import { COMPETITION_PICKER_OPTIONS } from "@/lib/competition";
 import CreatePublicTournamentForm from "./CreatePublicTournamentForm";
 import DeletePublicTournamentButton from "./DeletePublicTournamentButton";
+import SupportMessagesSection from "./SupportMessagesSection";
 import { parsePrizes, placeLabel } from "@/lib/tournament-prizes";
 import { createTranslator } from "@/lib/i18n";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; status?: string; category?: string }>;
+}) {
+  const { tab, status, category } = await searchParams;
   const locale = await getLocaleFromCookies();
   const t = createTranslator(locale);
   const { userId: clerkId } = await auth();
@@ -19,11 +25,16 @@ export default async function AdminPage() {
   const user = await prisma.user.findUnique({ where: { clerkId } });
   if (!user || !isAdminEmail(user.email)) redirect("/dashboard");
 
-  const publicTournaments = await prisma.tournament.findMany({
-    where: { isPublic: true },
-    include: { _count: { select: { members: true } } },
-    orderBy: { createdAt: "asc" },
-  });
+  const activeTab = tab === "support" ? "support" : "tournaments";
+
+  const [publicTournaments, openSupportCount] = await Promise.all([
+    prisma.tournament.findMany({
+      where: { isPublic: true },
+      include: { _count: { select: { members: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.supportMessage.count({ where: { status: "OPEN" } }),
+  ]);
 
   return (
     <div className="flex-1 p-4 sm:p-6 md:p-8 max-w-4xl mx-auto w-full">
@@ -42,10 +53,48 @@ export default async function AdminPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Admin</h1>
           <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>
-            Gestionează turneele publice vizibile tuturor utilizatorilor.
+            {activeTab === "support"
+              ? "Mesajele trimise de utilizatori din formularul de support."
+              : "Gestionează turneele publice vizibile tuturor utilizatorilor."}
           </p>
         </div>
 
+        <div className="flex gap-1.5 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+          <Link
+            href="/admin"
+            className="px-4 py-2 text-sm font-semibold transition-colors -mb-px border-b-2"
+            style={
+              activeTab === "tournaments"
+                ? { color: "#FFFFFF", borderColor: "#3B82F6" }
+                : { color: "rgba(255,255,255,0.45)", borderColor: "transparent" }
+            }
+          >
+            Turnee publice
+          </Link>
+          <Link
+            href="/admin?tab=support"
+            className="px-4 py-2 text-sm font-semibold transition-colors -mb-px border-b-2 flex items-center gap-2"
+            style={
+              activeTab === "support"
+                ? { color: "#FFFFFF", borderColor: "#3B82F6" }
+                : { color: "rgba(255,255,255,0.45)", borderColor: "transparent" }
+            }
+          >
+            Mesaje support
+            {openSupportCount > 0 ? (
+              <span
+                className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                style={{ backgroundColor: "#F87171", color: "#0A0B1E" }}
+              >
+                {openSupportCount}
+              </span>
+            ) : null}
+          </Link>
+        </div>
+
+        {activeTab === "support" ? (
+          <SupportMessagesSection status={status} category={category} />
+        ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_min(100%,22rem)] gap-6 items-start">
           <section className="flex flex-col gap-4">
             <h2 className="text-lg font-semibold text-white">Turnee publice</h2>
@@ -114,6 +163,7 @@ export default async function AdminPage() {
             <CreatePublicTournamentForm competitionPickerOptions={COMPETITION_PICKER_OPTIONS} />
           </aside>
         </div>
+        )}
       </div>
     </div>
   );

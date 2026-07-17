@@ -1,9 +1,15 @@
-﻿import { currentUser } from "@clerk/nextjs/server";
+﻿import type { Metadata } from "next";
+import { currentUser } from "@clerk/nextjs/server";
 import { AuthTasksRedirect } from "@/components/auth/auth-tasks-redirect";
 import Sidebar from "@/components/Sidebar";
 import PageWrapper from "@/components/PageWrapper";
 import { isAdminEmail } from "@/lib/admin";
 import { syncClerkUserSafe } from "@/lib/sync-clerk-user";
+
+/** Tot ce e sub `(app)` cere login — implicit noindex. `/matches` suprascrie. */
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 async function syncUser() {
   const clerkUser = await currentUser();

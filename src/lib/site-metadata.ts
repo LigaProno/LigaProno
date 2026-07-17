@@ -21,7 +21,7 @@ const SITE_KEYWORDS = [
   "Cupa Mondială",
 ];
 
-/** URL public al aplicației — setează NEXT_PUBLIC_APP_URL în producție (ex. https://Liga Prono.vercel.app). */
+/** URL public al aplicației — setează NEXT_PUBLIC_APP_URL în producție (ex. https://liga-prono.vercel.app). */
 export function getSiteUrl(): URL {
   const explicit = process.env.NEXT_PUBLIC_APP_URL?.trim();
   if (explicit) {
@@ -72,4 +72,32 @@ export function buildRootMetadata(): Metadata {
 
 export function pageTitle(segment: string): Metadata {
   return { title: segment };
+}
+
+/**
+ * Pentru paginile din spatele login-ului sau pur tehnice (callback auth).
+ * Googlebot oricum le-ar vedea doar ca redirect spre /sign-in.
+ */
+export function noIndex(segment?: string): Metadata {
+  return {
+    ...(segment ? { title: segment } : {}),
+    robots: { index: false, follow: false },
+  };
+}
+
+/** Pagini publice care merită indexate — titlu, descriere și canonical proprii. */
+export function publicPage(
+  segment: string,
+  description: string,
+  canonicalPath: string,
+): Metadata {
+  const title = `${segment} | ${SITE_NAME}`;
+  return {
+    title: segment,
+    description,
+    alternates: { canonical: canonicalPath },
+    openGraph: { title, description, url: canonicalPath },
+    twitter: { title, description },
+    robots: { index: true, follow: true },
+  };
 }

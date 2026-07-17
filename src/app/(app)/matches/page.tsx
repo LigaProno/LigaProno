@@ -15,9 +15,14 @@ import { MatchesLoading } from "@/components/matches/matches-loading";
 import { createTranslator } from "@/lib/i18n";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
 import Link from "next/link";
-import { pageTitle } from "@/lib/site-metadata";
+import { publicPage } from "@/lib/site-metadata";
 
-export const metadata = pageTitle("Program și clasament");
+// Publică (vezi `proxy.ts`) — suprascrie noindex-ul din layout-ul `(app)`.
+export const metadata = publicPage(
+  "Program și clasament",
+  "Program complet de meciuri, rezultate live și clasamente pe grupe — Premier League, La Liga, Serie A, Bundesliga, Ligue 1 și Cupa Mondială.",
+  "/matches",
+);
 export const dynamic = "force-dynamic";
 
 export default async function MatchesPage({
