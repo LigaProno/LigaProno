@@ -263,7 +263,8 @@ export function computeUserWcTotals(
     fullTimeGuessPoints += b.fullTime;
     correctScorePoints += b.correctScore;
     matchPoints += b.total;
-    if (computeMatchPredictionHits(pred, m).scoreCorrect) {
+    // Doar meciurile încheiate contează — un 1-1 „live” nu e scor ghicit încă.
+    if (m.status === "FINISHED" && computeMatchPredictionHits(pred, m).scoreCorrect) {
       correctScoreCount++;
     }
   }
