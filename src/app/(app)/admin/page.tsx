@@ -7,6 +7,7 @@ import { COMPETITION_PICKER_OPTIONS } from "@/lib/competition";
 import CreatePublicTournamentForm from "./CreatePublicTournamentForm";
 import DeletePublicTournamentButton from "./DeletePublicTournamentButton";
 import SupportMessagesSection from "./SupportMessagesSection";
+import PrivateTournamentsSection from "./PrivateTournamentsSection";
 import { parsePrizes, placeLabel } from "@/lib/tournament-prizes";
 import { createTranslator } from "@/lib/i18n";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
@@ -25,7 +26,8 @@ export default async function AdminPage({
   const user = await prisma.user.findUnique({ where: { clerkId } });
   if (!user || !isAdminEmail(user.email)) redirect("/dashboard");
 
-  const activeTab = tab === "support" ? "support" : "tournaments";
+  const activeTab =
+    tab === "support" ? "support" : tab === "private" ? "private" : "tournaments";
 
   const [publicTournaments, openSupportCount] = await Promise.all([
     prisma.tournament.findMany({
@@ -55,7 +57,9 @@ export default async function AdminPage({
           <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>
             {activeTab === "support"
               ? "Mesajele trimise de utilizatori din formularul de support."
-              : "Gestionează turneele publice vizibile tuturor utilizatorilor."}
+              : activeTab === "private"
+                ? "Toate turneele private, doar pentru inspecție. Nu ești membru — le poți deschide fără să te alături."
+                : "Gestionează turneele publice vizibile tuturor utilizatorilor."}
           </p>
         </div>
 
@@ -70,6 +74,17 @@ export default async function AdminPage({
             }
           >
             Turnee publice
+          </Link>
+          <Link
+            href="/admin?tab=private"
+            className="px-4 py-2 text-sm font-semibold transition-colors -mb-px border-b-2"
+            style={
+              activeTab === "private"
+                ? { color: "#FFFFFF", borderColor: "#3B82F6" }
+                : { color: "rgba(255,255,255,0.45)", borderColor: "transparent" }
+            }
+          >
+            Turnee private
           </Link>
           <Link
             href="/admin?tab=support"
@@ -94,6 +109,8 @@ export default async function AdminPage({
 
         {activeTab === "support" ? (
           <SupportMessagesSection status={status} category={category} />
+        ) : activeTab === "private" ? (
+          <PrivateTournamentsSection />
         ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_min(100%,22rem)] gap-6 items-start">
           <section className="flex flex-col gap-4">

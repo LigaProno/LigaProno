@@ -32,6 +32,7 @@ import {
 import { createTranslator } from "@/lib/i18n";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
 import { loadWinBadgesByUser } from "@/lib/tournament-wins";
+import { isAdminEmail } from "@/lib/admin";
 
 function displayName(first?: string | null, last?: string | null): string {
   const s = `${first ?? ""} ${last ?? ""}`.trim();
@@ -68,8 +69,10 @@ export default async function PartyTournamentPage({
   if (!user) redirect("/sign-in");
   if (!tournament) notFound();
 
+  const isAdmin = isAdminEmail(user.email);
   const isMember = tournament.members.some((m) => m.userId === user.id);
-  if (!isMember) redirect("/turnee");
+  // Adminii pot inspecta orice turneu fără să fie membri.
+  if (!isMember && !isAdmin) redirect("/turnee");
 
   const isCreator = tournament.creatorId === user.id;
   const tournamentMembers = tournament.members;

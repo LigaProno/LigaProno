@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { isAdminEmail } from "@/lib/admin";
 import { notFound, redirect } from "next/navigation";
 import MemberPredictionsView from "@/components/party/member-predictions-view";
 import {
@@ -41,11 +42,13 @@ export default async function PartyMemberPredictionsPage({
 
   if (!tournament) notFound();
 
+  const isAdmin = isAdminEmail(user.email);
   const isMember = tournament.members.some((m) => m.userId === user.id);
-  if (!isMember) redirect("/turnee");
+  if (!isMember && !isAdmin) redirect("/turnee");
 
   // În turneele publice pronosticurile altora sunt private — doar ale tale sunt vizibile.
-  if (tournament.isPublic && memberUserId !== user.id) {
+  // Adminii pot inspecta orice membru pentru management.
+  if (tournament.isPublic && memberUserId !== user.id && !isAdmin) {
     redirect(`/turnee/${tournamentId}`);
   }
 
