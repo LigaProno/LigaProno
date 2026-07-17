@@ -42,6 +42,7 @@ export async function sendSupportEmail(formData: {
   });
 
   revalidatePath("/admin");
+  revalidatePath("/support");
 }
 
 async function assertAdmin() {
@@ -52,16 +53,85 @@ async function assertAdmin() {
 
 export async function setSupportMessageStatus(
   messageId: string,
-  status: "OPEN" | "DONE",
+  status: "OPEN" | "SEEN" | "DONE",
 ): Promise<void> {
   await assertAdmin();
 
-  const next = status === "DONE" ? SupportStatus.DONE : SupportStatus.OPEN;
-
-  await prisma.supportMessage.update({
+  const now = new Date();
+  const existing = await prisma.supportMessage.findUnique({
     where: { id: messageId },
-    data: { status: next, resolvedAt: next === SupportStatus.DONE ? new Date() : null },
+    select: { seenAt: true },
   });
 
+  const data =
+    status === "DONE"
+      ? { status: SupportStatus.DONE, seenAt: existing?.seenAt ?? now, resolvedAt: now }
+      : status === "SEEN"
+        ? { status: SupportStatus.SEEN, seenAt: existing?.seenAt ?? now, resolvedAt: null }
+        : { status: SupportStatus.OPEN, seenAt: null, resolvedAt: null };
+
+  await prisma.supportMessage.update({ where: { id: messageId }, data });
+
   revalidatePath("/admin");
+  revalidatePath("/support");
+}
+
+/** Șterge un tichet + comentariile lui (MongoDB nu are cascade). */
+async function purgeTicket(messageId: string): Promise<void> {
+  await prisma.supportComment.deleteMany({ where: { messageId } });
+  await prisma.supportMessage.delete({ where: { id: messageId } });
+}
+
+/** Userul își poate șterge propriul tichet doar dacă e rezolvat. */
+export async function deleteMySupportTicket(messageId: string): Promise<void> {
+  const user = await requireDbUser();
+
+  const ticket = await prisma.supportMessage.findUnique({
+    where: { id: messageId },
+    select: { userId: true, status: true },
+  });
+  if (!ticket) throw new Error("Tichet inexistent.");
+  if (ticket.userId !== user.id) throw new Error("Nu poți șterge acest tichet.");
+  if (ticket.status !== SupportStatus.DONE) {
+    throw new Error("Poți șterge doar tichetele rezolvate.");
+  }
+
+  await purgeTicket(messageId);
+  revalidatePath("/support");
+  revalidatePath("/admin");
+}
+
+/** Adminul poate șterge orice tichet. */
+export async function deleteSupportTicketAsAdmin(messageId: string): Promise<void> {
+  await assertAdmin();
+  await purgeTicket(messageId);
+  revalidatePath("/admin");
+  revalidatePath("/support");
+}
+
+/** Admin adaugă un răspuns pe tichet; userul îl vede în pagina de support. */
+export async function addSupportComment(messageId: string, body: string): Promise<void> {
+  await assertAdmin();
+
+  const text = body.trim();
+  if (!text) throw new Error("Comentariul nu poate fi gol.");
+
+  const ticket = await prisma.supportMessage.findUnique({
+    where: { id: messageId },
+    select: { id: true, seenAt: true, status: true },
+  });
+  if (!ticket) throw new Error("Tichet inexistent.");
+
+  await prisma.supportComment.create({ data: { messageId, body: text } });
+
+  // Un răspuns înseamnă implicit că l-am văzut — trece OPEN → SEEN.
+  if (ticket.status === SupportStatus.OPEN) {
+    await prisma.supportMessage.update({
+      where: { id: messageId },
+      data: { status: SupportStatus.SEEN, seenAt: ticket.seenAt ?? new Date() },
+    });
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/support");
 }

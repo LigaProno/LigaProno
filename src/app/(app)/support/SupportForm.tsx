@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { sendSupportEmail } from "@/app/actions/support";
 import { useLocale } from "@/components/i18n/locale-provider";
 
@@ -20,6 +21,7 @@ export default function SupportForm({
 }) {
   const { locale } = useLocale();
   const ro = locale === "ro";
+  const router = useRouter();
 
   const [name, setName]         = useState(prefillName);
   const [email, setEmail]       = useState(prefillEmail);
@@ -39,6 +41,7 @@ export default function SupportForm({
       try {
         await sendSupportEmail({ name: name.trim(), email: email.trim(), category, message: message.trim() });
         setSent(true);
+        router.refresh(); // ca noul tichet să apară în „Tichetele mele"
       } catch (err) {
         setError(err instanceof Error ? err.message : ro ? "Eroare la trimitere." : "Failed to send.");
       }

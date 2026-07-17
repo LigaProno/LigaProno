@@ -2,6 +2,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { pageTitle } from "@/lib/site-metadata";
 import SupportForm from "./SupportForm";
+import MySupportTickets from "./MySupportTickets";
 
 export const metadata = pageTitle("Support");
 export const dynamic = "force-dynamic";
@@ -11,19 +12,21 @@ export default async function SupportPage() {
 
   let prefillName  = "";
   let prefillEmail = "";
+  let dbUserId: string | null = null;
 
   if (clerkId) {
     const [dbUser, clerkUser] = await Promise.all([
-      prisma.user.findUnique({ where: { clerkId }, select: { email: true } }),
+      prisma.user.findUnique({ where: { clerkId }, select: { id: true, email: true } }),
       currentUser(),
     ]);
+    dbUserId = dbUser?.id ?? null;
     prefillEmail = dbUser?.email ?? "";
     prefillName  = clerkUser?.fullName ?? clerkUser?.firstName ?? "";
   }
 
   return (
     <main className="min-h-screen p-6 sm:p-10 lg:p-14 pb-24 page-transition">
-      <div className="max-w-2xl mx-auto flex flex-col gap-8">
+      <div className="max-w-5xl mx-auto flex flex-col gap-8">
 
         {/* Header */}
         <div className="flex flex-col gap-1">
@@ -43,7 +46,7 @@ export default async function SupportPage() {
         >
           {[
             { icon: "⏱", label: "Timp răspuns", value: "< 24h" },
-            { icon: "📧", label: "Email direct", value: "Liga Prono6767@gmail.com" },
+            { icon: "📧", label: "Email direct", value: "pronohub6767@gmail.com" },
             { icon: "🐛", label: "Bug report?", value: "Include pașii de reproducere" },
           ].map(({ icon, label, value }) => (
             <div key={label} className="flex items-center gap-3 min-w-0">
@@ -56,8 +59,11 @@ export default async function SupportPage() {
           ))}
         </div>
 
-        {/* Form */}
-        <SupportForm prefillName={prefillName} prefillEmail={prefillEmail} />
+        {/* Two columns: form left, my tickets right (stacked on mobile) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <SupportForm prefillName={prefillName} prefillEmail={prefillEmail} />
+          {dbUserId ? <MySupportTickets userId={dbUserId} /> : null}
+        </div>
 
       </div>
     </main>

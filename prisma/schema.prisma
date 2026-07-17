@@ -198,12 +198,26 @@ model SupportMessage {
   category    SupportCategory
   message     String
   status      SupportStatus       @default(OPEN)
+  seenAt      DateTime?
   resolvedAt  DateTime?
+  comments    SupportComment[]
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
 
   @@index([status, createdAt])
   @@index([category])
+  @@index([userId])
+}
+
+// Răspuns de la admin pe un tichet; userul îl vede în pagina de support.
+model SupportComment {
+  id         String         @id @default(auto()) @map("_id") @db.ObjectId
+  messageId  String         @db.ObjectId
+  message    SupportMessage @relation(fields: [messageId], references: [id])
+  body       String
+  createdAt  DateTime       @default(now())
+
+  @@index([messageId])
 }
 
 enum SupportCategory {
@@ -215,6 +229,7 @@ enum SupportCategory {
 
 enum SupportStatus {
   OPEN
+  SEEN
   DONE
 }
 
