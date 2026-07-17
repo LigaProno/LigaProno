@@ -44,6 +44,11 @@ export default async function PartyMemberPredictionsPage({
   const isMember = tournament.members.some((m) => m.userId === user.id);
   if (!isMember) redirect("/turnee");
 
+  // În turneele publice pronosticurile altora sunt private — doar ale tale sunt vizibile.
+  if (tournament.isPublic && memberUserId !== user.id) {
+    redirect(`/turnee/${tournamentId}`);
+  }
+
   const parsedCompetition = parseStoredCompetition(tournament.competition);
   if (!parsedCompetition) {
     redirect(`/turnee/${tournamentId}`);

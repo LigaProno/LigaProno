@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale } from "@/components/i18n/locale-provider";
-import { INSTAGRAM_URL, TIKTOK_URL } from "@/lib/social-links";
+import { INSTAGRAM_URL } from "@/lib/social-links";
 
 export function PublicTournamentPrizeNotice() {
   const { t } = useLocale();
@@ -16,15 +16,6 @@ export function PublicTournamentPrizeNotice() {
         className="font-medium text-[#D4AF37] transition-colors hover:text-[#E8C878]"
       >
         Instagram
-      </a>{" "}
-      {t("tournament.page.prizeEligibilityJoin")}{" "}
-      <a
-        href={TIKTOK_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="font-medium text-[#D4AF37] transition-colors hover:text-[#E8C878]"
-      >
-        TikTok
       </a>
       .
     </p>

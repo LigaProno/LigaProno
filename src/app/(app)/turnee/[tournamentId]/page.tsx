@@ -161,7 +161,9 @@ export default async function PartyTournamentPage({
     };
   }
 
-  const matchdayMemberPreds: NextThreeMatchPreds[] = currentMatchdayMatches.map(buildMemberPredsBlock);
+  // În turneele publice nu expunem pronosticurile celorlalți — nici măcar în payload-ul paginii.
+  const matchdayMemberPreds: NextThreeMatchPreds[] =
+    tournament.isPublic ? [] : currentMatchdayMatches.map(buildMemberPredsBlock);
 
   const leaderboardRows: LeaderboardRow[] = tournamentMembers.map((m) => {
     const totals = computeUserWcTotals(

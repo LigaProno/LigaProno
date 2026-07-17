@@ -444,12 +444,17 @@ export default function PartyWcDashboard({
                           {row.rank}
                         </td>
                         <td className="py-2.5 px-2 align-top max-w-[7rem] sm:max-w-[9rem]">
-                          <Link
-                            href={`/turnee/${tournamentId}/member/${row.userId}`}
-                            className="text-left w-full inline-block text-white truncate hover:underline decoration-cyan-400/80 underline-offset-2 font-medium"
-                          >
-                            {row.displayName}
-                          </Link>
+                          {isPublic ?
+                            <span className="text-left w-full inline-block text-white truncate font-medium">
+                              {row.displayName}
+                            </span>
+                          : <Link
+                              href={`/turnee/${tournamentId}/member/${row.userId}`}
+                              className="text-left w-full inline-block text-white truncate hover:underline decoration-cyan-400/80 underline-offset-2 font-medium"
+                            >
+                              {row.displayName}
+                            </Link>
+                          }
                         </td>
                         <td className="py-2.5 px-1.5 align-top text-[10px] leading-snug min-w-[5.5rem]" style={{ color: "rgba(255,255,255,0.82)" }}>
                           {row.lastMatch ?
@@ -505,11 +510,13 @@ export default function PartyWcDashboard({
                   onToggle={() => setShowAllLeaderboard((v) => !v)}
                 />
               ) : null}
-              <NextThreePredictionsPanel
-                matches={nextThreeMemberPreds}
-                currentUserId={currentUserId}
-                title={t("party.matchdayPreds.title", { matchday: currentMatchday })}
-              />
+              {!isPublic ? (
+                <NextThreePredictionsPanel
+                  matches={nextThreeMemberPreds}
+                  currentUserId={currentUserId}
+                  title={t("party.matchdayPreds.title", { matchday: currentMatchday })}
+                />
+              ) : null}
             </div>
           )}
 

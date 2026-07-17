@@ -9,7 +9,7 @@ import { SignOutButton } from "@/components/auth/sign-out-button";
 import { useLocale } from "@/components/i18n/locale-provider";
 import type { MessageKey } from "@/lib/i18n";
 import RulesModal from "@/components/RulesModal";
-import { INSTAGRAM_URL, TIKTOK_URL } from "@/lib/social-links";
+import { INSTAGRAM_URL } from "@/lib/social-links";
 
 type NavItem = {
   href: string;
@@ -111,17 +111,10 @@ const instagramIcon = (
   </svg>
 );
 
-const tiktokIcon = (
-  <svg className="w-[18px] h-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth={1.7} viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12a4 4 0 104 4V4a5 5 0 005 5" />
-  </svg>
-);
-
 function SocialLinks({ onClick }: { onClick?: () => void }) {
   const { t } = useLocale();
   const items = [
     { href: INSTAGRAM_URL, label: t("nav.instagram"), icon: instagramIcon },
-    { href: TIKTOK_URL, label: t("nav.tiktok"), icon: tiktokIcon },
   ];
 
   return (
