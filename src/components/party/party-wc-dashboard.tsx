@@ -34,7 +34,9 @@ import { buildLeaderboardView, canCollapseLeaderboard } from "@/lib/leaderboard-
 import { getLeaderboardRowStyle, getPodiumStyle } from "@/lib/leaderboard-podium";
 import { MatchPredDisplayInline } from "@/components/party/match-pred-display-inline";
 import { PointsScoringLegend } from "@/components/party/potential-points";
-import type { MatchPredDisplay } from "@/lib/wc-pred-display";
+import { fixtureTlaPair, getMatchPredDisplay, type MatchPredDisplay } from "@/lib/wc-pred-display";
+import { ShareButton } from "@/components/ui/share-button";
+import { buildMyMatchdayShareText } from "@/lib/share-predictions";
 
 export type LeaderboardRow = {
   rank: number;
@@ -574,15 +576,39 @@ export default function PartyWcDashboard({
                     Etapa {selectedMatchday}
                   </h3>
                   {selectedMatchdayMatches.length > 0 ?
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={handleSaveAllMatchdayPredictions}
-                      className="self-start px-6 py-3 rounded-xl font-bold text-sm disabled:opacity-50 cursor-pointer hover:opacity-90 active:scale-[0.98]"
-                      style={{ backgroundColor: WC_LIME, color: "#0A0B1E" }}
-                    >
-                      {pending ? t("party.group.savingAll") : t("party.group.saveAllButton")}
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <ShareButton
+                        className="inline-flex items-center gap-1.5 rounded-xl px-4 py-3 text-sm font-bold transition-colors"
+                        getText={() =>
+                          buildMyMatchdayShareText({
+                            title: t("party.share.myTitle"),
+                            matchdayLabel: `Etapa ${selectedMatchday}`,
+                            tournamentName,
+                            rows: selectedMatchdayMatches.map((m) => ({
+                              fixture: fixtureTlaPair(m),
+                              pred: getMatchPredDisplay(myPreds[m.id]),
+                            })),
+                            labels: {
+                              ht: t("party.lb.predHt"),
+                              ft: t("party.lb.predFt"),
+                              score: t("party.lb.predSc"),
+                              fixture: t("party.share.fixture"),
+                              noPreds: t("party.share.noPreds"),
+                              via: t("party.share.via"),
+                            },
+                          })
+                        }
+                      />
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={handleSaveAllMatchdayPredictions}
+                        className="self-start px-6 py-3 rounded-xl font-bold text-sm disabled:opacity-50 cursor-pointer hover:opacity-90 active:scale-[0.98]"
+                        style={{ backgroundColor: WC_LIME, color: "#0A0B1E" }}
+                      >
+                        {pending ? t("party.group.savingAll") : t("party.group.saveAllButton")}
+                      </button>
+                    </div>
                   : null}
                 </div>
                 {selectedMatchdayMatches.length === 0 ?
