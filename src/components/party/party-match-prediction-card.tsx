@@ -366,7 +366,7 @@ export function PartyMatchPredictionCard({
                         setP((s) => ({ ...s, predHomeGoals: e.target.value.replace(/\D/g, "") }))
                       }
                       maxLength={2}
-                      placeholder="0"
+                      placeholder="X"
                       className="w-12 h-12 text-lg text-center rounded-xl border outline-none font-bold"
                       style={{ backgroundColor: WC_NAVY, borderColor: WC_BORDER, color: "#fff" }}
                     />
@@ -382,7 +382,7 @@ export function PartyMatchPredictionCard({
                         setP((s) => ({ ...s, predAwayGoals: e.target.value.replace(/\D/g, "") }))
                       }
                       maxLength={2}
-                      placeholder="0"
+                      placeholder="X"
                       className="w-12 h-12 text-lg text-center rounded-xl border outline-none font-bold"
                       style={{ backgroundColor: WC_NAVY, borderColor: WC_BORDER, color: "#fff" }}
                     />
