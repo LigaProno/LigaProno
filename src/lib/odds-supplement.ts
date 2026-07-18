@@ -13,6 +13,7 @@ import {
   isGeminiApiKeyConfigured,
 } from "@/lib/gemini-odds-fetch";
 import type { OddsFetchContext } from "@/lib/odds-providers/types";
+import { matchesForMatchday, resolveCurrentMatchday } from "@/lib/wc-pred-display";
 
 function upcomingMatches(matches: FootballDataMatch[]): FootballDataMatch[] {
   return matches.filter((m) => m.status !== "FINISHED" && m.status !== "CANCELLED");
@@ -29,6 +30,19 @@ export function upcomingMatchesWithKnownTeams(
       Boolean(m.homeTeam.name ?? m.homeTeam.shortName) &&
       Boolean(m.awayTeam.name ?? m.awayTeam.shortName),
   );
+}
+
+/**
+ * Doar meciurile etapei curente (nu tot sezonul) — Gemini ar da timeout dacă i-am
+ * cere cotele pentru toate meciurile rămase. Etapa curentă = prima etapă cu meciuri
+ * neîncheiate; când ultima se termină, `resolveCurrentMatchday` trece la următoarea.
+ * Fără info de etapă (ex. tur eliminatoriu) cădem pe tot ce e viitor.
+ */
+export function currentFixtureMatches(matches: FootballDataMatch[]): FootballDataMatch[] {
+  const scoped = upcomingMatchesWithKnownTeams(
+    matchesForMatchday(matches, resolveCurrentMatchday(matches)),
+  );
+  return scoped.length > 0 ? scoped : upcomingMatchesWithKnownTeams(matches);
 }
 
 function teamsMissingQualifyOdds(
@@ -53,7 +67,7 @@ async function fillMissingUpcomingMatchOdds(
 ): Promise<{ payload: BettingOddsPayload; filledCount: number }> {
   let merged = payload;
   let filledCount = 0;
-  const target = upcomingMatchesWithKnownTeams(ctx.matches);
+  const target = currentFixtureMatches(ctx.matches);
 
   for (let pass = 0; pass < 2; pass++) {
     const missing = matchesMissingOdds(merged, target);
