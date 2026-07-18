@@ -12,7 +12,12 @@ import {
   getMatchPredictionLockReason,
   getPredictionLockMessage,
 } from "@/lib/knockout-predictions";
-import { isMatchInTournamentWindow } from "@/lib/wc-pred-display";
+import {
+  isMatchInTournamentWindow,
+  filterMatchesForTournament,
+  hasAnyMatchPrediction,
+} from "@/lib/wc-pred-display";
+import { isMatchKickoffPassed } from "@/lib/knockout-predictions";
 import { I18nError } from "@/lib/i18n/errors";
 
 function validOutcome(v: unknown): v is "HOME" | "AWAY" | "DRAW" | "" {
@@ -65,6 +70,101 @@ async function assertMember(tournamentId: string, userId: string) {
     where: { tournamentId_userId: { tournamentId, userId } },
   });
   if (!m) throw new Error("Nu ești membru al acestui turneu.");
+}
+
+export type CopyPredictionsResult = {
+  tournamentId: string;
+  name: string;
+  copied: number;
+};
+
+/**
+ * Copiază pronosticurile de meci ale userului din turneul sursă în turneele țintă
+ * (aceeași competiție). Suprascrie ce există în țintă; sare meciurile începute/închise
+ * (blocate) și pe cele din afara ferestrei fiecărui turneu.
+ */
+export async function copyPredictionsToTournaments(
+  sourceTournamentId: string,
+  targetTournamentIds: string[],
+): Promise<CopyPredictionsResult[]> {
+  const user = await requireDbUser();
+  await assertMember(sourceTournamentId, user.id);
+
+  const source = await prisma.tournament.findUnique({
+    where: { id: sourceTournamentId },
+  });
+  if (!source) throw new I18nError("errors.tournamentNotFound");
+
+  const parsed = parseStoredCompetition(source.competition);
+  if (!parsed) throw new Error("Turneul sursă nu are o competiție activă.");
+
+  // Pronosticurile mele din sursă, indexate pe matchId.
+  const sourcePreds = await prisma.wcMatchPrediction.findMany({
+    where: { tournamentId: sourceTournamentId, userId: user.id },
+  });
+  const sourceByMatch = new Map(sourcePreds.map((p) => [p.matchId, p]));
+  if (sourceByMatch.size === 0) {
+    throw new Error("Nu ai pronosticuri de copiat în acest turneu.");
+  }
+
+  const matches = await fetchCompetitionMatches(parsed.code, parsed.season);
+
+  const results: CopyPredictionsResult[] = [];
+
+  for (const targetId of targetTournamentIds) {
+    if (targetId === sourceTournamentId) continue;
+
+    const target = await prisma.tournament.findUnique({ where: { id: targetId } });
+    if (!target) continue;
+    // Doar aceeași competiție are meciuri comune.
+    if (target.competition !== source.competition) continue;
+
+    const membership = await prisma.tournamentMember.findUnique({
+      where: { tournamentId_userId: { tournamentId: targetId, userId: user.id } },
+    });
+    if (!membership) continue;
+
+    const targetMatches = filterMatchesForTournament(matches, target);
+
+    let copied = 0;
+    for (const m of targetMatches) {
+      const src = sourceByMatch.get(m.id);
+      if (!src || !hasAnyMatchPrediction(src)) continue;
+      if (isMatchKickoffPassed(m)) continue; // blocat — nu se poate scrie
+
+      await prisma.wcMatchPrediction.upsert({
+        where: {
+          tournamentId_userId_matchId: {
+            tournamentId: targetId,
+            userId: user.id,
+            matchId: m.id,
+          },
+        },
+        update: {
+          htOutcome: src.htOutcome,
+          ftOutcome: src.ftOutcome,
+          predHomeGoals: src.predHomeGoals,
+          predAwayGoals: src.predAwayGoals,
+        },
+        create: {
+          tournamentId: targetId,
+          userId: user.id,
+          matchId: m.id,
+          htOutcome: src.htOutcome,
+          ftOutcome: src.ftOutcome,
+          predHomeGoals: src.predHomeGoals,
+          predAwayGoals: src.predAwayGoals,
+        },
+      });
+      copied++;
+    }
+
+    results.push({ tournamentId: targetId, name: target.name, copied });
+    revalidatePath(`/turnee/${targetId}`);
+    revalidatePath("/turnee/clasament");
+  }
+
+  return results;
 }
 
 export async function saveWcMatchPrediction(

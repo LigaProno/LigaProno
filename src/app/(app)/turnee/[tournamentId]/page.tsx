@@ -176,6 +176,18 @@ export default async function PartyTournamentPage({
   // Meciurile live din fereastra turneului (cache 60s, partajat) pentru banner.
   const liveFixtures = await loadTournamentLiveFixtures(tournament);
 
+  // Celelalte turnee ale userului — ținte pentru „copiază pronosticurile".
+  const otherMemberships = await prisma.tournamentMember.findMany({
+    where: { userId: user.id, NOT: { tournamentId } },
+    select: { tournament: { select: { id: true, name: true, competition: true } } },
+    orderBy: { joinedAt: "desc" },
+  });
+  const otherTournaments = otherMemberships.map((m) => ({
+    id: m.tournament.id,
+    name: m.tournament.name,
+    competition: m.tournament.competition,
+  }));
+
   const leaderboardRows: LeaderboardRow[] = tournamentMembers.map((m) => {
     const totals = computeUserWcTotals(
       predsByUser.get(m.userId) ?? new Map(),
@@ -296,6 +308,7 @@ export default async function PartyTournamentPage({
         nextThreeMemberPreds={matchdayMemberPreds}
         currentMatchday={currentMatchday}
         liveFixtures={liveFixtures}
+        otherTournaments={otherTournaments}
       />
     </div>
   );

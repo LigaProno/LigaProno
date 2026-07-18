@@ -39,6 +39,7 @@ import { ShareButton } from "@/components/ui/share-button";
 import { buildMyMatchdayShareText } from "@/lib/share-predictions";
 import { LiveFixtureBanner } from "@/components/party/live-fixture-banner";
 import type { LiveFixture } from "@/lib/live-fixtures";
+import { CopyPredictionsModal, type CopyTargetTournament } from "@/components/party/copy-predictions-modal";
 
 export type LeaderboardRow = {
   rank: number;
@@ -82,6 +83,7 @@ export default function PartyWcDashboard({
   nextThreeMemberPreds = [],
   currentMatchday = 1,
   liveFixtures = [],
+  otherTournaments = [],
 }: {
   tournamentId: string;
   tournamentName: string;
@@ -108,10 +110,12 @@ export default function PartyWcDashboard({
   nextThreeMemberPreds?: NextThreeMatchPreds[];
   currentMatchday?: number;
   liveFixtures?: LiveFixture[];
+  otherTournaments?: CopyTargetTournament[];
 }) {
   const router = useRouter();
   const { t, dateLocale } = useLocale();
   const [tab, setTab] = useState<"leaderboard" | "predictions">("leaderboard");
+  const [copyOpen, setCopyOpen] = useState(false);
   const [showAllLeaderboard, setShowAllLeaderboard] = useState(false);
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
@@ -219,6 +223,18 @@ export default function PartyWcDashboard({
         setErr(formatCaughtError(e, t));
       }
     });
+  }
+
+  // Persistă draftul etapei curente (fără toast/refresh) — folosit înainte de copiere.
+  async function saveCurrentDraft() {
+    const toSave = selectedMatchdayMatches.filter(
+      (m) => m.status !== "FINISHED" && lockReasonForMatch(m) == null,
+    );
+    for (const m of toSave) {
+      const getPayload = matchDraftGettersRef.current.get(m.id);
+      if (!getPayload) continue;
+      await saveWcMatchPrediction(tournamentId, m.id, getPayload());
+    }
   }
 
   function formatOddsDate(iso: string | null): string | null {
@@ -529,6 +545,20 @@ export default function PartyWcDashboard({
 
           {tab === "predictions" && (
             <div className="flex flex-col gap-5">
+              {competition && otherTournaments.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setCopyOpen(true)}
+                  className="flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold transition-colors hover:bg-white/[0.04]"
+                  style={{ borderColor: "rgba(59,130,246,0.4)", backgroundColor: "rgba(59,130,246,0.08)", color: "#60A5FA" }}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
+                    <rect x="9" y="9" width="11" height="11" rx="2" />
+                    <path d="M5 15V5a2 2 0 012-2h10" />
+                  </svg>
+                  {t("party.copyPreds.button")}
+                </button>
+              ) : null}
               <PointsScoringLegend />
               <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
                 {matchdayBlocks.map(({ matchday, matches: mdMatches }) => {
@@ -625,6 +655,16 @@ export default function PartyWcDashboard({
           )}
         </>
       )}
+
+      {copyOpen ? (
+        <CopyPredictionsModal
+          sourceTournamentId={tournamentId}
+          sourceCompetition={competition}
+          tournaments={otherTournaments}
+          beforeCopy={saveCurrentDraft}
+          onClose={() => setCopyOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
