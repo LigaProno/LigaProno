@@ -18,6 +18,8 @@ model User {
   favoriteTeamName    String?
   favoriteTeamCrest   String?
   favoriteTeamCompetition String?
+  // Cel mai lung șir de scoruri exacte la rând (turnee publice) — calculat de cronul refresh-scores.
+  cachedBestStreak    Int                  @default(0)
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   memberships         TournamentMember[]

@@ -30,6 +30,7 @@ import { WC_CYAN, WC_LIME, WC_SLATE } from "@/components/world-cup/wc-theme";
 import { LeaderboardTh } from "@/components/ui/column-header-tip";
 import { LeaderboardGapRow, LeaderboardToggle } from "@/components/ui/leaderboard-collapse";
 import { WinnerBadge, type WinnerBadgeEntry } from "@/components/ui/winner-badge";
+import { StreakBadge } from "@/components/ui/streak-badge";
 import { buildLeaderboardView, canCollapseLeaderboard } from "@/lib/leaderboard-view";
 import { getLeaderboardRowStyle, getPodiumStyle } from "@/lib/leaderboard-podium";
 import { MatchPredDisplayInline } from "@/components/party/match-pred-display-inline";
@@ -46,6 +47,7 @@ export type LeaderboardRow = {
   userId: string;
   displayName: string;
   wins: WinnerBadgeEntry[];
+  bestStreak: number;
   fg: number;
   pg: number;
   sc: number;
@@ -477,6 +479,7 @@ export default function PartyWcDashboard({
                               {row.displayName}
                             </Link>
                             <WinnerBadge wins={row.wins} />
+                            <StreakBadge streak={row.bestStreak} />
                           </span>
                         </td>
                         <td className="py-2.5 px-1.5 align-top text-[10px] leading-snug min-w-[5.5rem]" style={{ color: "rgba(255,255,255,0.82)" }}>

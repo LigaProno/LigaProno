@@ -59,7 +59,7 @@ export default async function PartyTournamentPage({
         include: {
           members: {
             include: {
-              user: { select: { id: true, firstName: true, lastName: true } },
+              user: { select: { id: true, firstName: true, lastName: true, cachedBestStreak: true } },
             },
           },
         },
@@ -171,7 +171,8 @@ export default async function PartyTournamentPage({
     tournament.isPublic ? [] : currentMatchdayMatches.map(buildMemberPredsBlock);
 
   // O singură interogare pentru badge-urile tuturor membrilor, nu una per rând.
-  const winsByUser = await loadWinBadgesByUser(tournamentMembers.map((m) => m.userId));
+  const memberIds = tournamentMembers.map((m) => m.userId);
+  const winsByUser = await loadWinBadgesByUser(memberIds);
 
   // Meciurile live din fereastra turneului (cache 60s, partajat) pentru banner.
   const liveFixtures = await loadTournamentLiveFixtures(tournament);
@@ -223,6 +224,7 @@ export default async function PartyTournamentPage({
       userId: m.userId,
       displayName: displayName(m.user.firstName, m.user.lastName),
       wins: winsByUser.get(m.userId) ?? [],
+      bestStreak: m.user.cachedBestStreak,
       fg: totals.fullTimeGuessPoints,
       pg: totals.halfTimeGuessPoints,
       sc: totals.correctScorePoints,

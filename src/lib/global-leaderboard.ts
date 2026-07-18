@@ -17,6 +17,7 @@ import {
 } from "@/lib/football-data";
 import { prisma } from "@/lib/prisma";
 import { awardTournamentWinIfComplete, loadWinBadgesByUser } from "@/lib/tournament-wins";
+import { loadStreakBadgesByUser } from "@/lib/streak-badges";
 import type { WinnerBadgeEntry } from "@/components/ui/winner-badge";
 import {
   fixtureTlaPair,
@@ -45,6 +46,7 @@ export type GlobalLeaderboardRow = {
   userId: string;
   displayName: string;
   wins: WinnerBadgeEntry[];
+  bestStreak: number;
   bestTournamentId: string;
   bestTournamentName: string;
   bestTournamentCompetition: string;
@@ -343,6 +345,26 @@ export async function refreshAllScores(): Promise<{
     }
   }
 
+  // Badge-ul de șiruri: calculat aici (o dată), citit ieftin de clasamente din User.cachedBestStreak.
+  try {
+    const publicMemberIds = [
+      ...new Set(
+        tournaments
+          .filter((t) => t.isPublic)
+          .flatMap((t) => t.members.map((m) => m.userId)),
+      ),
+    ];
+    const streaks = await loadStreakBadgesByUser(publicMemberIds);
+    await Promise.all(
+      [...streaks.entries()].map(([userId, streak]) =>
+        prisma.user.update({ where: { id: userId }, data: { cachedBestStreak: streak } }),
+      ),
+    );
+  } catch (error) {
+    console.error("[refreshAllScores] streaks failed", error);
+    errors++;
+  }
+
   return { updated, errors, badgesAwarded };
 }
 
@@ -478,7 +500,7 @@ export async function buildGlobalLeaderboard(): Promise<GlobalLeaderboardResult>
     include: {
       members: {
         include: {
-          user: { select: { id: true, firstName: true, lastName: true } },
+          user: { select: { id: true, firstName: true, lastName: true, cachedBestStreak: true } },
         },
       },
     },
@@ -532,6 +554,7 @@ export async function buildGlobalLeaderboard(): Promise<GlobalLeaderboardResult>
         userId: member.userId,
         displayName: name,
         wins: [], // completat după deduplicare, într-o singură interogare
+        bestStreak: member.user.cachedBestStreak,
         bestTournamentCompetition: tournament.competition,
         lastMatch,
         ...score,
@@ -550,6 +573,7 @@ export async function buildGlobalLeaderboard(): Promise<GlobalLeaderboardResult>
   });
 
   // O singură interogare pentru tot clasamentul, după deduplicare.
+  // bestStreak vine deja din User.cachedBestStreak (setat de cron) — fără cost aici.
   const winsByUser = await loadWinBadgesByUser(rows.map((r) => r.userId));
   rows.forEach((r, i) => {
     r.rank = i + 1;

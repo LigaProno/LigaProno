@@ -8,6 +8,7 @@ import { NextThreePredictionsPanel } from "@/components/party/next-three-predict
 import { LeaderboardTh } from "@/components/ui/column-header-tip";
 import { LeaderboardGapRow, LeaderboardToggle } from "@/components/ui/leaderboard-collapse";
 import { WinnerBadge } from "@/components/ui/winner-badge";
+import { StreakBadge } from "@/components/ui/streak-badge";
 import { buildLeaderboardView, canCollapseLeaderboard } from "@/lib/leaderboard-view";
 import { getLeaderboardRowStyle, getPodiumStyle } from "@/lib/leaderboard-podium";
 import type {
@@ -102,6 +103,7 @@ export default function GlobalLeaderboardTable({
                       {row.displayName}
                     </Link>
                     <WinnerBadge wins={row.wins} />
+                    <StreakBadge streak={row.bestStreak} />
                   </span>
                 </td>
                 <td
