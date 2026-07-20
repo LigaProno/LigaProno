@@ -141,6 +141,8 @@ model TournamentMember {
   tournament   Tournament @relation(fields: [tournamentId], references: [id])
   userId       String     @db.ObjectId
   user         User       @relation(fields: [userId], references: [id])
+  // Nume afișat doar în acest turneu (alias). null = numele real al userului.
+  displayName  String?
   joinedAt     DateTime   @default(now())
   // Număr de salvări care au modificat pronosticul după startul competiției (10 pct fiecare).
   midCompetitionPredictionChangeCount Int @default(0)

@@ -10,7 +10,9 @@ import { parseStoredCompetition } from "@/lib/competition";
 import { prisma } from "@/lib/prisma";
 import { hasAnyMatchPrediction, filterMatchesForTournament } from "@/lib/wc-pred-display";
 import { isMatchKickoffPassed } from "@/lib/knockout-predictions";
-import { type MatchPredictionInput } from "@/lib/wc-scoring";
+import { computeMatchPoints, type MatchPredictionInput } from "@/lib/wc-scoring";
+import { loadCompetitionOddsSnapshot } from "@/lib/competition-odds";
+import { payloadToOddsMaps } from "@/lib/betting-odds";
 
 function displayName(first?: string | null, last?: string | null): string {
   const s = `${first ?? ""} ${last ?? ""}`.trim();
@@ -96,23 +98,33 @@ export default async function PartyMemberPredictionsPage({
     });
   }
 
+  // Cotele competiției — necesare pentru punctele per meci.
+  const oddsSnapshot = tournament.competition
+    ? await loadCompetitionOddsSnapshot(tournament.competition)
+    : null;
+  const oddsMaps = payloadToOddsMaps(oddsSnapshot?.payload ?? null);
+
   const rows = [...matches]
     .sort((a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate))
     .filter((m) => hasAnyMatchPrediction(predsByMatchId.get(m.id)))
     .filter((m) => !restrictToStarted || isMatchKickoffPassed(m))
-    .map((m) => ({
-      match: m,
-      pred: predsByMatchId.get(m.id)!,
-    }));
+    .map((m) => {
+      const pred = predsByMatchId.get(m.id)!;
+      return {
+        match: m,
+        pred,
+        points: computeMatchPoints(pred, m, oddsMaps?.matchById.get(m.id) ?? null).total,
+      };
+    });
 
   return (
     <MemberPredictionsView
       tournamentId={tournament.id}
       tournamentName={tournament.name}
-      memberDisplayName={displayName(
-        targetMembership.user.firstName,
-        targetMembership.user.lastName,
-      )}
+      memberDisplayName={
+        targetMembership.displayName ??
+        displayName(targetMembership.user.firstName, targetMembership.user.lastName)
+      }
       rows={rows}
       loadError={loadError}
     />

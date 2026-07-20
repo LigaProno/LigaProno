@@ -13,7 +13,7 @@ import {
 } from "@/lib/wc-pred-display";
 import { computeMatchPredictionHits, type MatchPredictionInput } from "@/lib/wc-scoring";
 
-type Row = { match: FootballDataMatch; pred: MatchPredictionInput };
+type Row = { match: FootballDataMatch; pred: MatchPredictionInput; points?: number };
 
 const HIT_COLOR = "#86EFAC";
 const DEFAULT_PRED_COLOR = "rgba(255,255,255,0.92)";
@@ -134,10 +134,17 @@ export default function MemberPredictionsView({
                 >
                   {t("party.lb.ft")}
                 </th>
+                <th
+                  className="text-right py-3 px-3 sm:px-4 font-semibold"
+                  style={{ color: "rgba(255,255,255,0.45)" }}
+                  title={t("memberPred.pointsTip")}
+                >
+                  {t("memberPred.points")}
+                </th>
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ match: m, pred }) => {
+              {rows.map(({ match: m, pred, points = 0 }) => {
                 const { ht: resHt, ft: resFt } = matchResultHtFt(m);
                 const hits = computeMatchPredictionHits(pred, m);
                 const when = formatMatchKickoff(m.utcDate, dateLocale);
@@ -171,6 +178,12 @@ export default function MemberPredictionsView({
                     </td>
                     <td className="py-3 px-2 align-top text-center tabular-nums font-semibold text-emerald-200/95">
                       {resFt ?? "—"}
+                    </td>
+                    <td
+                      className="py-3 px-3 sm:px-4 align-top text-right tabular-nums font-bold"
+                      style={{ color: points > 0 ? "#60A5FA" : "rgba(255,255,255,0.3)" }}
+                    >
+                      {points > 0 ? points : "—"}
                     </td>
                   </tr>
                 );

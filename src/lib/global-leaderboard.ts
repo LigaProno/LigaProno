@@ -29,6 +29,7 @@ import {
   type MatchPredDisplay,
 } from "@/lib/wc-pred-display";
 import {
+  computeMatchPoints,
   computeUserWcTotals,
   type MatchPredictionInput,
 } from "@/lib/wc-scoring";
@@ -486,10 +487,18 @@ export async function loadGlobalMemberPredictions(memberUserId: string): Promise
   const rows = [...(matches.length > 0 ? matches : best.competitionCtx.matches)]
     .sort((a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate))
     .filter((m) => hasAnyMatchPrediction(pmap.get(m.id)))
-    .map((m) => ({
-      match: m,
-      pred: pmap.get(m.id)!,
-    }));
+    .map((m) => {
+      const pred = pmap.get(m.id)!;
+      return {
+        match: m,
+        pred,
+        points: computeMatchPoints(
+          pred,
+          m,
+          best.competitionCtx.oddsMaps?.matchById.get(m.id) ?? null,
+        ).total,
+      };
+    });
 
   return {
     tournamentId: best.tournamentId,

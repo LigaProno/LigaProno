@@ -207,6 +207,8 @@ export const en: Messages = {
   "memberPred.predFtTip": "Full-time 1X2 pick",
   "memberPred.predScTip": "Exact score pick",
   "memberPred.actualHtTip": "Official half-time score",
+  "memberPred.points": "Points",
+  "memberPred.pointsTip": "Points earned from this match (HT+FT and exact score, odds applied).",
   "memberPred.actualFtTip": "Official full-time score",
   "party.nextThree.title": "Next 3 matches — group predictions",
   "party.matchdayPreds.title": "Matchday {matchday} — group predictions",

@@ -159,7 +159,7 @@ export default async function PartyTournamentPage({
       rows: tournamentMembers
         .map((m) => ({
           userId: m.userId,
-          displayName: displayName(m.user.firstName, m.user.lastName),
+          displayName: m.displayName ?? displayName(m.user.firstName, m.user.lastName),
           pred: getMatchPredDisplay(predsByUser.get(m.userId)?.get(nm.id) ?? null),
         }))
         .sort((a, b) => a.displayName.localeCompare(b.displayName, "ro")),
@@ -222,7 +222,7 @@ export default async function PartyTournamentPage({
     return {
       rank: 0,
       userId: m.userId,
-      displayName: displayName(m.user.firstName, m.user.lastName),
+      displayName: m.displayName ?? displayName(m.user.firstName, m.user.lastName),
       wins: winsByUser.get(m.userId) ?? [],
       bestStreak: m.user.cachedBestStreak,
       fg: totals.fullTimeGuessPoints,
@@ -261,7 +261,7 @@ export default async function PartyTournamentPage({
       return {
         rank: 0,
         userId: m.userId,
-        displayName: displayName(m.user.firstName, m.user.lastName),
+        displayName: m.displayName ?? displayName(m.user.firstName, m.user.lastName),
         wins: winsByUser.get(m.userId) ?? [],
         bestStreak: m.user.cachedBestStreak,
         fg: totals.fullTimeGuessPoints,

@@ -208,6 +208,8 @@ export const ro: Messages = {
   "memberPred.predFtTip": "Pronostic final 1X2",
   "memberPred.predScTip": "Pronostic scor exact",
   "memberPred.actualHtTip": "Scor oficial la pauză",
+  "memberPred.points": "Puncte",
+  "memberPred.pointsTip": "Puncte obținute din acest meci (pauză+final și scor exact, cu cotele aplicate).",
   "memberPred.actualFtTip": "Scor oficial final",
   "party.nextThree.title": "Următoarele 3 meciuri — pronosticuri grupă",
   "party.matchdayPreds.title": "Etapa {matchday} — pronosticuri grupă",

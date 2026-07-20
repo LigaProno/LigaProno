@@ -187,6 +187,8 @@ export type MessageKey =
   | "memberPred.predScTip"
   | "memberPred.actualHtTip"
   | "memberPred.actualFtTip"
+  | "memberPred.points"
+  | "memberPred.pointsTip"
   | "party.nextThree.title"
   | "party.matchdayPreds.title"
   | "party.live.live"
