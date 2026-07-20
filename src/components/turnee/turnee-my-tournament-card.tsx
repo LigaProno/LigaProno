@@ -1,5 +1,6 @@
 import Link from "next/link";
 import DeleteTournamentButton from "@/components/turnee/delete-tournament-button";
+import LeaveTournamentButton from "@/components/turnee/leave-tournament-button";
 import { TurneePrizesStrip } from "@/components/turnee/turnee-prizes-strip";
 import { TurneeMetaChip, TurneePanel } from "@/components/turnee/turnee-ui";
 import { parsePrizes } from "@/lib/tournament-prizes";
@@ -71,7 +72,11 @@ export function TurneeMyTournamentCard({
             {openLabel}
           </Link>
 
-          {isOwner ? <DeleteTournamentButton tournamentId={id} /> : null}
+          {isOwner ? (
+            <DeleteTournamentButton tournamentId={id} />
+          ) : (
+            <LeaveTournamentButton tournamentId={id} tournamentName={name} />
+          )}
         </div>
       </div>
     </TurneePanel>

@@ -70,6 +70,31 @@ export async function deleteTournament(tournamentId: string): Promise<void> {
   revalidatePath("/turnee/clasament");
 }
 
+/**
+ * Ieși dintr-un turneu în care ești membru. Creatorul nu poate pleca (poate doar
+ * șterge turneul). Pronosticurile NU se șterg — dacă revii, îți regăsești istoricul.
+ */
+export async function leaveTournament(tournamentId: string): Promise<void> {
+  const user = await requireDbUser();
+
+  const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
+  if (!tournament) throw new I18nError("errors.tournamentNotFound");
+  if (tournament.creatorId === user.id) {
+    throw new Error("Creatorul nu poate părăsi turneul — îl poate doar șterge.");
+  }
+
+  const membership = await prisma.tournamentMember.findUnique({
+    where: { tournamentId_userId: { tournamentId, userId: user.id } },
+  });
+  if (!membership) throw new Error("Nu ești membru al acestui turneu.");
+
+  await prisma.tournamentMember.delete({ where: { id: membership.id } });
+
+  revalidatePath("/turnee");
+  revalidatePath("/turnee/clasament");
+  revalidatePath(`/turnee/${tournamentId}`);
+}
+
 export async function joinPublicTournament(tournamentId: string): Promise<void> {
   const user = await requireDbUser();
 

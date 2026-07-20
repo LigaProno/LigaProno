@@ -69,6 +69,14 @@ export const en: Messages = {
     "No tournaments yet. Create one or join with an invite code.",
   "tournament.page.createdBy": "Created by {name}",
   "tournament.page.open": "Open",
+  "tournament.page.leave": "Leave",
+  "tournament.page.leaveTitle": "Leave this tournament?",
+  "tournament.page.leaveBodyPrivate":
+    "You'll drop off the leaderboard of “{name}”. Your predictions are kept, but you'll need the invite code to rejoin.",
+  "tournament.page.leaveBodyPublic":
+    "You'll drop off the leaderboard of “{name}”. Your predictions are kept and you can rejoin anytime.",
+  "tournament.page.leaveYes": "Yes, leave",
+  "tournament.page.leaveCancel": "Cancel",
   "tournament.page.stepsKicker": "How it works",
   "tournament.page.step1Title": "Set up",
   "tournament.page.step1Desc": "Pick a tournament name and the competition you'll play.",

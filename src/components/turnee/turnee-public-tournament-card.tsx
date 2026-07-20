@@ -1,5 +1,6 @@
 import Link from "next/link";
 import JoinPublicTournamentButton from "@/components/turnee/join-public-tournament-button";
+import LeaveTournamentButton from "@/components/turnee/leave-tournament-button";
 import { PublicTournamentPrizeNotice } from "@/components/turnee/public-tournament-prize-notice";
 import { TurneePrizesStrip } from "@/components/turnee/turnee-prizes-strip";
 import { TurneeMetaChip, TurneePanel } from "@/components/turnee/turnee-ui";
@@ -51,9 +52,12 @@ export function TurneePublicTournamentCard({
             {memberCount}
           </TurneeMetaChip>
           {isJoined ? (
-            <Link href={`/turnee/${id}`} className="turnee-btn-primary shrink-0">
-              {openLabel}
-            </Link>
+            <>
+              <Link href={`/turnee/${id}`} className="turnee-btn-primary shrink-0">
+                {openLabel}
+              </Link>
+              <LeaveTournamentButton tournamentId={id} tournamentName={name} isPublic />
+            </>
           ) : (
             <JoinPublicTournamentButton tournamentId={id} />
           )}

@@ -69,6 +69,14 @@ export const ro: Messages = {
     "Niciun turneu încă. Creează unul sau intră cu un cod de invitație.",
   "tournament.page.createdBy": "Creat de {name}",
   "tournament.page.open": "Deschide",
+  "tournament.page.leave": "Părăsește",
+  "tournament.page.leaveTitle": "Părăsești turneul?",
+  "tournament.page.leaveBodyPrivate":
+    "Ieși din clasamentul turneului „{name}”. Pronosticurile tale se păstrează, dar ca să revii ai nevoie de codul de invitație.",
+  "tournament.page.leaveBodyPublic":
+    "Ieși din clasamentul turneului „{name}”. Pronosticurile tale se păstrează și poți reveni oricând.",
+  "tournament.page.leaveYes": "Da, ies",
+  "tournament.page.leaveCancel": "Anulează",
   "tournament.page.stepsKicker": "Cum funcționează",
   "tournament.page.step1Title": "Configurează",
   "tournament.page.step1Desc": "Alege numele turneului și competiția pe care o jucați.",
