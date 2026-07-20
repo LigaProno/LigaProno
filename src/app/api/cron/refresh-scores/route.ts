@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
+import { sendFinalRankingEmails } from "@/lib/email/send-jobs";
 import { refreshAllScores } from "@/lib/global-leaderboard";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 function isCronAuthorised(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -17,9 +18,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { updated, errors, badgesAwarded } = await refreshAllScores();
+  const { updated, errors, badgesAwarded, newlyClosedTournamentIds } =
+    await refreshAllScores();
   revalidatePath("/turnee/clasament");
-  if (badgesAwarded > 0) revalidatePath("/turnee");
+  if (badgesAwarded > 0 || newlyClosedTournamentIds.length > 0) {
+    revalidatePath("/turnee");
+  }
 
-  return NextResponse.json({ ok: true, updated, errors, badgesAwarded });
+  let finalRank = null;
+  if (newlyClosedTournamentIds.length > 0) {
+    finalRank = await sendFinalRankingEmails(newlyClosedTournamentIds);
+  }
+
+  return NextResponse.json({
+    ok: true,
+    updated,
+    errors,
+    badgesAwarded,
+    newlyClosedTournamentIds,
+    finalRank,
+  });
 }

@@ -265,6 +265,7 @@ export async function refreshAllScores(): Promise<{
   updated: number;
   errors: number;
   badgesAwarded: number;
+  newlyClosedTournamentIds: string[];
 }> {
   const tournaments = await prisma.tournament.findMany({
     where: { competition: { not: null } },
@@ -296,6 +297,7 @@ export async function refreshAllScores(): Promise<{
   let updated = 0;
   let errors = 0;
   let badgesAwarded = 0;
+  const newlyClosedTournamentIds: string[] = [];
 
   for (const tournament of tournaments) {
     if (!tournament.competition) continue;
@@ -337,8 +339,12 @@ export async function refreshAllScores(): Promise<{
 
     // Scorurile tocmai s-au scris, deci `cachedTotal` reflectă clasamentul final.
     try {
-      const awarded = await awardTournamentWinIfComplete(tournament, competitionCtx.matches);
+      const { awarded, justClosed } = await awardTournamentWinIfComplete(
+        tournament,
+        competitionCtx.matches,
+      );
       if (awarded) badgesAwarded++;
+      if (justClosed) newlyClosedTournamentIds.push(tournament.id);
     } catch (error) {
       console.error("[refreshAllScores] award failed", tournament.id, error);
       errors++;
@@ -365,7 +371,7 @@ export async function refreshAllScores(): Promise<{
     errors++;
   }
 
-  return { updated, errors, badgesAwarded };
+  return { updated, errors, badgesAwarded, newlyClosedTournamentIds };
 }
 
 export async function loadGlobalMemberPredictions(memberUserId: string): Promise<{

@@ -7,6 +7,8 @@ const isPublicRoute = createRouteMatcher([
   "/reset-password",
   "/sso-callback",
   "/matches",
+  // Vercel Cron auth via Bearer CRON_SECRET in the route handlers.
+  "/api/cron(.*)",
 ]);
 
 export default clerkMiddleware(async (auth, request) => {

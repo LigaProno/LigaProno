@@ -240,6 +240,16 @@ enum SupportStatus {
   DONE
 }
 
+// Dedupe pentru emailuri tranzacționale (reminder / digest / clasament).
+model EmailDispatchLog {
+  id     String   @id @default(auto()) @map("_id") @db.ObjectId
+  kind   String
+  key    String
+  sentAt DateTime @default(now())
+
+  @@unique([kind, key])
+}
+
 // Badge câștigat la un turneu public. Snapshot: odată acordat nu se recalculează,
 // chiar dacă scorurile se schimbă ulterior (cotele se actualizează zilnic).
 model TournamentWin {

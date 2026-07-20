@@ -27,10 +27,17 @@ export function isTournamentComplete(
   return inWindow.every(isMatchSettled);
 }
 
+export type AwardTournamentWinResult = {
+  /** Badge nou acordat (doar turnee publice). */
+  awarded: boolean;
+  /** Turneul tocmai a primit `closedAt` în această rulare. */
+  justClosed: boolean;
+};
+
 /**
- * Acordă badge-ul de câștigător unui turneu public încheiat şi îl marchează închis.
+ * Marchează turneul închis când toate meciurile din fereastră s-au terminat.
+ * Pentru turnee publice acordă și badge-ul de câștigător.
  * Idempotent: `@@unique([tournamentId])` + `closedAt` fac re-rularea cronului sigură.
- * Returnează true doar dacă tocmai a fost acordat un badge nou.
  */
 export async function awardTournamentWinIfComplete(
   tournament: {
@@ -42,10 +49,11 @@ export async function awardTournamentWinIfComplete(
     endMatchday: number | null;
   },
   matches: FootballDataMatch[],
-): Promise<boolean> {
-  if (!tournament.isPublic) return false;
-  if (tournament.closedAt) return false;
-  if (!isTournamentComplete(matches, tournament)) return false;
+): Promise<AwardTournamentWinResult> {
+  if (tournament.closedAt) return { awarded: false, justClosed: false };
+  if (!isTournamentComplete(matches, tournament)) {
+    return { awarded: false, justClosed: false };
+  }
 
   // Scorurile au fost tocmai recalculate de refreshAllScores, deci cache-ul e proaspăt.
   const top = await prisma.tournamentMember.findFirst({
@@ -53,26 +61,23 @@ export async function awardTournamentWinIfComplete(
     orderBy: [{ cachedTotal: "desc" }, { joinedAt: "asc" }],
   });
 
-  // Fără membri sau toată lumea pe 0 → închidem turneul, dar nu inventăm un câștigător.
-  if (!top || top.cachedTotal <= 0) {
-    await prisma.tournament.update({
-      where: { id: tournament.id },
-      data: { closedAt: new Date() },
-    });
-    return false;
-  }
+  let awarded = false;
 
-  try {
-    await prisma.tournamentWin.create({
-      data: {
-        userId: top.userId,
-        tournamentId: tournament.id,
-        tournamentName: tournament.name,
-        finalTotal: top.cachedTotal,
-      },
-    });
-  } catch {
-    // Deja acordat (unique pe tournamentId) — doar ne asigurăm că e marcat închis.
+  // Badge doar pe turnee publice cu scor > 0.
+  if (tournament.isPublic && top && top.cachedTotal > 0) {
+    try {
+      await prisma.tournamentWin.create({
+        data: {
+          userId: top.userId,
+          tournamentId: tournament.id,
+          tournamentName: tournament.name,
+          finalTotal: top.cachedTotal,
+        },
+      });
+      awarded = true;
+    } catch {
+      // Deja acordat (unique pe tournamentId) — doar ne asigurăm că e marcat închis.
+    }
   }
 
   await prisma.tournament.update({
@@ -80,7 +85,7 @@ export async function awardTournamentWinIfComplete(
     data: { closedAt: new Date() },
   });
 
-  return true;
+  return { awarded, justClosed: true };
 }
 
 /** Badge-urile fiecărui user dintr-o listă — o singură interogare pentru tot clasamentul. */

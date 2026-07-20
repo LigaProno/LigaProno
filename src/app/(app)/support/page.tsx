@@ -46,7 +46,7 @@ export default async function SupportPage() {
         >
           {[
             { icon: "⏱", label: "Timp răspuns", value: "< 24h" },
-            { icon: "📧", label: "Email direct", value: "pronohub6767@gmail.com" },
+            { icon: "📧", label: "Email direct", value: "noreply@ligaprono.ro" },
             { icon: "🐛", label: "Bug report?", value: "Include pașii de reproducere" },
           ].map(({ icon, label, value }) => (
             <div key={label} className="flex items-center gap-3 min-w-0">

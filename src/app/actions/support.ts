@@ -3,6 +3,11 @@
 import { SupportCategory, SupportStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { isAdminEmail } from "@/lib/admin";
+import {
+  notifySupportReply,
+  notifySupportResolved,
+  notifySupportTicketCreated,
+} from "@/lib/email/support-notify";
 import { I18nError } from "@/lib/i18n/errors";
 import { prisma } from "@/lib/prisma";
 import { requireDbUser } from "@/lib/sync-clerk-user";
@@ -37,8 +42,17 @@ export async function sendSupportEmail(formData: {
   const category = CATEGORY_BY_FORM_VALUE[formData.category];
   if (!category) throw new Error("Categorie invalidă.");
 
-  await prisma.supportMessage.create({
+  const ticket = await prisma.supportMessage.create({
     data: { userId: user.id, name, email, category, message },
+  });
+
+  // Email confirmare user + notificare admini (nu blochează submit-ul).
+  void notifySupportTicketCreated({
+    ticketId: ticket.id,
+    name,
+    email,
+    category,
+    message,
   });
 
   revalidatePath("/admin");
@@ -60,17 +74,33 @@ export async function setSupportMessageStatus(
   const now = new Date();
   const existing = await prisma.supportMessage.findUnique({
     where: { id: messageId },
-    select: { seenAt: true },
+    select: {
+      seenAt: true,
+      status: true,
+      name: true,
+      email: true,
+      category: true,
+    },
   });
+  if (!existing) throw new Error("Tichet inexistent.");
 
   const data =
     status === "DONE"
-      ? { status: SupportStatus.DONE, seenAt: existing?.seenAt ?? now, resolvedAt: now }
+      ? { status: SupportStatus.DONE, seenAt: existing.seenAt ?? now, resolvedAt: now }
       : status === "SEEN"
-        ? { status: SupportStatus.SEEN, seenAt: existing?.seenAt ?? now, resolvedAt: null }
+        ? { status: SupportStatus.SEEN, seenAt: existing.seenAt ?? now, resolvedAt: null }
         : { status: SupportStatus.OPEN, seenAt: null, resolvedAt: null };
 
   await prisma.supportMessage.update({ where: { id: messageId }, data });
+
+  if (status === "DONE" && existing.status !== SupportStatus.DONE) {
+    void notifySupportResolved({
+      ticketId: messageId,
+      name: existing.name,
+      email: existing.email,
+      category: existing.category,
+    });
+  }
 
   revalidatePath("/admin");
   revalidatePath("/support");
@@ -118,7 +148,14 @@ export async function addSupportComment(messageId: string, body: string): Promis
 
   const ticket = await prisma.supportMessage.findUnique({
     where: { id: messageId },
-    select: { id: true, seenAt: true, status: true },
+    select: {
+      id: true,
+      seenAt: true,
+      status: true,
+      name: true,
+      email: true,
+      category: true,
+    },
   });
   if (!ticket) throw new Error("Tichet inexistent.");
 
@@ -131,6 +168,14 @@ export async function addSupportComment(messageId: string, body: string): Promis
       data: { status: SupportStatus.SEEN, seenAt: ticket.seenAt ?? new Date() },
     });
   }
+
+  void notifySupportReply({
+    ticketId: messageId,
+    name: ticket.name,
+    email: ticket.email,
+    category: ticket.category,
+    replyBody: text,
+  });
 
   revalidatePath("/admin");
   revalidatePath("/support");

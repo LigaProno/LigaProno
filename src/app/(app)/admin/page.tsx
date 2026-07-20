@@ -8,6 +8,7 @@ import CreatePublicTournamentForm from "./CreatePublicTournamentForm";
 import DeletePublicTournamentButton from "./DeletePublicTournamentButton";
 import SupportMessagesSection from "./SupportMessagesSection";
 import PrivateTournamentsSection from "./PrivateTournamentsSection";
+import EmailTestButton from "./EmailTestButton";
 import { parsePrizes, placeLabel } from "@/lib/tournament-prizes";
 import { createTranslator } from "@/lib/i18n";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
@@ -178,6 +179,7 @@ export default async function AdminPage({
               </p>
             </div>
             <CreatePublicTournamentForm competitionPickerOptions={COMPETITION_PICKER_OPTIONS} />
+            <EmailTestButton />
           </aside>
         </div>
         )}
