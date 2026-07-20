@@ -133,6 +133,8 @@ export type MessageKey =
   | "leaderboard.page.back"
   | "party.tab.leaderboard"
   | "party.tab.predictions"
+  | "party.tab.prizes"
+  | "party.prizes.hint"
   | "party.lb.rank"
   | "party.lb.rankTip"
   | "party.lb.member"

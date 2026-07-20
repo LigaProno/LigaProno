@@ -148,6 +148,9 @@ export const en: Messages = {
   "leaderboard.page.back": "Back to Tournaments",
   "party.tab.leaderboard": "Leaderboard",
   "party.tab.predictions": "Predictions",
+  "party.tab.prizes": "Prizes leaderboard",
+  "party.prizes.hint":
+    "Separate contest on matchday {matchday} — only points from this matchday count, everyone starts at 0. The main leaderboard is unaffected.",
   "party.lb.rank": "#",
   "party.lb.rankTip": "Rank in this party leaderboard.",
   "party.lb.member": "Member",

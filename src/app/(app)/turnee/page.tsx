@@ -100,6 +100,8 @@ export default async function TurneePage() {
                         `${tournament.creator.firstName ?? ""} ${tournament.creator.lastName ?? ""}`.trim() || "—",
                     })}
                     openLabel={t("tournament.page.open")}
+                    prizesRaw={tournament.prizes}
+                    prizeNote={tournament.prizeNote}
                   />
                 ))}
               </div>

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import DeleteTournamentButton from "@/components/turnee/delete-tournament-button";
+import { TurneePrizesStrip } from "@/components/turnee/turnee-prizes-strip";
 import { TurneeMetaChip, TurneePanel } from "@/components/turnee/turnee-ui";
+import { parsePrizes } from "@/lib/tournament-prizes";
 
 type TurneeMyTournamentCardProps = {
   id: string;
@@ -11,6 +13,8 @@ type TurneeMyTournamentCardProps = {
   isOwner: boolean;
   createdByText: string;
   openLabel: string;
+  prizesRaw?: unknown;
+  prizeNote?: string | null;
 };
 
 export function TurneeMyTournamentCard({
@@ -22,9 +26,18 @@ export function TurneeMyTournamentCard({
   isOwner,
   createdByText,
   openLabel,
+  prizesRaw,
+  prizeNote,
 }: TurneeMyTournamentCardProps) {
+  const prizes = parsePrizes(prizesRaw);
+  const hasPrizes = prizes.length > 0;
+
   return (
-    <TurneePanel className="p-0 overflow-hidden transition-transform hover:-translate-y-0.5">
+    <TurneePanel
+      className="p-0 overflow-hidden transition-transform hover:-translate-y-0.5"
+      style={hasPrizes ? { borderColor: "rgba(197,160,89,0.28)" } : undefined}
+    >
+      {hasPrizes ? <TurneePrizesStrip prizes={prizes} /> : null}
       <div className="px-4 py-4 sm:px-5 sm:py-4 flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -34,6 +47,11 @@ export function TurneeMyTournamentCard({
           <p className="text-xs" style={{ color: "rgba(255,255,255,0.38)" }}>
             {createdByText}
           </p>
+          {hasPrizes && prizeNote ? (
+            <p className="text-xs mt-1 leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>
+              {prizeNote}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap shrink-0">

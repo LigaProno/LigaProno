@@ -243,6 +243,55 @@ export default async function PartyTournamentPage({
     r.rank = i + 1;
   });
 
+  // Concurs separat pe o etapă (doar turneele cu prizeMatchday setat): clasament
+  // calculat DOAR din meciurile acelei etape, deci toți pornesc de la 0.
+  const prizeMatchday = tournament.prizeMatchday;
+  let prizeLeaderboard: LeaderboardRow[] = [];
+  if (prizeMatchday != null) {
+    const prizeMatches = matchesForMatchday(matches, prizeMatchday);
+    const prizeFinished = prizeMatches.filter(
+      (m) => m.status === "FINISHED" || m.status === "AWARDED",
+    );
+    const prizeLast = prizeFinished.length ? prizeFinished[prizeFinished.length - 1] : null;
+    const prizeLastScores = prizeLast ? matchResultHtFt(prizeLast) : null;
+
+    prizeLeaderboard = tournamentMembers.map((m) => {
+      const pmap = predsByUser.get(m.userId) ?? new Map();
+      const totals = computeUserWcTotals(pmap, prizeMatches, oddsMaps ?? undefined);
+      return {
+        rank: 0,
+        userId: m.userId,
+        displayName: displayName(m.user.firstName, m.user.lastName),
+        wins: winsByUser.get(m.userId) ?? [],
+        bestStreak: m.user.cachedBestStreak,
+        fg: totals.fullTimeGuessPoints,
+        pg: totals.halfTimeGuessPoints,
+        sc: totals.correctScorePoints,
+        correctScoreCount: totals.correctScoreCount,
+        total: totals.total,
+        lastMatch:
+          prizeLast ?
+            {
+              matchId: prizeLast.id,
+              fixture: fixtureTlaPair(prizeLast),
+              pred: getMatchPredDisplay(pmap.get(prizeLast.id) ?? null),
+              actualHt: prizeLastScores?.ht ?? null,
+              actualFt: prizeLastScores?.ft ?? null,
+            }
+          : null,
+        nextMatches: [null, null, null],
+      };
+    });
+
+    prizeLeaderboard.sort((a, b) => {
+      if (b.total !== a.total) return b.total - a.total;
+      return a.displayName.localeCompare(b.displayName, "en");
+    });
+    prizeLeaderboard.forEach((r, i) => {
+      r.rank = i + 1;
+    });
+  }
+
   const myPredsRecord: Record<
     number,
     {
@@ -311,6 +360,8 @@ export default async function PartyTournamentPage({
         currentMatchday={currentMatchday}
         liveFixtures={liveFixtures}
         otherTournaments={otherTournaments}
+        prizeLeaderboard={prizeLeaderboard}
+        prizeMatchday={prizeMatchday}
       />
     </div>
   );

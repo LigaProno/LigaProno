@@ -47,6 +47,11 @@ model Tournament {
   allowPredictionChangesDuringCompetition Boolean            @default(false)
   isPublic             Boolean            @default(false)
   prizes               Json?
+  // Text de eligibilitate afișat sub premii (ex. „urmărește X și Y"). null = fără notă.
+  prizeNote            String?
+  // Dacă e setat: turneul are un concurs separat pe etapa asta, cu clasament propriu
+  // („Clasament premii"), unde toți pornesc de la 0. null = fără concurs.
+  prizeMatchday        Int?
   wcMatchPredictions   WcMatchPrediction[]
   wcExtraPredictions   WcExtraPrediction[]
   bettingOdds          TournamentBettingOdds?

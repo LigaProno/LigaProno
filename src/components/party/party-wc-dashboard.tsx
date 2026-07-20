@@ -86,6 +86,8 @@ export default function PartyWcDashboard({
   currentMatchday = 1,
   liveFixtures = [],
   otherTournaments = [],
+  prizeLeaderboard = [],
+  prizeMatchday = null,
 }: {
   tournamentId: string;
   tournamentName: string;
@@ -113,10 +115,15 @@ export default function PartyWcDashboard({
   currentMatchday?: number;
   liveFixtures?: LiveFixture[];
   otherTournaments?: CopyTargetTournament[];
+  prizeLeaderboard?: LeaderboardRow[];
+  prizeMatchday?: number | null;
 }) {
   const router = useRouter();
   const { t, dateLocale } = useLocale();
-  const [tab, setTab] = useState<"leaderboard" | "predictions">("leaderboard");
+  const [tab, setTab] = useState<"leaderboard" | "predictions" | "prizes">("leaderboard");
+  const hasPrizeContest = prizeMatchday != null && prizeLeaderboard.length > 0;
+  // Tab-ul „premii" refolosește exact același tabel, doar cu alte rânduri.
+  const activeRows = tab === "prizes" ? prizeLeaderboard : leaderboard;
   const [copyOpen, setCopyOpen] = useState(false);
   const [showAllLeaderboard, setShowAllLeaderboard] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -138,8 +145,8 @@ export default function PartyWcDashboard({
   }, []);
 
   const leaderboardView = useMemo(
-    () => buildLeaderboardView(leaderboard, currentUserId, showAllLeaderboard),
-    [leaderboard, currentUserId, showAllLeaderboard],
+    () => buildLeaderboardView(activeRows, currentUserId, showAllLeaderboard),
+    [activeRows, currentUserId, showAllLeaderboard],
   );
 
   const competitionActive = parseStoredCompetition(competition) != null;
@@ -408,6 +415,7 @@ export default function PartyWcDashboard({
             {(
               [
                 ["leaderboard", "party.tab.leaderboard"],
+                ...(hasPrizeContest ? ([["prizes", "party.tab.prizes"]] as const) : []),
                 ["predictions", "party.tab.predictions"],
               ] as const
             ).map(([id, labelKey]) => (
@@ -426,9 +434,22 @@ export default function PartyWcDashboard({
             ))}
           </div>
 
-          {tab === "leaderboard" && (
+          {(tab === "leaderboard" || tab === "prizes") && (
             <div className="flex flex-col gap-5">
-              <LiveFixtureBanner tournamentId={tournamentId} initial={liveFixtures} />
+              {tab === "leaderboard" ? (
+                <LiveFixtureBanner tournamentId={tournamentId} initial={liveFixtures} />
+              ) : (
+                <p
+                  className="text-sm rounded-xl border px-4 py-3"
+                  style={{
+                    borderColor: "rgba(59,130,246,0.3)",
+                    backgroundColor: "rgba(59,130,246,0.07)",
+                    color: "rgba(255,255,255,0.75)",
+                  }}
+                >
+                  {t("party.prizes.hint", { matchday: prizeMatchday ?? 0 })}
+                </p>
+              )}
               <div
                 className="rounded-2xl border overflow-x-auto"
                 style={{ borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.08)" }}
@@ -529,14 +550,14 @@ export default function PartyWcDashboard({
                   </tbody>
                 </table>
               </div>
-              {canCollapseLeaderboard(leaderboard.length) ? (
+              {canCollapseLeaderboard(activeRows.length) ? (
                 <LeaderboardToggle
                   showAll={showAllLeaderboard}
-                  totalCount={leaderboard.length}
+                  totalCount={activeRows.length}
                   onToggle={() => setShowAllLeaderboard((v) => !v)}
                 />
               ) : null}
-              {!isPublic ? (
+              {tab === "leaderboard" && !isPublic ? (
                 <NextThreePredictionsPanel
                   matches={nextThreeMemberPreds}
                   currentUserId={currentUserId}

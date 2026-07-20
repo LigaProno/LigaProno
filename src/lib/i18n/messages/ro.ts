@@ -149,6 +149,9 @@ export const ro: Messages = {
   "leaderboard.page.back": "Înapoi la Turnee",
   "party.tab.leaderboard": "Clasament",
   "party.tab.predictions": "Pronosticuri",
+  "party.tab.prizes": "Clasament premii",
+  "party.prizes.hint":
+    "Concurs separat pe etapa {matchday} — punctele se numără doar din meciurile acestei etape, toți pornesc de la 0. Clasamentul general rămâne neschimbat.",
   "party.lb.rank": "#",
   "party.lb.rankTip": "Poziția în clasamentul party-ului.",
   "party.lb.member": "Membru",
