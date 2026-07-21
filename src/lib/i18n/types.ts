@@ -86,6 +86,7 @@ export type MessageKey =
   | "tournament.page.publicBadge"
   | "tournament.page.publicOngoing"
   | "tournament.page.publicFinished"
+  | "tournament.page.finishedBadge"
   | "tournament.page.publicNoneOngoing"
   | "tournament.page.publicNoneFinished"
   | "tournament.page.prizeEligibilityPrefix"

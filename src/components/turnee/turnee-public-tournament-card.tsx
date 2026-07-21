@@ -13,6 +13,8 @@ type TurneePublicTournamentCardProps = {
   prizesRaw: unknown;
   isJoined: boolean;
   openLabel: string;
+  isFinished?: boolean;
+  finishedLabel?: string;
 };
 
 export function TurneePublicTournamentCard({
@@ -22,6 +24,8 @@ export function TurneePublicTournamentCard({
   prizesRaw,
   isJoined,
   openLabel,
+  isFinished = false,
+  finishedLabel,
 }: TurneePublicTournamentCardProps) {
   const prizes = parsePrizes(prizesRaw);
   const hasPrizes = prizes.length > 0;
@@ -51,7 +55,16 @@ export function TurneePublicTournamentCard({
             </svg>
             {memberCount}
           </TurneeMetaChip>
-          {isJoined ? (
+          {/* Turneu încheiat: doar vizualizare — fără înscriere sau ieșire. */}
+          {isFinished ? (
+            isJoined ? (
+              <Link href={`/turnee/${id}`} className="turnee-btn-primary shrink-0">
+                {openLabel}
+              </Link>
+            ) : (
+              <TurneeMetaChip>{finishedLabel}</TurneeMetaChip>
+            )
+          ) : isJoined ? (
             <>
               <Link href={`/turnee/${id}`} className="turnee-btn-primary shrink-0">
                 {openLabel}

@@ -91,6 +91,7 @@ export const en: Messages = {
   "tournament.page.publicBadge": "Open to everyone",
   "tournament.page.publicOngoing": "Ongoing",
   "tournament.page.publicFinished": "Finished",
+  "tournament.page.finishedBadge": "Finished",
   "tournament.page.publicNoneOngoing": "No public tournaments running right now.",
   "tournament.page.publicNoneFinished": "No public tournaments finished yet.",
   "tournament.page.prizeEligibilityPrefix": "You are only eligible for prizes if you follow us on",

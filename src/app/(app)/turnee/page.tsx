@@ -77,6 +77,8 @@ export default async function TurneePage() {
             prizesRaw={pt.prizes}
             isJoined={joinedIds.has(pt.id)}
             openLabel={t("tournament.page.open")}
+            isFinished={pt.closedAt != null}
+            finishedLabel={t("tournament.page.finishedBadge")}
           />
         ))}
       </div>

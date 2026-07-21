@@ -91,6 +91,7 @@ export const ro: Messages = {
   "tournament.page.publicBadge": "Deschise tuturor",
   "tournament.page.publicOngoing": "În desfășurare",
   "tournament.page.publicFinished": "Încheiate",
+  "tournament.page.finishedBadge": "Încheiat",
   "tournament.page.publicNoneOngoing": "Niciun turneu public în desfășurare acum.",
   "tournament.page.publicNoneFinished": "Niciun turneu public încheiat încă.",
   "tournament.page.prizeEligibilityPrefix": "Ești eligibil pentru premii doar dacă ne urmărești pe",

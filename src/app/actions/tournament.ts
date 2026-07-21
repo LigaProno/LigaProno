@@ -79,6 +79,9 @@ export async function leaveTournament(tournamentId: string): Promise<void> {
 
   const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
   if (!tournament) throw new I18nError("errors.tournamentNotFound");
+  if (tournament.closedAt) {
+    throw new Error("Turneul s-a încheiat — nu mai poți ieși din el.");
+  }
   if (tournament.creatorId === user.id) {
     throw new Error("Creatorul nu poate părăsi turneul — îl poate doar șterge.");
   }
@@ -100,6 +103,9 @@ export async function joinPublicTournament(tournamentId: string): Promise<void> 
 
   const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
   if (!tournament || !tournament.isPublic) throw new I18nError("errors.tournamentNotFound");
+  if (tournament.closedAt) {
+    throw new Error("Turneul s-a încheiat — nu te mai poți înscrie.");
+  }
 
   const existing = await prisma.tournamentMember.findUnique({
     where: { tournamentId_userId: { tournamentId: tournament.id, userId: user.id } },
