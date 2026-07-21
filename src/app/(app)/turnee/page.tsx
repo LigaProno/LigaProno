@@ -9,6 +9,7 @@ import TournamentActionsWidget from "@/components/turnee/tournament-actions-widg
 import { TurneePageHeader } from "@/components/turnee/turnee-page-header";
 import { TurneeMyTournamentCard } from "@/components/turnee/turnee-my-tournament-card";
 import { TurneePublicTournamentCard } from "@/components/turnee/turnee-public-tournament-card";
+import { TurneePublicTabs } from "@/components/turnee/turnee-public-tabs";
 import { TurneeEmptyState, TurneeSectionTitle } from "@/components/turnee/turnee-ui";
 
 export const metadata = pageTitle("Turnee");
@@ -47,6 +48,40 @@ export default async function TurneePage() {
   });
 
   const visiblePublicTournaments = getVisiblePublicTournaments(publicTournaments);
+
+  // Un turneu e „încheiat" când cronul l-a închis (closedAt setat la finalul etapelor).
+  const ongoingPublic = visiblePublicTournaments.filter((pt) => pt.closedAt == null);
+  const finishedPublic = visiblePublicTournaments.filter((pt) => pt.closedAt != null);
+
+  function renderPublicList(list: typeof visiblePublicTournaments, emptyText: string) {
+    if (list.length === 0) {
+      return (
+        <div
+          className="rounded-xl border p-8 text-center"
+          style={{ borderColor: "rgba(255,255,255,0.08)", borderStyle: "dashed" }}
+        >
+          <p className="text-sm" style={{ color: "rgba(255,255,255,0.35)" }}>
+            {emptyText}
+          </p>
+        </div>
+      );
+    }
+    return (
+      <div className="flex flex-col gap-3">
+        {list.map((pt) => (
+          <TurneePublicTournamentCard
+            key={pt.id}
+            id={pt.id}
+            name={pt.name}
+            memberCount={pt._count.members}
+            prizesRaw={pt.prizes}
+            isJoined={joinedIds.has(pt.id)}
+            openLabel={t("tournament.page.open")}
+          />
+        ))}
+      </div>
+    );
+  }
 
   function competitionLabel(competition: string | null) {
     if (!competition) return null;
@@ -115,19 +150,14 @@ export default async function TurneePage() {
                 badge={t("tournament.page.publicBadge")}
                 count={visiblePublicTournaments.length}
               />
-              <div className="flex flex-col gap-3">
-                {visiblePublicTournaments.map((pt) => (
-                  <TurneePublicTournamentCard
-                    key={pt.id}
-                    id={pt.id}
-                    name={pt.name}
-                    memberCount={pt._count.members}
-                    prizesRaw={pt.prizes}
-                    isJoined={joinedIds.has(pt.id)}
-                    openLabel={t("tournament.page.open")}
-                  />
-                ))}
-              </div>
+              <TurneePublicTabs
+                ongoingCount={ongoingPublic.length}
+                finishedCount={finishedPublic.length}
+                ongoingLabel={t("tournament.page.publicOngoing")}
+                finishedLabel={t("tournament.page.publicFinished")}
+                ongoing={renderPublicList(ongoingPublic, t("tournament.page.publicNoneOngoing"))}
+                finished={renderPublicList(finishedPublic, t("tournament.page.publicNoneFinished"))}
+              />
             </div>
           : null}
         </section>
