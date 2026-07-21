@@ -138,14 +138,17 @@ export default async function PartyTournamentPage({
     return {
       matchId: nm.id,
       utcDate: nm.utcDate,
+      // Trimitem câmpurile ca în API (inclusiv tla), altfel override-urile de nume nu se aplică.
       homeTeam: {
         name: nm.homeTeam.name ?? nm.homeTeam.shortName ?? "—",
-        shortName: nm.homeTeam.tla ?? nm.homeTeam.shortName ?? undefined,
+        shortName: nm.homeTeam.shortName ?? undefined,
+        tla: nm.homeTeam.tla ?? undefined,
         crest: nm.homeTeam.crest,
       },
       awayTeam: {
         name: nm.awayTeam.name ?? nm.awayTeam.shortName ?? "—",
-        shortName: nm.awayTeam.tla ?? nm.awayTeam.shortName ?? undefined,
+        shortName: nm.awayTeam.shortName ?? undefined,
+        tla: nm.awayTeam.tla ?? undefined,
         crest: nm.awayTeam.crest,
       },
       venue: venueLabel(nm),

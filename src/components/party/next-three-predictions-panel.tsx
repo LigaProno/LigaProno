@@ -9,6 +9,8 @@ import type { MatchPredDisplay } from "@/lib/wc-pred-display";
 export type NextThreeTeamSide = {
   name: string;
   shortName?: string;
+  /** TLA-ul din API — necesar ca `formatTeamDisplayName` să aplice override-urile Liga 1. */
+  tla?: string;
   crest?: string;
 };
 
