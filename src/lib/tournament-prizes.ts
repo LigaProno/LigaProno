@@ -1,6 +1,7 @@
 export type TournamentPrize = { place: number; prize: string };
 
 export const PRIZE_OPTIONS = [
+  "Tricou de fotbal",
   "Tricouri de fotbal Cupa Mondiala 2026",
   "Minge fotbal oficială",
   "Card cadou 50 RON",
