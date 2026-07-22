@@ -35,6 +35,7 @@ import { loadWinBadgesByUser } from "@/lib/tournament-wins";
 import { isAdminEmail } from "@/lib/admin";
 import { loadTournamentLiveFixtures } from "@/lib/live-fixtures";
 import { PrizePreferencePanel } from "@/components/turnee/prize-preference-panel";
+import { PrizeAllocationView } from "@/components/turnee/prize-allocation-view";
 
 function displayName(first?: string | null, last?: string | null): string {
   const s = `${first ?? ""} ${last ?? ""}`.trim();
@@ -247,6 +248,34 @@ export default async function PartyTournamentPage({
     r.rank = i + 1;
   });
 
+  // Repartizare premii (doar organizatorul o vede): draft în ordinea clasamentului.
+  const isOrganizer = isCreator || isAdmin;
+  let prizeAllocation:
+    | {
+        allocation: { rank: number; name: string; total: number; shirt: string; fromPref: boolean }[];
+        allPrefs: { rank: number; name: string; preference: string[] }[];
+        finished: boolean;
+      }
+    | null = null;
+  if (tournament.prizePool.length > 0 && isOrganizer) {
+    const prefByUser = new Map(tournamentMembers.map((m) => [m.userId, m.prizePreference]));
+    const remaining = new Set(tournament.prizePool);
+    const allocation: { rank: number; name: string; total: number; shirt: string; fromPref: boolean }[] = [];
+    for (const r of leaderboardRows) {
+      if (remaining.size === 0) break;
+      const pref = prefByUser.get(r.userId) ?? [];
+      const pick = pref.find((p) => remaining.has(p)) ?? [...remaining][0];
+      remaining.delete(pick);
+      allocation.push({ rank: r.rank, name: r.displayName, total: r.total, shirt: pick, fromPref: pref.includes(pick) });
+    }
+    const allPrefs = leaderboardRows.map((r) => ({
+      rank: r.rank,
+      name: r.displayName,
+      preference: prefByUser.get(r.userId) ?? [],
+    }));
+    prizeAllocation = { allocation, allPrefs, finished: tournament.closedAt != null };
+  }
+
   // Concurs separat pe o etapă (doar turneele cu prizeMatchday setat): clasament
   // calculat DOAR din meciurile acelei etape, deci toți pornesc de la 0.
   const prizeMatchday = tournament.prizeMatchday;
@@ -330,6 +359,14 @@ export default async function PartyTournamentPage({
         </svg>
         {t("party.backToTournaments")}
       </Link>
+
+      {prizeAllocation ? (
+        <PrizeAllocationView
+          allocation={prizeAllocation.allocation}
+          allPrefs={prizeAllocation.allPrefs}
+          finished={prizeAllocation.finished}
+        />
+      ) : null}
 
       {tournament.prizePool.length > 0 && isMember ? (
         <div
