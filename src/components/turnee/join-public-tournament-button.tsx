@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { joinPublicTournament } from "@/app/actions/tournament";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { PrizePreferencePanel } from "@/components/turnee/prize-preference-panel";
+import { ModalOverlay } from "@/components/ui/modal-overlay";
 
 export default function JoinPublicTournamentButton({
   tournamentId,
@@ -42,11 +43,7 @@ export default function JoinPublicTournamentButton({
       </button>
 
       {showPrizes ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
-          onClick={() => { setShowPrizes(false); router.refresh(); }}
-        >
+        <ModalOverlay onDismiss={() => { setShowPrizes(false); router.refresh(); }}>
           <div
             className="w-full max-w-md rounded-2xl border p-5 flex flex-col gap-3 max-h-[85vh] overflow-y-auto"
             style={{ backgroundColor: "#0D1422", borderColor: "rgba(197,160,89,0.3)" }}
@@ -76,7 +73,7 @@ export default function JoinPublicTournamentButton({
               {t("party.prizePref.skip")}
             </button>
           </div>
-        </div>
+        </ModalOverlay>
       ) : null}
     </>
   );

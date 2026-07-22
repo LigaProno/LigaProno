@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocale } from "@/components/i18n/locale-provider";
 
 const CYAN = "#3B82F6";
@@ -73,7 +74,9 @@ export default function RulesModal() {
         {ro ? "Cum funcționează?" : "How it works?"}
       </button>
 
-      {open && (
+      {/* Portal în <body>: butonul stă în sidebar-ul mobil (are transform la
+          slide-in), iar un părinte cu transform ar „captura" position:fixed. */}
+      {open && createPortal(
         <>
           <div className="ph-modal-backdrop" onClick={() => setOpen(false)} />
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 pointer-events-none">
@@ -153,7 +156,8 @@ export default function RulesModal() {
               </div>
             </div>
           </div>
-        </>
+        </>,
+        document.body,
       )}
     </>
   );

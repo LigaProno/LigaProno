@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { copyPredictionsToTournaments } from "@/app/actions/wc-predictions";
 import { findCompetitionPickerOption } from "@/lib/competition";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { ModalOverlay } from "@/components/ui/modal-overlay";
 
 export type CopyTargetTournament = {
   id: string;
@@ -61,11 +62,7 @@ export function CopyPredictionsModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
-      onClick={onClose}
-    >
+    <ModalOverlay onDismiss={onClose}>
       <div
         className="w-full max-w-md rounded-2xl border p-5 flex flex-col gap-4 max-h-[85vh] overflow-y-auto"
         style={{ backgroundColor: "#0D1422", borderColor: "rgba(255,255,255,0.1)" }}
@@ -147,6 +144,6 @@ export function CopyPredictionsModal({
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }

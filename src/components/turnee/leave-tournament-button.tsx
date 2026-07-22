@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { leaveTournament } from "@/app/actions/tournament";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { ModalOverlay } from "@/components/ui/modal-overlay";
 
 /** Ieșire din turneu, cu dialog de confirmare. Creatorul nu vede butonul. */
 export default function LeaveTournamentButton({
@@ -46,11 +47,7 @@ export default function LeaveTournamentButton({
       </button>
 
       {open ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
-          onClick={() => !isPending && setOpen(false)}
-        >
+        <ModalOverlay onDismiss={() => !isPending && setOpen(false)}>
           <div
             className="w-full max-w-sm rounded-2xl border p-5 flex flex-col gap-4"
             style={{ backgroundColor: "#0D1422", borderColor: "rgba(255,255,255,0.12)" }}
@@ -89,7 +86,7 @@ export default function LeaveTournamentButton({
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       ) : null}
     </>
   );
