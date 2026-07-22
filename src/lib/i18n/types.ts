@@ -156,6 +156,7 @@ export type MessageKey =
   | "party.prizePref.notSet"
   | "party.prizePref.joinTitle"
   | "party.prizePref.joinHint"
+  | "party.prizePref.joinSave"
   | "party.prizePref.skip"
   | "party.prizePref.locked"
   | "party.lb.rank"

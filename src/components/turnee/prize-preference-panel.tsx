@@ -127,6 +127,8 @@ export function PrizePreferencePanel({
   editable = true,
   onSaved,
   compact = false,
+  submit,
+  saveLabel,
 }: {
   tournamentId: string;
   pool: string[];
@@ -134,6 +136,9 @@ export function PrizePreferencePanel({
   editable?: boolean;
   onSaved?: () => void;
   compact?: boolean;
+  /** Suprascrie salvarea (ex. la înscriere: join + preferință într-un pas). */
+  submit?: (order: string[]) => Promise<void>;
+  saveLabel?: string;
 }) {
   const { t } = useLocale();
   const router = useRouter();
@@ -174,7 +179,8 @@ export function PrizePreferencePanel({
     setError(null);
     startTransition(async () => {
       try {
-        await setPrizePreference(tournamentId, order);
+        if (submit) await submit(order);
+        else await setPrizePreference(tournamentId, order);
         setSaved(true);
         router.refresh();
         onSaved?.();
@@ -222,7 +228,7 @@ export function PrizePreferencePanel({
             className="px-4 py-2 rounded-xl text-sm font-bold transition-opacity hover:opacity-90 disabled:opacity-50"
             style={{ backgroundColor: "#C5A059", color: "#0A0B1E" }}
           >
-            {isPending ? t("party.prizePref.saving") : t("party.prizePref.save")}
+            {isPending ? t("party.prizePref.saving") : (saveLabel ?? t("party.prizePref.save"))}
           </button>
           {saved ? (
             <span className="text-xs" style={{ color: "#34D399" }}>

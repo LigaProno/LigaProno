@@ -18,15 +18,32 @@ export default function JoinPublicTournamentButton({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showPrizes, setShowPrizes] = useState(false);
+  const [skipError, setSkipError] = useState<string | null>(null);
 
-  function handleJoin() {
+  function handleJoinClick() {
+    // Turneu cu premii: cerem preferința ÎNAINTE de înscriere — altfel
+    // revalidarea de după join demontează butonul și modalul dispare.
+    if (prizePool.length > 0) {
+      setSkipError(null);
+      setShowPrizes(true);
+      return;
+    }
     startTransition(async () => {
       await joinPublicTournament(tournamentId);
-      // Turneu cu premii de ales → cerem preferința imediat după înscriere.
-      if (prizePool.length > 0) {
-        setShowPrizes(true);
-      } else {
+      router.refresh();
+    });
+  }
+
+  // „Mai târziu": înscriere fără preferință (o poate seta ulterior din turneu).
+  function handleSkip() {
+    setSkipError(null);
+    startTransition(async () => {
+      try {
+        await joinPublicTournament(tournamentId);
+        setShowPrizes(false);
         router.refresh();
+      } catch (e) {
+        setSkipError(e instanceof Error ? e.message : "Eroare.");
       }
     });
   }
@@ -35,7 +52,7 @@ export default function JoinPublicTournamentButton({
     <>
       <button
         type="button"
-        onClick={handleJoin}
+        onClick={handleJoinClick}
         disabled={isPending}
         className="turnee-btn-primary shrink-0 disabled:opacity-50 cursor-pointer hover:opacity-95 active:scale-[0.98] transition-all"
       >
@@ -43,7 +60,7 @@ export default function JoinPublicTournamentButton({
       </button>
 
       {showPrizes ? (
-        <ModalOverlay onDismiss={() => { setShowPrizes(false); router.refresh(); }}>
+        <ModalOverlay onDismiss={() => !isPending && setShowPrizes(false)}>
           <div
             className="w-full max-w-md rounded-2xl border p-5 flex flex-col gap-3 max-h-[85vh] overflow-y-auto"
             style={{ backgroundColor: "#0D1422", borderColor: "rgba(197,160,89,0.3)" }}
@@ -61,13 +78,18 @@ export default function JoinPublicTournamentButton({
               pool={prizePool}
               initial={[]}
               compact
+              saveLabel={t("party.prizePref.joinSave")}
+              submit={(order) => joinPublicTournament(tournamentId, order)}
               onSaved={() => { setShowPrizes(false); router.refresh(); }}
             />
 
+            {skipError ? <p className="text-xs text-red-400 text-center">{skipError}</p> : null}
+
             <button
               type="button"
-              onClick={() => { setShowPrizes(false); router.refresh(); }}
-              className="self-center text-xs transition-colors hover:text-white/70 mt-1"
+              onClick={handleSkip}
+              disabled={isPending}
+              className="self-center text-xs transition-colors hover:text-white/70 mt-1 disabled:opacity-50"
               style={{ color: "rgba(255,255,255,0.4)" }}
             >
               {t("party.prizePref.skip")}
