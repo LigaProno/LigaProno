@@ -15,6 +15,7 @@ type TurneePublicTournamentCardProps = {
   openLabel: string;
   isFinished?: boolean;
   finishedLabel?: string;
+  prizePool?: string[];
 };
 
 export function TurneePublicTournamentCard({
@@ -26,6 +27,7 @@ export function TurneePublicTournamentCard({
   openLabel,
   isFinished = false,
   finishedLabel,
+  prizePool = [],
 }: TurneePublicTournamentCardProps) {
   const prizes = parsePrizes(prizesRaw);
   const hasPrizes = prizes.length > 0;
@@ -72,7 +74,7 @@ export function TurneePublicTournamentCard({
               <LeaveTournamentButton tournamentId={id} tournamentName={name} isPublic />
             </>
           ) : (
-            <JoinPublicTournamentButton tournamentId={id} />
+            <JoinPublicTournamentButton tournamentId={id} prizePool={prizePool} />
           )}
         </div>
       </div>

@@ -34,6 +34,7 @@ import { getLocaleFromCookies } from "@/lib/i18n/server";
 import { loadWinBadgesByUser } from "@/lib/tournament-wins";
 import { isAdminEmail } from "@/lib/admin";
 import { loadTournamentLiveFixtures } from "@/lib/live-fixtures";
+import { PrizePreferencePanel } from "@/components/turnee/prize-preference-panel";
 
 function displayName(first?: string | null, last?: string | null): string {
   const s = `${first ?? ""} ${last ?? ""}`.trim();
@@ -329,6 +330,24 @@ export default async function PartyTournamentPage({
         </svg>
         {t("party.backToTournaments")}
       </Link>
+
+      {tournament.prizePool.length > 0 && isMember ? (
+        <div
+          className="mb-6 rounded-2xl border p-4 sm:p-5 flex flex-col gap-3"
+          style={{ borderColor: "rgba(197,160,89,0.3)", backgroundColor: "rgba(197,160,89,0.05)" }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-base" aria-hidden>🎁</span>
+            <h2 className="text-base font-bold text-white">{t("party.prizePref.title")}</h2>
+          </div>
+          <PrizePreferencePanel
+            tournamentId={tournament.id}
+            pool={tournament.prizePool}
+            initial={tournamentMembers.find((m) => m.userId === user.id)?.prizePreference ?? []}
+            editable={tournament.closedAt == null}
+          />
+        </div>
+      ) : null}
 
       {loadError && parsedCompetition && (
         <div

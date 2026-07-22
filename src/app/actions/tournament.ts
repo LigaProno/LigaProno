@@ -98,6 +98,49 @@ export async function leaveTournament(tournamentId: string): Promise<void> {
   revalidatePath(`/turnee/${tournamentId}`);
 }
 
+/**
+ * Setează ordinea preferată a premiilor pentru membrul curent. Se poate schimba
+ * oricând cât timp turneul e activ (nu închis). Lista trebuie să fie o permutare
+ * a `prizePool` al turneului.
+ */
+export async function setPrizePreference(
+  tournamentId: string,
+  ordered: string[],
+): Promise<void> {
+  const user = await requireDbUser();
+
+  const tournament = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+    select: { prizePool: true, closedAt: true },
+  });
+  if (!tournament) throw new I18nError("errors.tournamentNotFound");
+  if (tournament.prizePool.length === 0) {
+    throw new Error("Acest turneu nu are premii de ales.");
+  }
+  if (tournament.closedAt) {
+    throw new Error("Turneul s-a încheiat — preferința nu mai poate fi schimbată.");
+  }
+
+  const pool = tournament.prizePool;
+  const isPermutation =
+    ordered.length === pool.length &&
+    new Set(ordered).size === ordered.length &&
+    ordered.every((p) => pool.includes(p));
+  if (!isPermutation) throw new Error("Ordine de premii invalidă.");
+
+  const membership = await prisma.tournamentMember.findUnique({
+    where: { tournamentId_userId: { tournamentId, userId: user.id } },
+  });
+  if (!membership) throw new Error("Nu ești membru al acestui turneu.");
+
+  await prisma.tournamentMember.update({
+    where: { id: membership.id },
+    data: { prizePreference: ordered },
+  });
+
+  revalidatePath(`/turnee/${tournamentId}`);
+}
+
 export async function joinPublicTournament(tournamentId: string): Promise<void> {
   const user = await requireDbUser();
 
