@@ -186,17 +186,21 @@ export default async function PartyTournamentPage({
   const liveFixtures = await loadTournamentLiveFixtures(tournament);
 
   // Celelalte turnee ale userului — ținte pentru „copiază pronosticurile".
-  // Turneele încheiate (closedAt setat) nu apar: nu mai poți schimba pronosticuri acolo.
   const otherMemberships = await prisma.tournamentMember.findMany({
-    where: { userId: user.id, NOT: { tournamentId }, tournament: { closedAt: null } },
-    select: { tournament: { select: { id: true, name: true, competition: true } } },
+    where: { userId: user.id, NOT: { tournamentId } },
+    select: { tournament: { select: { id: true, name: true, competition: true, closedAt: true } } },
     orderBy: { joinedAt: "desc" },
   });
-  const otherTournaments = otherMemberships.map((m) => ({
-    id: m.tournament.id,
-    name: m.tournament.name,
-    competition: m.tournament.competition,
-  }));
+  // Turneele încheiate nu apar ca ținte: nu mai poți schimba pronosticuri acolo.
+  // Filtrăm în JS — pe MongoDB `closedAt: null` ca filtru de query nu prinde
+  // documentele unde câmpul lipsește (turneele deschise), deci ar goli lista.
+  const otherTournaments = otherMemberships
+    .filter((m) => m.tournament.closedAt == null)
+    .map((m) => ({
+      id: m.tournament.id,
+      name: m.tournament.name,
+      competition: m.tournament.competition,
+    }));
 
   const leaderboardRows: LeaderboardRow[] = tournamentMembers.map((m) => {
     const totals = computeUserWcTotals(
