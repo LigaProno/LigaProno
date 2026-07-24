@@ -21,6 +21,8 @@ export type NextThreeMatchPreds = {
   awayTeam: NextThreeTeamSide;
   venue?: string | null;
   ftOdds?: { home: number; draw: number; away: number } | null;
+  /** Rezultatul real, doar pentru meciurile deja terminate. */
+  result?: { ht: string | null; ft: string | null } | null;
   rows: { userId: string; displayName: string; pred: MatchPredDisplay }[];
 };
 
@@ -34,6 +36,7 @@ function MatchPredictionsTable({
   labelHt,
   labelFt,
   labelScore,
+  labelResult,
 }: {
   block: NextThreeMatchPreds;
   currentUserId: string;
@@ -44,11 +47,13 @@ function MatchPredictionsTable({
   labelHt: string;
   labelFt: string;
   labelScore: string;
+  labelResult: string;
 }) {
   const when = formatMatchKickoff(block.utcDate, dateLocale);
   const venue = block.venue ?? stadiumTbd;
   const homeLabel = formatTeamDisplayName(block.homeTeam);
   const awayLabel = formatTeamDisplayName(block.awayTeam);
+  const result = block.result && (block.result.ht || block.result.ft) ? block.result : null;
 
   return (
     <article
@@ -83,6 +88,19 @@ function MatchPredictionsTable({
         {block.ftOdds ?
           <div className="text-[11px] sm:text-xs tabular-nums font-medium w-full sm:w-auto" style={{ color: "rgba(167,243,208,0.85)" }}>
             1 {block.ftOdds.home.toFixed(2)} · X {block.ftOdds.draw.toFixed(2)} · 2 {block.ftOdds.away.toFixed(2)}
+          </div>
+        : null}
+        {result ?
+          <div
+            className="text-xs sm:text-sm tabular-nums font-bold rounded-lg px-2.5 py-1 w-full sm:w-auto"
+            style={{ color: "#0A0B1E", backgroundColor: "#34D399" }}
+          >
+            {labelResult}: {result.ft ?? result.ht}
+            {result.ht && result.ft ? (
+              <span className="ml-1.5 font-medium" style={{ color: "rgba(10,11,30,0.6)" }}>
+                ({labelHt} {result.ht})
+              </span>
+            ) : null}
           </div>
         : null}
       </div>
@@ -184,6 +202,7 @@ export function NextThreePredictionsPanel({
             labelHt={t("party.lb.predHt")}
             labelFt={t("party.lb.predFt")}
             labelScore={t("party.lb.predSc")}
+            labelResult={t("party.nextThree.result")}
           />
         ))}
       </div>

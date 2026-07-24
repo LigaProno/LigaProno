@@ -83,7 +83,6 @@ export default function PartyWcDashboard({
   lastManualOddsRefreshAt = null,
   canManualRefreshOddsToday = true,
   nextThreeMemberPreds = [],
-  currentMatchday = 1,
   liveFixtures = [],
   otherTournaments = [],
   prizeLeaderboard = [],
@@ -112,7 +111,6 @@ export default function PartyWcDashboard({
   lastManualOddsRefreshAt?: string | null;
   canManualRefreshOddsToday?: boolean;
   nextThreeMemberPreds?: NextThreeMatchPreds[];
-  currentMatchday?: number;
   liveFixtures?: LiveFixture[];
   otherTournaments?: CopyTargetTournament[];
   prizeLeaderboard?: LeaderboardRow[];
@@ -561,7 +559,7 @@ export default function PartyWcDashboard({
                 <NextThreePredictionsPanel
                   matches={nextThreeMemberPreds}
                   currentUserId={currentUserId}
-                  title={t("party.matchdayPreds.title", { matchday: currentMatchday })}
+                  title={t("party.matchdayPreds.rollingTitle")}
                 />
               ) : null}
             </div>

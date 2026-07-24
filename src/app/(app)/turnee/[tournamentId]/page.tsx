@@ -21,7 +21,7 @@ import {
   lastFinishedAndNextThree,
   matchResultHtFt,
   matchesForMatchday,
-  resolveCurrentMatchday,
+  recentAndUpcomingMatches,
 } from "@/lib/wc-pred-display";
 import type { NextThreeMatchPreds } from "@/components/party/next-three-predictions-panel";
 import { filterUsableMatchOdds, payloadToOddsMaps } from "@/lib/betting-odds";
@@ -132,14 +132,17 @@ export default async function PartyTournamentPage({
   const usableMatchOddsById = filterUsableMatchOdds(oddsPayload?.matches ?? {});
 
   const { lastFinished, nextThree } = lastFinishedAndNextThree(matches);
-  const currentMatchday = resolveCurrentMatchday(matches);
-  const currentMatchdayMatches = matchesForMatchday(matches, currentMatchday);
+  // Panoul „pronosticuri grupă": fereastră glisantă — ultimele 2 meciuri
+  // terminate + următoarele 3, nu toată etapa deodată.
+  const memberPredsWindow = recentAndUpcomingMatches(matches, 2, 3);
 
   function buildMemberPredsBlock(nm: FootballDataMatch): NextThreeMatchPreds {
     const row = usableMatchOddsById[String(nm.id)];
+    const isDone = nm.status === "FINISHED" || nm.status === "AWARDED";
     return {
       matchId: nm.id,
       utcDate: nm.utcDate,
+      result: isDone ? matchResultHtFt(nm) : null,
       // Trimitem câmpurile ca în API (inclusiv tla), altfel override-urile de nume nu se aplică.
       homeTeam: {
         name: nm.homeTeam.name ?? nm.homeTeam.shortName ?? "—",
@@ -173,7 +176,7 @@ export default async function PartyTournamentPage({
 
   // În turneele publice nu expunem pronosticurile celorlalți — nici măcar în payload-ul paginii.
   const matchdayMemberPreds: NextThreeMatchPreds[] =
-    tournament.isPublic ? [] : currentMatchdayMatches.map(buildMemberPredsBlock);
+    tournament.isPublic ? [] : memberPredsWindow.map(buildMemberPredsBlock);
 
   // O singură interogare pentru badge-urile tuturor membrilor, nu una per rând.
   const memberIds = tournamentMembers.map((m) => m.userId);
@@ -417,7 +420,6 @@ export default async function PartyTournamentPage({
         }
         canManualRefreshOddsToday={canManualRefreshOddsTodayFlag}
         nextThreeMemberPreds={matchdayMemberPreds}
-        currentMatchday={currentMatchday}
         liveFixtures={liveFixtures}
         otherTournaments={otherTournaments}
         prizeLeaderboard={prizeLeaderboard}

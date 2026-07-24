@@ -216,6 +216,31 @@ export function lastFinishedAndNextThree(matches: FootballDataMatch[]): {
   return { lastFinished, nextThree: upcoming };
 }
 
+/**
+ * Fereastră glisantă în jurul „acum": ultimele `prev` meciuri terminate +
+ * următoarele `next` meciuri nedecise, în ordine cronologică. Folosită pentru
+ * panoul cu pronosticurile tuturor, ca să nu arate toată etapa deodată.
+ */
+export function recentAndUpcomingMatches(
+  matches: FootballDataMatch[],
+  prev: number,
+  next: number,
+): FootballDataMatch[] {
+  const isDone = (m: FootballDataMatch) => m.status === "FINISHED" || m.status === "AWARDED";
+
+  const finished = matches
+    .filter(isDone)
+    .sort((a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate))
+    .slice(-prev);
+
+  const upcoming = matches
+    .filter((m) => !isDone(m))
+    .sort((a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate))
+    .slice(0, next);
+
+  return [...finished, ...upcoming];
+}
+
 /** Etapa curentă: prima etapă cu meciuri nedecise; altfel ultima etapă. */
 export function resolveCurrentMatchday(matches: FootballDataMatch[]): number {
   const byMatchday = new Map<number, FootballDataMatch[]>();
