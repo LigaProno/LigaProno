@@ -161,6 +161,9 @@ export function PartyMatchPredictionCard({
   const [p, setP] = useState<MatchPredState>(initial);
   const pRef = useRef(p);
   pRef.current = p;
+  // Scorurile au o singură cifră (nimeni nu pronostichează 2 cifre la fotbal),
+  // așa că după prima cifră din „gazde" sărim automat la „oaspeți".
+  const awayGoalsRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
   const [insightsOpen, setInsightsOpen] = useState(false);
   const finished = m.status === "FINISHED";
@@ -362,10 +365,14 @@ export function PartyMatchPredictionCard({
                     </span>
                     <input
                       value={p.predHomeGoals}
-                      onChange={(e) =>
-                        setP((s) => ({ ...s, predHomeGoals: e.target.value.replace(/\D/g, "") }))
-                      }
-                      maxLength={2}
+                      onChange={(e) => {
+                        const digit = e.target.value.replace(/\D/g, "").slice(-1);
+                        setP((s) => ({ ...s, predHomeGoals: digit }));
+                        // Cifră introdusă → mut focusul la scorul oaspeților.
+                        if (digit) awayGoalsRef.current?.focus();
+                      }}
+                      inputMode="numeric"
+                      maxLength={1}
                       placeholder="X"
                       className="w-12 h-12 text-lg text-center rounded-xl border outline-none font-bold"
                       style={{ backgroundColor: WC_NAVY, borderColor: WC_BORDER, color: "#fff" }}
@@ -377,11 +384,14 @@ export function PartyMatchPredictionCard({
                       {t("party.match.away")}
                     </span>
                     <input
+                      ref={awayGoalsRef}
                       value={p.predAwayGoals}
-                      onChange={(e) =>
-                        setP((s) => ({ ...s, predAwayGoals: e.target.value.replace(/\D/g, "") }))
-                      }
-                      maxLength={2}
+                      onChange={(e) => {
+                        const digit = e.target.value.replace(/\D/g, "").slice(-1);
+                        setP((s) => ({ ...s, predAwayGoals: digit }));
+                      }}
+                      inputMode="numeric"
+                      maxLength={1}
                       placeholder="X"
                       className="w-12 h-12 text-lg text-center rounded-xl border outline-none font-bold"
                       style={{ backgroundColor: WC_NAVY, borderColor: WC_BORDER, color: "#fff" }}
