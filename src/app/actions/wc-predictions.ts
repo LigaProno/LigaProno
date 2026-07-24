@@ -116,6 +116,8 @@ export async function copyPredictionsToTournaments(
 
     const target = await prisma.tournament.findUnique({ where: { id: targetId } });
     if (!target) continue;
+    // Turneele încheiate nu mai acceptă pronosticuri.
+    if (target.closedAt) continue;
     // Doar aceeași competiție are meciuri comune.
     if (target.competition !== source.competition) continue;
 

@@ -183,8 +183,9 @@ export default async function PartyTournamentPage({
   const liveFixtures = await loadTournamentLiveFixtures(tournament);
 
   // Celelalte turnee ale userului — ținte pentru „copiază pronosticurile".
+  // Turneele încheiate (closedAt setat) nu apar: nu mai poți schimba pronosticuri acolo.
   const otherMemberships = await prisma.tournamentMember.findMany({
-    where: { userId: user.id, NOT: { tournamentId } },
+    where: { userId: user.id, NOT: { tournamentId }, tournament: { closedAt: null } },
     select: { tournament: { select: { id: true, name: true, competition: true } } },
     orderBy: { joinedAt: "desc" },
   });
