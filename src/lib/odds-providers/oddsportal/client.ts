@@ -13,7 +13,10 @@ import {
   OP_MARKET_OUTRIGHT_WINNER,
 } from "@/lib/odds-providers/oddsportal/markets";
 import type { OddsPortalCompetitionConfig } from "@/lib/odds-providers/oddsportal/competition-map";
-import { buildShortMatchPageUrl } from "@/lib/odds-providers/oddsportal/competition-map";
+import {
+  buildShortMatchPageUrl,
+  buildTournamentResultsUrl,
+} from "@/lib/odds-providers/oddsportal/competition-map";
 import { delay } from "@/lib/odds-providers/concurrency";
 
 export type OpEventMeta = {
@@ -26,20 +29,38 @@ export type OpEventMeta = {
   versionId: number;
 };
 
+/** Scor final extras din `react-event-header` (meciuri terminate pe OddsPortal). */
+export type OpEventResult = {
+  matchId: string;
+  home: string;
+  away: string;
+  isFinished: boolean;
+  ftHome: number;
+  ftAway: number;
+  htHome: number;
+  htAway: number;
+};
+
 function getRequestDelayMs(): number {
   const raw = process.env.ODDSPORTAL_REQUEST_DELAY_MS?.trim();
   const n = raw ? Number(raw) : 250;
   return Number.isFinite(n) && n >= 0 ? n : 250;
 }
 
-export async function fetchOddsPortalHtml(url: string, referer?: string): Promise<string> {
+export async function fetchOddsPortalHtml(
+  url: string,
+  referer?: string,
+  options?: { fresh?: boolean },
+): Promise<string> {
   const res = await fetch(url, {
     headers: {
       "User-Agent": process.env.ODDSPORTAL_USER_AGENT?.trim() || DEFAULT_USER_AGENT,
       Accept: "text/html,application/xhtml+xml",
       Referer: referer ?? ODDSPORTAL_BASE,
     },
-    next: { revalidate: 86400 },
+    ...(options?.fresh ?
+      { cache: "no-store" as const }
+    : { next: { revalidate: 86400 } }),
     signal: AbortSignal.timeout(45_000),
   });
   if (!res.ok) {
@@ -140,6 +161,73 @@ export function parseEventMetaFromHtml(html: string): OpEventMeta | null {
   return parseEventDataJson(dataMatch[1]);
 }
 
+function parseNonNegInt(value: unknown): number | null {
+  if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
+    return value;
+  }
+  if (typeof value === "string" && /^\d+$/.test(value.trim())) {
+    return Number(value.trim());
+  }
+  return null;
+}
+
+/** Scor HT/FT din același payload `react-event-header` — doar meciuri finished cu scor complet. */
+export function parseEventResultFromHtml(html: string): OpEventResult | null {
+  const dataMatch =
+    html.match(/id="react-event-header"\s+data='(\{[\s\S]*?\})'/) ??
+    html.match(/id="react-event-header"[\s\S]*?data='(\{[\s\S]*?\})'/);
+  if (!dataMatch?.[1]) return null;
+
+  try {
+    const parsed = JSON.parse(dataMatch[1]) as {
+      eventData?: {
+        id?: string;
+        home?: string;
+        away?: string;
+        isFinished?: boolean;
+      };
+      eventBody?: {
+        homeResult?: unknown;
+        awayResult?: unknown;
+        homeResultPartial_0?: unknown;
+        awayResultPartial_0?: unknown;
+        eventStageId?: number;
+        eventStageName?: string;
+      };
+    };
+    const ed = parsed.eventData;
+    const body = parsed.eventBody;
+    if (!ed?.id || !body) return null;
+
+    const finished =
+      ed.isFinished === true ||
+      body.eventStageId === 3 ||
+      /finished/i.test(body.eventStageName ?? "");
+    if (!finished) return null;
+
+    const ftHome = parseNonNegInt(body.homeResult);
+    const ftAway = parseNonNegInt(body.awayResult);
+    const htHome = parseNonNegInt(body.homeResultPartial_0);
+    const htAway = parseNonNegInt(body.awayResultPartial_0);
+    if (ftHome == null || ftAway == null || htHome == null || htAway == null) {
+      return null;
+    }
+
+    return {
+      matchId: ed.id,
+      home: ed.home ?? "",
+      away: ed.away ?? "",
+      isFinished: true,
+      ftHome,
+      ftAway,
+      htHome,
+      htAway,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function parseEventDataJson(raw: string): OpEventMeta | null {
   try {
     const parsed = JSON.parse(raw) as {
@@ -187,6 +275,18 @@ export async function fetchEventMeta(
   const url = buildShortMatchPageUrl(config, matchId);
   const html = await fetchOddsPortalHtml(url, config.tournamentPageUrl);
   return parseEventMetaFromHtml(html);
+}
+
+/** Scor final (fresh, fără cache Next) — pentru fallback când Football-Data întârzie. */
+export async function fetchEventResult(
+  config: OddsPortalCompetitionConfig,
+  matchId: string,
+): Promise<OpEventResult | null> {
+  const url = buildShortMatchPageUrl(config, matchId);
+  const html = await fetchOddsPortalHtml(url, config.tournamentPageUrl, {
+    fresh: true,
+  });
+  return parseEventResultFromHtml(html);
 }
 
 export async function fetchMatchMarketFeed(
@@ -244,4 +344,31 @@ export async function fetchTournamentFixtures(
 ): Promise<OpScheduleFixture[]> {
   const html = await fetchOddsPortalHtml(config.tournamentPageUrl);
   return parseTournamentFixturesFromHtml(html);
+}
+
+/** Fixture-uri de pe pagina de rezultate (meciuri terminate, pot lipsi de pe overview). */
+export async function fetchTournamentResultFixtures(
+  config: OddsPortalCompetitionConfig,
+): Promise<OpScheduleFixture[]> {
+  const html = await fetchOddsPortalHtml(
+    buildTournamentResultsUrl(config),
+    config.tournamentPageUrl,
+    { fresh: true },
+  );
+  return parseTournamentFixturesFromHtml(html);
+}
+
+/** Overview + results, deduplicate pe matchId OddsPortal. */
+export async function fetchTournamentFixturesForScoreFallback(
+  config: OddsPortalCompetitionConfig,
+): Promise<OpScheduleFixture[]> {
+  const [upcoming, results] = await Promise.all([
+    fetchTournamentFixtures(config).catch(() => [] as OpScheduleFixture[]),
+    fetchTournamentResultFixtures(config).catch(() => [] as OpScheduleFixture[]),
+  ]);
+  const byId = new Map<string, OpScheduleFixture>();
+  for (const fx of [...results, ...upcoming]) {
+    if (!byId.has(fx.matchId)) byId.set(fx.matchId, fx);
+  }
+  return [...byId.values()];
 }

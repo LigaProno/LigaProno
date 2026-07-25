@@ -77,6 +77,17 @@ model CompetitionMatchVenues {
   updatedAt   DateTime @updatedAt
 }
 
+// Scoruri fallback (OddsPortal) când Football-Data rămâne în urmă — cheie = id meci FD.
+// Se șterg automat când FD trece pe FINISHED cu scor.
+model CompetitionMatchScoreOverrides {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  competition String   @unique
+  overrides   Json
+  source      String?
+  fetchedAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 // Snapshot cote partajat de toate party-urile aceleiași competiții (ex. WC_2026).
 model CompetitionBettingOdds {
   id                    String   @id @default(auto()) @map("_id") @db.ObjectId

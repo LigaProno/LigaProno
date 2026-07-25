@@ -102,5 +102,19 @@ export async function loadMatchesWithCompetitionVenues(
   matches: FootballDataMatch[],
 ): Promise<FootballDataMatch[]> {
   const venueMap = await ensureCompetitionMatchVenues(competition, matches);
-  return applyCompetitionVenuesToMatches(matches, venueMap);
+  const withVenues = applyCompetitionVenuesToMatches(matches, venueMap);
+
+  try {
+    const { loadMatchesWithScoreOverrides } = await import(
+      "@/lib/competition-match-scores"
+    );
+    return await loadMatchesWithScoreOverrides(competition, withVenues);
+  } catch (error) {
+    console.error(
+      "[competition-match-venues] score fallback failed",
+      competition,
+      error,
+    );
+    return withVenues;
+  }
 }

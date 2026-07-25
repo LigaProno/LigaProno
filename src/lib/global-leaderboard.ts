@@ -113,6 +113,10 @@ async function loadCompetitionScoringContext(
   let matches: FootballDataMatch[] = [];
   try {
     matches = await fetchCompetitionMatches(parsed.code, parsed.season);
+    const { loadMatchesWithCompetitionVenues } = await import(
+      "@/lib/competition-match-venues"
+    );
+    matches = await loadMatchesWithCompetitionVenues(competition, matches);
   } catch {
     // API indisponibil
   }

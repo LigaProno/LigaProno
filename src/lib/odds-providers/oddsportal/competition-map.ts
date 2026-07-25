@@ -50,6 +50,13 @@ export function buildShortMatchPageUrl(
   return `${config.tournamentPageUrl}unknown-unknown-${matchId}/`;
 }
 
+/** Pagina de rezultate (meciuri terminate) pentru același turneu. */
+export function buildTournamentResultsUrl(
+  config: OddsPortalCompetitionConfig,
+): string {
+  return `${config.tournamentPageUrl}results/`;
+}
+
 /** Aliasuri nume echipă: Football-Data / variante → OddsPortal normalizat. */
 export const TEAM_NAME_ALIASES: Record<string, string> = {
   "korea republic": "south korea",
@@ -99,6 +106,9 @@ export const TEAM_NAME_ALIASES: Record<string, string> = {
   petrolul: "petrolul",
   "fc farul constanta": "farul constanta",
   "farul constanța": "farul constanta",
+  "farul constanta": "farul constanta",
+  "corvinul hunedoara": "corvinul",
+  corvinul: "corvinul",
   "uta arad": "uta arad",
   "fc uta arad": "uta arad",
   "csikszereda miercurea ciuc": "csikszereda",

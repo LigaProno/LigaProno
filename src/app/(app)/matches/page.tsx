@@ -44,6 +44,13 @@ export default async function MatchesPage({
 
   try {
     matches = await fetchCompetitionMatchesFresh(selectedComp.code, selectedComp.season);
+    const { loadMatchesWithCompetitionVenues } = await import(
+      "@/lib/competition-match-venues"
+    );
+    matches = await loadMatchesWithCompetitionVenues(
+      selectedComp.storageKey,
+      matches,
+    );
   } catch (e) {
     loadError =
       e instanceof Error ? e.message : t("matches.loadErrorDefault");
