@@ -75,19 +75,44 @@ export function emailConfigStatus(): {
   enabled: boolean;
   configured: boolean;
   testTo: string | null;
+  testLimit: number | null;
   from: string;
 } {
+  const testTo = process.env.EMAIL_TEST_TO?.trim() || null;
   return {
     enabled: isEmailEnabled(),
     configured: getGmailCredentials() != null,
-    testTo: process.env.EMAIL_TEST_TO?.trim() || null,
+    testTo,
+    testLimit: testTo ? getEmailTestLimit() : null,
     from: getFromAddress(),
   };
 }
 
+/** Câte mailuri SMTP reale se trimit când EMAIL_TEST_TO e setat (default 1). */
+function getEmailTestLimit(): number {
+  const raw = process.env.EMAIL_TEST_LIMIT?.trim();
+  if (raw == null || raw === "") return 1;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return 1;
+  return Math.floor(n);
+}
+
+let testEmailsSent = 0;
+
+export function isEmailTestMode(): boolean {
+  return Boolean(process.env.EMAIL_TEST_TO?.trim());
+}
+
+/** True dacă mai putem trimite un sample în modul test (fără a rezerva slotul). */
+export function canSendTestEmail(): boolean {
+  if (!isEmailTestMode()) return true;
+  return testEmailsSent < getEmailTestLimit();
+}
+
 /**
  * Trimite un email prin Gmail SMTP.
- * Dacă EMAIL_TEST_TO e setat, toate mesajele merg doar acolo (subject prefixat).
+ * Dacă EMAIL_TEST_TO e setat, mesajele merg doar acolo (subject prefixat),
+ * și doar primele EMAIL_TEST_LIMIT (default 1) sunt trimise efectiv.
  */
 export async function sendEmail(
   input: SendEmailInput,
@@ -102,6 +127,18 @@ export async function sendEmail(
   }
 
   const testTo = process.env.EMAIL_TEST_TO?.trim();
+  if (testTo) {
+    const limit = getEmailTestLimit();
+    // Rezervă sync înainte de await — evită curse între job-uri paralele.
+    if (testEmailsSent >= limit) {
+      return {
+        ok: false,
+        reason: `EMAIL_TEST_LIMIT reached (${limit})`,
+      };
+    }
+    testEmailsSent += 1;
+  }
+
   const to = testTo || input.to;
   const subject = testTo
     ? `[TEST → ${input.to}] ${input.subject}`
@@ -131,6 +168,7 @@ export async function sendEmail(
     });
     return { ok: true, to };
   } catch (error) {
+    if (testTo && testEmailsSent > 0) testEmailsSent -= 1;
     const message = error instanceof Error ? error.message : String(error);
     console.error("[email] send failed", { to: input.to, message });
     return { ok: false, reason: message };

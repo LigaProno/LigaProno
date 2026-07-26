@@ -5,7 +5,7 @@ import {
   fetchCompetitionMatches,
   type FootballDataMatch,
 } from "@/lib/football-data";
-import { sendEmail } from "@/lib/email/mailer";
+import { canSendTestEmail, isEmailTestMode, sendEmail } from "@/lib/email/mailer";
 import { renderDailyDigestEmail } from "@/lib/email/templates/daily-digest";
 import { renderPredictionReminderEmail } from "@/lib/email/templates/prediction-reminder";
 import { renderStageRankingEmail } from "@/lib/email/templates/stage-ranking";
@@ -44,6 +44,57 @@ async function tryClaimDispatch(kind: string, key: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** Claim + send; în modul EMAIL_TEST_TO nu claim-uiește recipientii săriți de limită. */
+async function claimAndSend(opts: {
+  kind: string;
+  dedupeKey: string;
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  result: EmailJobResult;
+}): Promise<void> {
+  const { result } = opts;
+
+  if (isEmailTestMode() && !canSendTestEmail()) {
+    result.skipped++;
+    return;
+  }
+
+  if (isEmailTestMode()) {
+    // Fără claim: sample-ul nu trebuie să blocheze digestele/remindele reale.
+    result.attempted++;
+    const send = await sendEmail({
+      to: opts.to,
+      subject: opts.subject,
+      html: opts.html,
+      text: opts.text,
+    });
+    if (!send.ok) {
+      if (send.reason.startsWith("EMAIL_TEST_LIMIT")) result.skipped++;
+      else result.errors.push(`${opts.to}: ${send.reason}`);
+      return;
+    }
+    result.sent++;
+    return;
+  }
+
+  if (!(await tryClaimDispatch(opts.kind, opts.dedupeKey))) {
+    result.skipped++;
+    return;
+  }
+
+  result.attempted++;
+  const send = await sendEmail({
+    to: opts.to,
+    subject: opts.subject,
+    html: opts.html,
+    text: opts.text,
+  });
+  if (send.ok) result.sent++;
+  else result.errors.push(`${opts.to}: ${send.reason}`);
 }
 
 function displayName(first?: string | null, last?: string | null): string {
@@ -140,13 +191,14 @@ async function loadActiveTournaments(): Promise<ActiveTournament[]> {
   );
 }
 
-/** Reminder: meciuri azi (Bucharest) fără predicție, kickoff încă în viitor. */
+/** Reminder D−1: meciuri mâine (Bucharest) fără predicție. */
 export async function sendPredictionReminders(
   now: Date = new Date(),
 ): Promise<EmailJobResult> {
   const result: EmailJobResult = { attempted: 0, sent: 0, skipped: 0, errors: [] };
   const todayKey = formatDateKeyBucharest(now);
-  const dateLabel = formatBucharestDateLabel(todayKey);
+  const tomorrowKey = addDaysToDateKey(todayKey, 1);
+  const dateLabel = formatBucharestDateLabel(tomorrowKey);
   const base = appBaseUrl();
 
   const tournaments = await loadActiveTournaments();
@@ -171,18 +223,18 @@ export async function sendPredictionReminders(
   for (const tournament of tournaments) {
     const allMatches = matchesByCompetition.get(tournament.competition) ?? [];
     const inWindow = filterMatchesForTournament(allMatches, tournament);
-    const todayUpcoming = inWindow.filter((m) => {
-      if (matchDateKeyBucharest(m.utcDate) !== todayKey) return false;
+    const tomorrowUpcoming = inWindow.filter((m) => {
+      if (matchDateKeyBucharest(m.utcDate) !== tomorrowKey) return false;
       if (Date.parse(m.utcDate) <= now.getTime()) return false;
       const status = m.status ?? "";
       return status === "SCHEDULED" || status === "TIMED" || status === "";
     });
-    if (todayUpcoming.length === 0) continue;
+    if (tomorrowUpcoming.length === 0) continue;
 
     const preds = await prisma.wcMatchPrediction.findMany({
       where: {
         tournamentId: tournament.id,
-        matchId: { in: todayUpcoming.map((m) => m.id) },
+        matchId: { in: tomorrowUpcoming.map((m) => m.id) },
       },
       select: {
         userId: true,
@@ -200,7 +252,7 @@ export async function sendPredictionReminders(
     }
 
     for (const member of tournament.members) {
-      for (const match of todayUpcoming) {
+      for (const match of tomorrowUpcoming) {
         const pred = predMap.get(`${member.userId}:${match.id}`);
         if (hasAnyMatchPrediction(pred)) continue;
 
@@ -223,13 +275,6 @@ export async function sendPredictionReminders(
 
   for (const [userId, data] of pendingByUser) {
     if (data.items.length === 0) continue;
-    const dedupeKey = `${userId}:${todayKey}`;
-    if (!(await tryClaimDispatch("reminder", dedupeKey))) {
-      result.skipped++;
-      continue;
-    }
-
-    result.attempted++;
     const primaryTournamentId = data.items[0]!.tournamentId;
     const rendered = renderPredictionReminderEmail({
       firstName: data.firstName,
@@ -242,14 +287,15 @@ export async function sendPredictionReminders(
       ctaHref: `${base}/turnee/${primaryTournamentId}`,
     });
 
-    const send = await sendEmail({
+    await claimAndSend({
+      kind: "reminder",
+      dedupeKey: `${userId}:${tomorrowKey}`,
       to: data.email,
       subject: rendered.subject,
       html: rendered.html,
       text: rendered.text,
+      result,
     });
-    if (send.ok) result.sent++;
-    else result.errors.push(`${data.email}: ${send.reason}`);
   }
 
   return result;
@@ -371,13 +417,6 @@ export async function sendDailyDigests(now: Date = new Date()): Promise<EmailJob
 
   for (const [userId, data] of digestByUser) {
     if (data.items.length === 0) continue;
-    const dedupeKey = `${userId}:${yesterdayKey}`;
-    if (!(await tryClaimDispatch("digest", dedupeKey))) {
-      result.skipped++;
-      continue;
-    }
-
-    result.attempted++;
     const primaryTournamentId = data.items[0]!.tournamentId;
     const rendered = renderDailyDigestEmail({
       firstName: data.firstName,
@@ -393,14 +432,15 @@ export async function sendDailyDigests(now: Date = new Date()): Promise<EmailJob
       ctaHref: `${base}/turnee/${primaryTournamentId}`,
     });
 
-    const send = await sendEmail({
+    await claimAndSend({
+      kind: "digest",
+      dedupeKey: `${userId}:${yesterdayKey}`,
       to: data.email,
       subject: rendered.subject,
       html: rendered.html,
       text: rendered.text,
+      result,
     });
-    if (send.ok) result.sent++;
-    else result.errors.push(`${data.email}: ${send.reason}`);
   }
 
   return result;
@@ -424,7 +464,13 @@ async function sendRankingEmailsForTournament(opts: {
 }): Promise<EmailJobResult> {
   const result: EmailJobResult = { attempted: 0, sent: 0, skipped: 0, errors: [] };
 
-  if (!(await tryClaimDispatch(opts.kind, opts.dedupeKey))) {
+  // În test mode nu claim-uim turneul — sample-ul nu trebuie să blocheze blast-ul real.
+  if (!isEmailTestMode()) {
+    if (!(await tryClaimDispatch(opts.kind, opts.dedupeKey))) {
+      result.skipped++;
+      return result;
+    }
+  } else if (!canSendTestEmail()) {
     result.skipped++;
     return result;
   }
@@ -455,15 +501,15 @@ async function sendRankingEmailsForTournament(opts: {
 
   const base = appBaseUrl();
   const ctaHref = `${base}/turnee/${opts.tournamentId}`;
+  const recipients = isEmailTestMode() ? ranked.slice(0, 1) : ranked;
 
-  for (let i = 0; i < ranked.length; i++) {
-    const member = ranked[i]!;
-    const yourRank = i + 1;
+  for (let i = 0; i < recipients.length; i++) {
+    const member = recipients[i]!;
+    const yourRank = ranked.findIndex((r) => r.userId === member.userId) + 1;
     const rowsForYou = topPreview.map((r) => ({
       ...r,
       isYou: r.rank === yourRank,
     }));
-    // Dacă userul nu e în top 10, adaugă rândul lui.
     if (yourRank > 10) {
       rowsForYou.push({
         rank: yourRank,
@@ -471,6 +517,11 @@ async function sendRankingEmailsForTournament(opts: {
         total: member.total,
         isYou: true,
       });
+    }
+
+    if (isEmailTestMode() && !canSendTestEmail()) {
+      result.skipped++;
+      break;
     }
 
     result.attempted++;
@@ -492,6 +543,7 @@ async function sendRankingEmailsForTournament(opts: {
       text: rendered.text,
     });
     if (send.ok) result.sent++;
+    else if (send.reason.startsWith("EMAIL_TEST_LIMIT")) result.skipped++;
     else result.errors.push(`${member.email}: ${send.reason}`);
   }
 

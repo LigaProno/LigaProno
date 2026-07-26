@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   sendDailyDigests,
+  sendPredictionReminders,
   sendStageRankingEmails,
 } from "@/lib/email/send-jobs";
 import { isBucharestHour } from "@/lib/email/time";
@@ -15,7 +16,7 @@ function isCronAuthorised(req: NextRequest): boolean {
   return auth === `Bearer ${secret}`;
 }
 
-/** Rezumat D−1 + clasamente etapă — țintă 09:00 Europe/Bucharest. */
+/** Digest D−1 + reminder (meciuri mâine) + clasamente etapă — țintă 09:00 Europe/Bucharest. */
 export async function GET(req: NextRequest) {
   if (!isCronAuthorised(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -29,10 +30,11 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const [digest, stageRank] = await Promise.all([
+  const [digest, reminder, stageRank] = await Promise.all([
     sendDailyDigests(),
+    sendPredictionReminders(),
     sendStageRankingEmails(),
   ]);
 
-  return NextResponse.json({ ok: true, digest, stageRank });
+  return NextResponse.json({ ok: true, digest, reminder, stageRank });
 }
