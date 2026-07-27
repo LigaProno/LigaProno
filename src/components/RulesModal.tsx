@@ -148,6 +148,33 @@ export default function RulesModal() {
                 </div>
 
                 <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] mb-3" style={{ color: "#D4AF37" }}>
+                    {ro ? "Reguli premii" : "Prize rules"}
+                  </p>
+                  <div
+                    className="rounded-xl overflow-hidden flex flex-col"
+                    style={{ border: "1px solid rgba(212,175,55,0.28)", backgroundColor: "rgba(212,175,55,0.05)" }}
+                  >
+                    <div className="flex items-start gap-3 px-4 py-3.5 border-b" style={{ borderColor: "rgba(212,175,55,0.15)" }}>
+                      <span className="text-base shrink-0 mt-0.5">📸</span>
+                      <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.72)" }}>
+                        {ro ?
+                          "Trebuie să ne urmărești pe Instagram înainte de startul primei etape. Verificăm lista de urmăritori la momentul blocării pronosticurilor — dacă nu ne urmărești până atunci, nu ești eligibil pentru premii."
+                        : "You must be following us on Instagram before the fixture starts. We check the followers list when predictions lock — if you aren't following us by then, you are not eligible for prizes."}
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-3 px-4 py-3.5">
+                      <span className="text-base shrink-0 mt-0.5">⏳</span>
+                      <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.72)" }}>
+                        {ro ?
+                          "După încheierea turneului te contactăm pentru premiu. Dacă nu răspunzi în 48 de ore ca să-ți revendici premiul, acesta trece la următorul clasat sau este reportat în turneul următor."
+                        : "After the tournament ends we contact you about your prize. If you don't respond within 48 hours to claim it, the prize goes to the next-best place or is carried over to the next tournament."}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
                   <p className="text-[10px] font-bold uppercase tracking-[0.14em] mb-3" style={{ color: "rgba(255,255,255,0.28)" }}>FAQ</p>
                   <div>{faq.map((item, i) => <FaqItem key={i} q={item.q} a={item.a} />)}</div>
                 </div>
