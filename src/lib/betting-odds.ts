@@ -184,12 +184,27 @@ function allOutcomesAreOne(row: Record<Odds1x2Outcome, number>): boolean {
   return row.HOME === 1 && row.DRAW === 1 && row.AWAY === 1;
 }
 
+/** True dacă există un tabel util de scor corect (≥3 linii). */
+export function hasCorrectScoreOdds(row: MatchOddsRow | null | undefined): boolean {
+  if (!row) return false;
+  return Object.keys(row.correctScore).length >= 3;
+}
+
 /** True dacă rândul pare să vină dintr-o sursă reală (nu doar fallback ×1). */
 export function hasUsableMatchOdds(row: MatchOddsRow | null | undefined): boolean {
   if (!row) return false;
   if (!allOutcomesAreOne(row.ft1x2)) return true;
   if (!allOutcomesAreOne(row.ht1x2)) return true;
-  return Object.keys(row.correctScore).length >= 3;
+  return hasCorrectScoreOdds(row);
+}
+
+/**
+ * True dacă meciul are atât 1X2 util, cât și tabel de scor corect.
+ * Folosit ca să re-cerem cotele de pe OddsPortal când CS lipsește.
+ */
+export function hasCompleteMatchOdds(row: MatchOddsRow | null | undefined): boolean {
+  if (!row || !hasUsableMatchOdds(row)) return false;
+  return hasCorrectScoreOdds(row);
 }
 
 /** Păstrează doar meciurile cu cote reale (exclude placeholder-ele ×1). */
@@ -211,9 +226,39 @@ function mergeTeamOddsRow(preferred: TeamOddsRow, fallback?: TeamOddsRow): TeamO
   };
 }
 
+function pickRicherCorrectScore(
+  a: Record<string, number>,
+  b: Record<string, number>,
+): Record<string, number> {
+  return Object.keys(a).length >= Object.keys(b).length ? a : b;
+}
+
+/** Combină două rânduri de meci: păstrează CS-ul mai bogat și 1X2-ul util. */
+export function mergeMatchOddsRowPreferRicher(
+  preferred: MatchOddsRow | undefined,
+  fallback: MatchOddsRow | undefined,
+): MatchOddsRow | undefined {
+  if (!preferred) return fallback;
+  if (!fallback) return preferred;
+
+  const preferFt = !allOutcomesAreOne(preferred.ft1x2);
+  const preferHt = !allOutcomesAreOne(preferred.ht1x2);
+  const preferHtFt =
+    (preferred.htFt && Object.keys(preferred.htFt).length > 0) ||
+    !(fallback.htFt && Object.keys(fallback.htFt).length > 0);
+
+  return {
+    ft1x2: preferFt ? preferred.ft1x2 : fallback.ft1x2,
+    ht1x2: preferHt ? preferred.ht1x2 : fallback.ht1x2,
+    htFt: preferHtFt ? preferred.htFt : fallback.htFt,
+    correctScore: pickRicherCorrectScore(preferred.correctScore, fallback.correctScore),
+    toAdvance: preferred.toAdvance ?? fallback.toAdvance,
+  };
+}
+
 /**
  * Combină două snapshot-uri: valorile din `preferred` au prioritate când sunt utilizabile,
- * altfel se păstrează `fallback` (util la refresh parțial OddsPortal + completare Gemini).
+ * iar scorul corect se ia din sursa cu mai multe linii (evită să ștergem CS la refresh 1X2-only).
  */
 export function mergeBettingPayloads(
   preferred: BettingOddsPayload,
@@ -227,10 +272,8 @@ export function mergeBettingPayloads(
   for (const id of matchIds) {
     const p = preferred.matches[id];
     const f = fallback.matches[id];
-    if (p && hasUsableMatchOdds(p)) matches[id] = p;
-    else if (f && hasUsableMatchOdds(f)) matches[id] = f;
-    else if (p) matches[id] = p;
-    else if (f) matches[id] = f;
+    const merged = mergeMatchOddsRowPreferRicher(p, f);
+    if (merged) matches[id] = merged;
   }
 
   const teamIds = new Set([

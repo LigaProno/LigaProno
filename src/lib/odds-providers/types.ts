@@ -7,6 +7,11 @@ export type OddsFetchContext = {
   season: string;
   matches: FootballDataMatch[];
   teams: { id: number; name: string }[];
+  /**
+   * Meciuri (inclusiv terminate) care trebuie re-cerute pe OddsPortal —
+   * de obicei cele cu 1X2 dar fără tabel de scor corect.
+   */
+  matchIdsNeedingOddsRefresh?: number[];
 };
 
 export type OddsFetchResult = {

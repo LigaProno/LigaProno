@@ -4,6 +4,7 @@ import { collectTeamsFromMatches, fetchCompetitionMatches } from "@/lib/football
 import {
   fillEstimatedQualifyOdds,
   fillEstimatedToAdvanceOdds,
+  hasCompleteMatchOdds,
   mergeBettingPayloads,
   parseBettingOddsPayload,
   sanitizeBettingPayload,
@@ -69,12 +70,22 @@ export async function refreshOddsForCompetition(
       }));
 
     const competitionLabel = `${parsed.code} ${parsed.season}`;
+    /** Meciuri cu 1X2 dar fără scor corect — le re-cerem pe OddsPortal (inclusiv terminate). */
+    const matchIdsNeedingOddsRefresh = matches
+      .filter((m) => {
+        if (m.status === "CANCELLED") return false;
+        const row = existingPayload?.matches[String(m.id)];
+        return Boolean(row) && !hasCompleteMatchOdds(row);
+      })
+      .map((m) => m.id);
+
     const ctx = {
       competitionLabel,
       code: parsed.code,
       season: parsed.season,
       matches,
       teams,
+      matchIdsNeedingOddsRefresh,
     };
 
     const primary = getOddsProvider();

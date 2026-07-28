@@ -12,7 +12,7 @@ import {
   fetchEventMeta,
   fetchFtHtCsFeeds,
   fetchOutrightWinnerFeed,
-  fetchTournamentFixtures,
+  fetchTournamentFixturesForScoreFallback,
   type OpEventMeta,
 } from "@/lib/odds-providers/oddsportal/client";
 import { getOddsPortalCompetition } from "@/lib/odds-providers/oddsportal/competition-map";
@@ -28,6 +28,7 @@ import {
   matchOutrightTeamName,
 } from "@/lib/odds-providers/team-matcher";
 import type { OddsFetchContext, OddsFetchResult, OddsProvider } from "@/lib/odds-providers/types";
+import type { FootballDataMatch } from "@/lib/football-data";
 
 function getConcurrency(): number {
   const raw = process.env.ODDSPORTAL_CONCURRENCY?.trim();
@@ -35,8 +36,20 @@ function getConcurrency(): number {
   return Number.isFinite(n) && n >= 1 ? Math.min(n, 12) : 6;
 }
 
-function filterUpcomingMatches(ctx: OddsFetchContext) {
+function filterUpcomingMatches(ctx: OddsFetchContext): FootballDataMatch[] {
   return ctx.matches.filter((m) => m.status !== "FINISHED" && m.status !== "CANCELLED");
+}
+
+/** Upcoming + meciuri marcate explicit pentru refresh (ex. terminate fără scor corect). */
+function resolveTargetMatches(ctx: OddsFetchContext): FootballDataMatch[] {
+  const byId = new Map(ctx.matches.map((m) => [m.id, m]));
+  const out = new Map<number, FootballDataMatch>();
+  for (const m of filterUpcomingMatches(ctx)) out.set(m.id, m);
+  for (const id of ctx.matchIdsNeedingOddsRefresh ?? []) {
+    const m = byId.get(id);
+    if (m && m.status !== "CANCELLED") out.set(m.id, m);
+  }
+  return [...out.values()];
 }
 
 export class OddsPortalProvider implements OddsProvider {
@@ -50,8 +63,9 @@ export class OddsPortalProvider implements OddsProvider {
       );
     }
 
-    const targetMatches = filterUpcomingMatches(ctx);
-    const fixtures = await fetchTournamentFixtures(config);
+    const targetMatches = resolveTargetMatches(ctx);
+    // Overview + results — ca să putem re-lua CS și pe meciuri terminate.
+    const fixtures = await fetchTournamentFixturesForScoreFallback(config);
     const fdToOp = mapFixturesToFootballDataMatches(fixtures, targetMatches);
 
     const matches: Record<string, MatchOddsRow> = {};
@@ -64,7 +78,9 @@ export class OddsPortalProvider implements OddsProvider {
       concurrency,
       async ([fdMatchId, fx]) => {
         try {
-          let meta: OpEventMeta | null = await fetchEventMeta(config, fx.matchId);
+          let meta: OpEventMeta | null = await fetchEventMeta(config, fx.matchId, {
+            eventPageUrl: fx.eventPageUrl,
+          });
           if (!meta) {
             errors.push(`meta lipsă: ${fx.matchId}`);
             return;

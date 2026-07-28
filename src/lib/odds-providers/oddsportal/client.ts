@@ -77,6 +77,8 @@ export type OpScheduleFixture = {
   stadium: string | null;
   city: string | null;
   country: string | null;
+  /** URL H2H OddsPortal (ex. /football/h2h/.../#id) — util pentru meciuri terminate. */
+  eventPageUrl?: string | null;
 };
 
 function decodeHtmlEntities(value: string): string {
@@ -96,55 +98,125 @@ export function parseTournamentFixturesFromHtml(html: string): OpScheduleFixture
   const ldJsonBlocks = html.match(
     /<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/gi,
   );
-  if (!ldJsonBlocks) return fixtures;
-
-  for (const block of ldJsonBlocks) {
-    const inner = block.replace(/<\/?script[^>]*>/gi, "").trim();
-    try {
-      const obj = JSON.parse(inner) as {
-        name?: string;
-        startDate?: string;
-        url?: string;
-        location?: {
+  if (ldJsonBlocks) {
+    for (const block of ldJsonBlocks) {
+      const inner = block.replace(/<\/?script[^>]*>/gi, "").trim();
+      try {
+        const obj = JSON.parse(inner) as {
           name?: string;
-          address?: {
-            addressLocality?: string;
-            addressCountry?: string;
+          startDate?: string;
+          url?: string;
+          location?: {
+            name?: string;
+            address?: {
+              addressLocality?: string;
+              addressCountry?: string;
+            };
           };
         };
-      };
-      const url = obj.url ?? "";
-      const hashMatch = url.match(/#([A-Za-z0-9]+)\/?$/);
-      const matchId = hashMatch?.[1];
-      if (!matchId || seen.has(matchId)) continue;
+        const url = obj.url ?? "";
+        const hashMatch = url.match(/#([A-Za-z0-9]+)\/?$/);
+        const matchId = hashMatch?.[1];
+        if (!matchId || seen.has(matchId)) continue;
 
-      const name = decodeHtmlEntities(obj.name?.trim() ?? "");
-      if (!name || !name.includes(" - ")) continue;
+        const name = decodeHtmlEntities(obj.name?.trim() ?? "");
+        if (!name || !name.includes(" - ")) continue;
 
-      const [home, away] = name.split(" - ").map((s) => decodeHtmlEntities(s.trim()));
-      if (!home || !away) continue;
+        const [home, away] = name.split(" - ").map((s) => decodeHtmlEntities(s.trim()));
+        if (!home || !away) continue;
 
-      const stadium = decodeHtmlEntities(obj.location?.name?.trim() ?? "") || null;
-      const city =
-        decodeHtmlEntities(obj.location?.address?.addressLocality?.trim() ?? "") ||
-        null;
-      const country =
-        decodeHtmlEntities(obj.location?.address?.addressCountry?.trim() ?? "") ||
-        null;
+        const stadium = decodeHtmlEntities(obj.location?.name?.trim() ?? "") || null;
+        const city =
+          decodeHtmlEntities(obj.location?.address?.addressLocality?.trim() ?? "") ||
+          null;
+        const country =
+          decodeHtmlEntities(obj.location?.address?.addressCountry?.trim() ?? "") ||
+          null;
 
-      seen.add(matchId);
-      fixtures.push({
-        matchId,
-        home,
-        away,
-        startDateIso: obj.startDate ?? null,
-        stadium,
-        city,
-        country,
-      });
-    } catch {
-      continue;
+        seen.add(matchId);
+        fixtures.push({
+          matchId,
+          home,
+          away,
+          startDateIso: obj.startDate ?? null,
+          stadium,
+          city,
+          country,
+          eventPageUrl: url || null,
+        });
+      } catch {
+        continue;
+      }
     }
+  }
+
+  // Fallback / complement: evenimente din JSON HTML-encodat (results page / liste React).
+  for (const fx of parseEncodedScheduleFixturesFromHtml(html)) {
+    if (seen.has(fx.matchId)) continue;
+    seen.add(fx.matchId);
+    fixtures.push(fx);
+  }
+
+  return fixtures;
+}
+
+/**
+ * Extrage fixture-uri din atribute `data` HTML-encodate (`&quot;encodeEventId&quot;:...`).
+ * Necesar pe pagina de results, unde LD+JSON poate lipsi pentru meciuri terminate.
+ */
+export function parseEncodedScheduleFixturesFromHtml(html: string): OpScheduleFixture[] {
+  const decoded = decodeHtmlEntities(html);
+  const fixtures: OpScheduleFixture[] = [];
+  const seen = new Set<string>();
+
+  const re =
+    /"encodeEventId"\s*:\s*"([A-Za-z0-9]+)"[\s\S]{0,500}?"home-name"\s*:\s*"([^"]+)"[\s\S]{0,120}?"away-name"\s*:\s*"([^"]+)"[\s\S]{0,800}?"url"\s*:\s*"([^"]+)"[\s\S]{0,400}?"date-start-timestamp"\s*:\s*(\d+)/g;
+
+  for (const m of decoded.matchAll(re)) {
+    const matchId = m[1]!;
+    if (seen.has(matchId)) continue;
+    seen.add(matchId);
+    const home = m[2]!.trim();
+    const away = m[3]!.trim();
+    const rawUrl = m[4]!.replace(/\\+/g, "");
+    const ts = Number(m[5]);
+    fixtures.push({
+      matchId,
+      home,
+      away,
+      startDateIso: Number.isFinite(ts) ? new Date(ts * 1000).toISOString() : null,
+      stadium: null,
+      city: null,
+      country: null,
+      eventPageUrl: rawUrl.startsWith("http")
+        ? rawUrl
+        : `https://www.oddsportal.com${rawUrl.startsWith("/") ? rawUrl : `/${rawUrl}`}`,
+    });
+  }
+
+  // Variantă cu ordinea câmpurilor diferită (url înainte de names).
+  const reAlt =
+    /"encodeEventId"\s*:\s*"([A-Za-z0-9]+)"[\s\S]{0,200}?"url"\s*:\s*"([^"]+)"[\s\S]{0,400}?"home-name"\s*:\s*"([^"]+)"[\s\S]{0,120}?"away-name"\s*:\s*"([^"]+)"[\s\S]{0,400}?"date-start-timestamp"\s*:\s*(\d+)/g;
+  for (const m of decoded.matchAll(reAlt)) {
+    const matchId = m[1]!;
+    if (seen.has(matchId)) continue;
+    seen.add(matchId);
+    const rawUrl = m[2]!.replace(/\\+/g, "");
+    const home = m[3]!.trim();
+    const away = m[4]!.trim();
+    const ts = Number(m[5]);
+    fixtures.push({
+      matchId,
+      home,
+      away,
+      startDateIso: Number.isFinite(ts) ? new Date(ts * 1000).toISOString() : null,
+      stadium: null,
+      city: null,
+      country: null,
+      eventPageUrl: rawUrl.startsWith("http")
+        ? rawUrl
+        : `https://www.oddsportal.com${rawUrl.startsWith("/") ? rawUrl : `/${rawUrl}`}`,
+    });
   }
 
   return fixtures;
@@ -271,10 +343,40 @@ export function parseOutrightRequestFromHtml(html: string): string | null {
 export async function fetchEventMeta(
   config: OddsPortalCompetitionConfig,
   matchId: string,
+  options?: { eventPageUrl?: string | null },
 ): Promise<OpEventMeta | null> {
+  const eventPageUrl = options?.eventPageUrl?.trim();
+  if (eventPageUrl) {
+    const withEventId = appendEventIdQuery(eventPageUrl, matchId);
+    const html = await fetchOddsPortalHtml(withEventId, config.tournamentPageUrl, {
+      fresh: true,
+    });
+    const meta = parseEventMetaFromHtml(html);
+    if (meta && meta.matchId === matchId) return meta;
+  }
+
   const url = buildShortMatchPageUrl(config, matchId);
-  const html = await fetchOddsPortalHtml(url, config.tournamentPageUrl);
-  return parseEventMetaFromHtml(html);
+  const html = await fetchOddsPortalHtml(url, config.tournamentPageUrl, {
+    fresh: true,
+  });
+  const meta = parseEventMetaFromHtml(html);
+  if (meta && meta.matchId === matchId) return meta;
+  // Short URL pe meciuri terminate poate redirecționa la următorul H2H.
+  return meta?.matchId === matchId ? meta : null;
+}
+
+function appendEventIdQuery(url: string, eventId: string): string {
+  try {
+    const u = new URL(url, ODDSPORTAL_BASE);
+    u.searchParams.set("eventId", eventId);
+    // Elimină hash-ul — OddsPortal încarcă evenimentul din query pe H2H.
+    u.hash = "";
+    return u.toString();
+  } catch {
+    const base = url.split("#")[0] ?? url;
+    const sep = base.includes("?") ? "&" : "?";
+    return `${base}${sep}eventId=${encodeURIComponent(eventId)}`;
+  }
 }
 
 /** Scor final (fresh, fără cache Next) — pentru fallback când Football-Data întârzie. */
