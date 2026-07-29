@@ -158,6 +158,8 @@ export type MessageKey =
   | "party.prizePref.joinHint"
   | "party.prizePref.joinSave"
   | "party.prizePref.skip"
+  | "party.prizePref.promptHint"
+  | "party.prizePref.promptSkip"
   | "party.prizePref.locked"
   | "party.lb.rank"
   | "party.lb.rankTip"

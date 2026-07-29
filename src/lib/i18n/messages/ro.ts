@@ -177,6 +177,8 @@ export const ro: Messages = {
   "party.prizePref.joinHint": "Ordonează premiile după preferință, apoi confirmă înscrierea. Poți schimba ordinea oricând.",
   "party.prizePref.joinSave": "Alătură-te cu această ordine",
   "party.prizePref.skip": "Alătură-te fără preferință — aleg mai târziu",
+  "party.prizePref.promptHint": "Acest turneu are premii. Ordonează-le după cât de mult le vrei — poți schimba ordinea oricând din pagina turneului.",
+  "party.prizePref.promptSkip": "Mai târziu",
   "party.prizePref.locked": "Turneu încheiat — preferința e finală.",
   "party.lb.rank": "#",
   "party.lb.rankTip": "Poziția în clasamentul party-ului.",

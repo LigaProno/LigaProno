@@ -176,6 +176,8 @@ export const en: Messages = {
   "party.prizePref.joinHint": "Order the prizes by preference, then confirm joining. You can change the order anytime.",
   "party.prizePref.joinSave": "Join with this order",
   "party.prizePref.skip": "Join without a preference — pick later",
+  "party.prizePref.promptHint": "This tournament has prizes. Order them by how much you want each — you can change the order anytime from the tournament page.",
+  "party.prizePref.promptSkip": "Later",
   "party.prizePref.locked": "Tournament finished — preference is final.",
   "party.lb.rank": "#",
   "party.lb.rankTip": "Rank in this party leaderboard.",

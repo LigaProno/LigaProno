@@ -35,6 +35,7 @@ import { loadWinBadgesByUser } from "@/lib/tournament-wins";
 import { isAdminEmail } from "@/lib/admin";
 import { loadTournamentLiveFixtures } from "@/lib/live-fixtures";
 import { PrizePreferencePanel } from "@/components/turnee/prize-preference-panel";
+import { PrizePreferencePrompt } from "@/components/turnee/prize-preference-prompt";
 import { PrizeAllocationView } from "@/components/turnee/prize-allocation-view";
 
 function displayName(first?: string | null, last?: string | null): string {
@@ -374,6 +375,15 @@ export default async function PartyTournamentPage({
           allPrefs={prizeAllocation.allPrefs}
           finished={prizeAllocation.finished}
         />
+      ) : null}
+
+      {/* Pop-up la deschidere: cere ordinea premiilor dacă membrul n-a setat-o
+          încă (turneele publice înscriu automat, deci nu mai există pasul de join). */}
+      {tournament.prizePool.length > 0 &&
+      isMember &&
+      tournament.closedAt == null &&
+      (tournamentMembers.find((m) => m.userId === user.id)?.prizePreference?.length ?? 0) === 0 ? (
+        <PrizePreferencePrompt tournamentId={tournament.id} pool={tournament.prizePool} />
       ) : null}
 
       {tournament.prizePool.length > 0 && isMember ? (
