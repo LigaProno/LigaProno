@@ -315,6 +315,7 @@ export type MessageKey =
   | "dashboard.hero.titleHighlight"
   | "dashboard.hero.subtitle"
   | "dashboard.hero.createTournament"
+  | "dashboard.hero.predictCta"
   | "dashboard.hero.myTournaments"
   | "dashboard.hero.scheduleStandings"
   | "dashboard.hero.stadiumAlt"

@@ -211,6 +211,22 @@ export default function DashboardHome({
         />
 
         <div className="relative z-10 w-full px-6 sm:px-10 lg:px-14 py-16 sm:py-20 max-w-6xl mx-auto flex flex-col items-center justify-center text-center min-h-[inherit]">
+          <span
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold uppercase tracking-wide mb-5"
+            style={{
+              backgroundColor: "rgba(197,160,89,0.16)",
+              color: WC_GOLD,
+              border: "1px solid rgba(197,160,89,0.35)",
+            }}
+          >
+            🎁 {t("dashboard.hero.badge")}
+          </span>
+
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-4 sm:mb-5 leading-tight max-w-2xl">
+            {t("dashboard.hero.titlePrefix")}{" "}
+            <span style={{ color: WC_GOLD }}>{t("dashboard.hero.titleHighlight")}</span>
+          </h1>
+
           <p
             className="text-base sm:text-lg max-w-xl mb-8 sm:mb-10 leading-relaxed"
             style={{ color: "rgba(255,255,255,0.82)" }}
@@ -224,7 +240,7 @@ export default function DashboardHome({
               className="px-7 py-3.5 rounded-xl font-bold text-sm sm:text-base shadow-lg transition hover:brightness-110 active:scale-[0.98]"
               style={{ backgroundColor: WC_CYAN, color: WC_NAVY }}
             >
-              {t("dashboard.hero.myTournaments")}
+              {t("dashboard.hero.predictCta")}
             </Link>
           </div>
         </div>
