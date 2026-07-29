@@ -64,6 +64,13 @@ export async function createPublicTournament(
     },
   });
 
+  // Turneele publice înscriu automat toți userii platformei — nimeni nu trebuie
+  // să se alăture manual. Membrii pornesc cu 0 puncte și fără pronosticuri.
+  const allUsers = await prisma.user.findMany({ select: { id: true } });
+  await prisma.tournamentMember.createMany({
+    data: allUsers.map((u) => ({ tournamentId: tournament.id, userId: u.id, prizePreference: [] })),
+  });
+
   revalidatePath("/admin");
   revalidatePath("/turnee");
   return { inviteCode };
