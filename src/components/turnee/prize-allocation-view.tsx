@@ -22,6 +22,16 @@ export function PrizeAllocationView({
   allPrefs: PrefRow[];
   finished: boolean;
 }) {
+  const total = allPrefs.length;
+  const setCount = allPrefs.filter((p) => p.preference.length > 0).length;
+  // Cei care și-au ales premiile apar primii, ca să vezi rapid cine e activ.
+  const sortedPrefs = [...allPrefs].sort((a, b) => {
+    const aSet = a.preference.length > 0 ? 1 : 0;
+    const bSet = b.preference.length > 0 ? 1 : 0;
+    if (aSet !== bSet) return bSet - aSet;
+    return a.rank - b.rank;
+  });
+
   return (
     <div
       className="mb-6 rounded-2xl border p-4 sm:p-5 flex flex-col gap-4"
@@ -34,6 +44,23 @@ export function PrizeAllocationView({
             ? "Clasament final. Fiecare primește primul premiu preferat încă disponibil."
             : "Pe baza clasamentului curent (nefinal). Fiecare primește primul premiu preferat încă disponibil."}
         </p>
+      </div>
+
+      {/* Câți s-au implicat efectiv: contorul de membri nu mai e relevant
+          (toți userii sunt înscriși automat), deci arătăm câți și-au ales premiile. */}
+      <div
+        className="flex items-center gap-3 rounded-xl border px-3.5 py-3"
+        style={{ borderColor: "rgba(52,211,153,0.3)", backgroundColor: "rgba(52,211,153,0.08)" }}
+      >
+        <span className="text-xl shrink-0">🙋</span>
+        <div className="flex flex-col">
+          <span className="text-lg font-extrabold text-white leading-none">
+            {setCount} <span className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>/ {total}</span>
+          </span>
+          <span className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>
+            și-au ales premiile (implicați activ)
+          </span>
+        </div>
       </div>
 
       {/* Repartizare sugerată */}
@@ -70,13 +97,13 @@ export function PrizeAllocationView({
         ))}
       </div>
 
-      {/* Toate preferințele */}
+      {/* Toate preferințele — cei care au ales, primii */}
       <details className="group">
         <summary className="text-xs font-semibold cursor-pointer select-none" style={{ color: "rgba(255,255,255,0.6)" }}>
-          Toate preferințele ({allPrefs.length})
+          Toate preferințele — {setCount} setate din {total}
         </summary>
         <div className="mt-2 flex flex-col gap-1 max-h-72 overflow-y-auto pr-1">
-          {allPrefs.map((p) => (
+          {sortedPrefs.map((p) => (
             <div key={`${p.rank}-${p.name}`} className="flex items-center gap-2 text-xs py-1" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
               <span className="w-6 tabular-nums shrink-0" style={{ color: "rgba(255,255,255,0.35)" }}>
                 {p.rank}
