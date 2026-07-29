@@ -39,6 +39,29 @@ function isUniqueConstraintError(error: unknown): boolean {
   );
 }
 
+/**
+ * Conturile noi intră automat în turneele publice în desfășurare (nu și cele
+ * încheiate). Best-effort: nu blocăm crearea contului dacă înscrierea eșuează.
+ * Filtrăm `closedAt` în JS — pe MongoDB filtrul de query `closedAt: null` nu
+ * prinde documentele unde câmpul lipsește (turneele deschise).
+ */
+async function enrollInOngoingPublicTournaments(userId: string): Promise<void> {
+  try {
+    const publicTournaments = await prisma.tournament.findMany({
+      where: { isPublic: true },
+      select: { id: true, closedAt: true },
+    });
+    const ongoing = publicTournaments.filter((t) => t.closedAt == null);
+    if (ongoing.length === 0) return;
+
+    await prisma.tournamentMember.createMany({
+      data: ongoing.map((t) => ({ tournamentId: t.id, userId, prizePreference: [] })),
+    });
+  } catch (error) {
+    console.error("[enrollInOngoingPublicTournaments]", userId, error);
+  }
+}
+
 /** Keeps Prisma User in sync with Clerk (email/password, Google SSO, account changes). */
 export async function syncClerkUser(clerkUser: ClerkProfile): Promise<string> {
   const data = profileFromClerk(clerkUser);
@@ -63,10 +86,13 @@ export async function syncClerkUser(clerkUser: ClerkProfile): Promise<string> {
   }
 
   try {
-    await prisma.user.create({ data: { clerkId: clerkUser.id, ...data } });
+    const created = await prisma.user.create({ data: { clerkId: clerkUser.id, ...data } });
+    // Cont nou → înscriere automată în turneele publice în desfășurare.
+    await enrollInOngoingPublicTournaments(created.id);
   } catch (error) {
     if (!isUniqueConstraintError(error)) throw error;
 
+    // Race: userul a fost creat de o cerere concurentă (care se ocupă de înscriere).
     const raced =
       (await prisma.user.findUnique({ where: { clerkId: clerkUser.id } })) ??
       (data.email ? await prisma.user.findUnique({ where: { email: data.email } }) : null);
