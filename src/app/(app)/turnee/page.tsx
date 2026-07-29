@@ -115,6 +115,24 @@ export default async function TurneePage() {
         </aside>
 
         <section className="order-2 lg:order-none lg:col-start-1 lg:row-start-2 min-w-0 flex flex-col gap-8">
+          {visiblePublicTournaments.length > 0 ?
+            <div>
+              <TurneeSectionTitle
+                title={t("tournament.page.publicTitle")}
+                badge={t("tournament.page.publicBadge")}
+                count={visiblePublicTournaments.length}
+              />
+              <TurneePublicTabs
+                ongoingCount={ongoingPublic.length}
+                finishedCount={finishedPublic.length}
+                ongoingLabel={t("tournament.page.publicOngoing")}
+                finishedLabel={t("tournament.page.publicFinished")}
+                ongoing={renderPublicList(ongoingPublic, t("tournament.page.publicNoneOngoing"))}
+                finished={renderPublicList(finishedPublic, t("tournament.page.publicNoneFinished"))}
+              />
+            </div>
+          : null}
+
           <div>
             <TurneeSectionTitle
               title={t("tournament.page.yourTournaments")}
@@ -145,24 +163,6 @@ export default async function TurneePage() {
               </div>
             )}
           </div>
-
-          {visiblePublicTournaments.length > 0 ?
-            <div>
-              <TurneeSectionTitle
-                title={t("tournament.page.publicTitle")}
-                badge={t("tournament.page.publicBadge")}
-                count={visiblePublicTournaments.length}
-              />
-              <TurneePublicTabs
-                ongoingCount={ongoingPublic.length}
-                finishedCount={finishedPublic.length}
-                ongoingLabel={t("tournament.page.publicOngoing")}
-                finishedLabel={t("tournament.page.publicFinished")}
-                ongoing={renderPublicList(ongoingPublic, t("tournament.page.publicNoneOngoing"))}
-                finished={renderPublicList(finishedPublic, t("tournament.page.publicNoneFinished"))}
-              />
-            </div>
-          : null}
         </section>
       </div>
     </div>
