@@ -6,9 +6,8 @@ import { pageTitle } from "@/lib/site-metadata";
 
 export const metadata = pageTitle("Politica de confidențialitate");
 
-// Adresa de contact pentru solicitări privind datele. Asigură-te că această
-// cutie poștală există (sau schimb-o cu adresa preferată).
-const CONTACT_EMAIL = "contact@ligaprono.ro";
+// Adresa de contact pentru solicitări privind datele.
+const CONTACT_EMAIL = "support.ligaprono@gmail.com";
 // Data ultimei actualizări a politicii.
 const LAST_UPDATED = "30 iulie 2026";
 const LAST_UPDATED_EN = "30 July 2026";
