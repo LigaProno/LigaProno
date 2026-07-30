@@ -5,8 +5,10 @@ import { LandingBento } from "@/components/landing/landing-bento";
 import { LandingFlow } from "@/components/landing/landing-flow";
 import { LandingHero } from "@/components/landing/landing-hero";
 import { Glass } from "@/components/landing/glass-surface";
+import { getLocaleFromCookies } from "@/lib/i18n/server";
 
-export function LandingPage() {
+export async function LandingPage() {
+  const locale = await getLocaleFromCookies();
   return (
     <main className="landing-page relative min-h-screen overflow-x-hidden">
       <LandingAmbient />
@@ -44,7 +46,13 @@ export function LandingPage() {
           </Glass>
         </section>
 
-        <footer className="px-5 pb-10 text-center">
+        <footer className="px-5 pb-10 text-center flex flex-col items-center gap-2">
+          <Link
+            href="/confidentialitate"
+            className="text-[11px] uppercase tracking-[0.2em] text-white/40 hover:text-white/70 transition-colors"
+          >
+            {locale === "ro" ? "Politica de confidențialitate" : "Privacy Policy"}
+          </Link>
           <p className="text-[11px] uppercase tracking-[0.2em] text-white/25">
             © {new Date().getFullYear()} Liga Prono
           </p>
