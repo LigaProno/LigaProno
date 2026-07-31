@@ -449,9 +449,14 @@ export default function PartyWcDashboard({
           </div>
 
           {(tab === "leaderboard" || tab === "prizes" || tab === "fixtures") && (
-            <div className={tab === "fixtures" ? "flex flex-col lg:flex-row gap-5 lg:items-start" : "flex flex-col gap-5"}>
-              {tab === "fixtures" && fixtureStats ? <FixtureStatsCard stats={fixtureStats} /> : null}
-              <div className={tab === "fixtures" ? "flex-1 min-w-0 flex flex-col gap-5" : "contents"}>
+            <div className="flex flex-col gap-5 min-[1700px]:relative">
+              {/* Card de statistici — în spațiul gol din stânga (gutter) pe ecrane
+                  foarte late, altfel deasupra clasamentului. Doar la clasamente. */}
+              {(tab === "leaderboard" || tab === "fixtures") && fixtureStats ? (
+                <div className="max-w-md min-[1700px]:max-w-none min-[1700px]:w-56 min-[1700px]:absolute min-[1700px]:top-0 min-[1700px]:right-full min-[1700px]:mr-6">
+                  <FixtureStatsCard stats={fixtureStats} />
+                </div>
+              ) : null}
               {tab === "leaderboard" ? (
                 <LiveFixtureBanner tournamentId={tournamentId} initial={liveFixtures} />
               ) : tab === "prizes" ? (
@@ -614,7 +619,6 @@ export default function PartyWcDashboard({
                   title={t("party.matchdayPreds.rollingTitle")}
                 />
               ) : null}
-              </div>
             </div>
           )}
 

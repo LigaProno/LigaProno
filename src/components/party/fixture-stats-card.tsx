@@ -82,7 +82,7 @@ export function FixtureStatsCard({ stats }: { stats: FixtureStats }) {
 
   return (
     <aside
-      className="lg:w-72 shrink-0 rounded-2xl border p-4 flex flex-col gap-1"
+      className="w-full rounded-2xl border p-4 flex flex-col gap-1"
       style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.04)" }}
     >
       <h3 className="text-sm font-bold text-white mb-1 flex items-center gap-1.5">
