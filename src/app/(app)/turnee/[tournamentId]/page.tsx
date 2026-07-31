@@ -342,6 +342,9 @@ export default async function PartyTournamentPage({
   // Clasament pe etape (toate turneele private): câte un clasament separat pentru
   // fiecare etapă deja începută din fereastra turneului.
   let fixtureLeaderboards: { matchday: number; rows: LeaderboardRow[] }[] = [];
+  // Etape complet încheiate — doar acestea contează la statistici (etapele în
+  // desfășurare au clasament provizoriu, deci le lăsăm din statistici).
+  const completedMatchdays = new Set<number>();
   if (!tournament.isPublic) {
     const byMatchday = new Map<number, FootballDataMatch[]>();
     for (const m of matches) {
@@ -349,6 +352,11 @@ export default async function PartyTournamentPage({
       if (md <= 0) continue;
       if (!byMatchday.has(md)) byMatchday.set(md, []);
       byMatchday.get(md)!.push(m);
+    }
+    for (const [md, ms] of byMatchday) {
+      if (ms.every((m) => m.status === "FINISHED" || m.status === "AWARDED")) {
+        completedMatchdays.add(md);
+      }
     }
     fixtureLeaderboards = [...byMatchday.entries()]
       .filter(([, ms]) => ms.some((m) => m.status !== "SCHEDULED" && m.status !== "TIMED"))
@@ -368,11 +376,13 @@ export default async function PartyTournamentPage({
     userIds.map((id) => ({ userId: id, displayName: nameByUser.get(id) ?? "—" }));
 
   let fixtureStats: FixtureStats = null;
-  if (!tournament.isPublic && fixtureLeaderboards.length > 0) {
+  if (!tournament.isPublic) {
+    // Doar etapele complet încheiate — etapa în desfășurare nu contează.
+    const statFixtures = fixtureLeaderboards.filter((f) => completedMatchdays.has(f.matchday));
     // Câștigători pe etape (egalitate = toți cei cu punctajul maxim al etapei).
     const winCount = new Map<string, number>();
     let maxSingle = { points: 0, matchday: 0, users: [] as string[] };
-    for (const { matchday, rows } of fixtureLeaderboards) {
+    for (const { matchday, rows } of statFixtures) {
       const top = rows.length ? rows[0].total : 0;
       if (top > 0) {
         for (const r of rows) if (r.total === top) winCount.set(r.userId, (winCount.get(r.userId) ?? 0) + 1);
