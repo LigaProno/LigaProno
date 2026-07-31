@@ -24,6 +24,7 @@ import {
   recentAndUpcomingMatches,
 } from "@/lib/wc-pred-display";
 import type { NextThreeMatchPreds } from "@/components/party/next-three-predictions-panel";
+import type { FixtureStats } from "@/components/party/fixture-stats-card";
 import { filterUsableMatchOdds, payloadToOddsMaps } from "@/lib/betting-odds";
 import {
   computeUserWcTotals,
@@ -338,10 +339,10 @@ export default async function PartyTournamentPage({
   const prizeLeaderboard: LeaderboardRow[] =
     prizeMatchday != null ? buildMatchdayLeaderboard(matchesForMatchday(matches, prizeMatchday)) : [];
 
-  // Clasament pe etape (doar turneele cu perFixtureLeaderboard): câte un clasament
-  // separat pentru fiecare etapă deja începută din fereastra turneului.
+  // Clasament pe etape (toate turneele private): câte un clasament separat pentru
+  // fiecare etapă deja începută din fereastra turneului.
   let fixtureLeaderboards: { matchday: number; rows: LeaderboardRow[] }[] = [];
-  if (tournament.perFixtureLeaderboard) {
+  if (!tournament.isPublic) {
     const byMatchday = new Map<number, FootballDataMatch[]>();
     for (const m of matches) {
       const md = m.matchday ?? 0;
@@ -353,6 +354,57 @@ export default async function PartyTournamentPage({
       .filter(([, ms]) => ms.some((m) => m.status !== "SCHEDULED" && m.status !== "TIMED"))
       .sort((a, b) => a[0] - b[0])
       .map(([md, ms]) => ({ matchday: md, rows: buildMatchdayLeaderboard(ms) }));
+  }
+
+  // Statistici pe etape (card lateral, turnee private): cele mai multe etape
+  // câștigate, cele mai multe puncte într-o etapă, cel mai lung șir de ghiceli.
+  const nameByUser = new Map(
+    tournamentMembers.map((m) => [
+      m.userId,
+      m.displayName ?? displayName(m.user.firstName, m.user.lastName),
+    ]),
+  );
+  const withName = (userIds: string[]) =>
+    userIds.map((id) => ({ userId: id, displayName: nameByUser.get(id) ?? "—" }));
+
+  let fixtureStats: FixtureStats = null;
+  if (!tournament.isPublic && fixtureLeaderboards.length > 0) {
+    // Câștigători pe etape (egalitate = toți cei cu punctajul maxim al etapei).
+    const winCount = new Map<string, number>();
+    let maxSingle = { points: 0, matchday: 0, users: [] as string[] };
+    for (const { matchday, rows } of fixtureLeaderboards) {
+      const top = rows.length ? rows[0].total : 0;
+      if (top > 0) {
+        for (const r of rows) if (r.total === top) winCount.set(r.userId, (winCount.get(r.userId) ?? 0) + 1);
+      }
+      for (const r of rows) {
+        if (r.total > maxSingle.points) maxSingle = { points: r.total, matchday, users: [r.userId] };
+        else if (r.total === maxSingle.points && r.total > 0 && matchday === maxSingle.matchday && !maxSingle.users.includes(r.userId)) {
+          maxSingle.users.push(r.userId);
+        }
+      }
+    }
+
+    const maxWins = Math.max(0, ...winCount.values());
+    const mostWins =
+      maxWins > 0
+        ? { count: maxWins, members: withName([...winCount.entries()].filter(([, c]) => c === maxWins).map(([id]) => id)) }
+        : null;
+
+    const mostPointsSingle =
+      maxSingle.points > 0
+        ? { points: maxSingle.points, matchday: maxSingle.matchday, members: withName(maxSingle.users) }
+        : null;
+
+    const maxStreak = Math.max(0, ...tournamentMembers.map((m) => m.user.cachedBestStreak));
+    const bestStreak =
+      maxStreak > 0
+        ? { streak: maxStreak, members: withName(tournamentMembers.filter((m) => m.user.cachedBestStreak === maxStreak).map((m) => m.userId)) }
+        : null;
+
+    if (mostWins || mostPointsSingle || bestStreak) {
+      fixtureStats = { mostWins, mostPointsSingle, bestStreak };
+    }
   }
 
   const myPredsRecord: Record<
@@ -460,6 +512,7 @@ export default async function PartyTournamentPage({
         prizeLeaderboard={prizeLeaderboard}
         prizeMatchday={prizeMatchday}
         fixtureLeaderboards={fixtureLeaderboards}
+        fixtureStats={fixtureStats}
       />
     </div>
   );

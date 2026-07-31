@@ -41,6 +41,7 @@ import { buildMyMatchdayShareText } from "@/lib/share-predictions";
 import { LiveFixtureBanner } from "@/components/party/live-fixture-banner";
 import type { LiveFixture } from "@/lib/live-fixtures";
 import { CopyPredictionsModal, type CopyTargetTournament } from "@/components/party/copy-predictions-modal";
+import { FixtureStatsCard, type FixtureStats } from "@/components/party/fixture-stats-card";
 
 export type LeaderboardRow = {
   rank: number;
@@ -88,6 +89,7 @@ export default function PartyWcDashboard({
   prizeLeaderboard = [],
   prizeMatchday = null,
   fixtureLeaderboards = [],
+  fixtureStats = null,
 }: {
   tournamentId: string;
   tournamentName: string;
@@ -117,6 +119,7 @@ export default function PartyWcDashboard({
   prizeLeaderboard?: LeaderboardRow[];
   prizeMatchday?: number | null;
   fixtureLeaderboards?: { matchday: number; rows: LeaderboardRow[] }[];
+  fixtureStats?: FixtureStats;
 }) {
   const router = useRouter();
   const { t, dateLocale } = useLocale();
@@ -446,7 +449,9 @@ export default function PartyWcDashboard({
           </div>
 
           {(tab === "leaderboard" || tab === "prizes" || tab === "fixtures") && (
-            <div className="flex flex-col gap-5">
+            <div className={tab === "fixtures" ? "flex flex-col lg:flex-row gap-5 lg:items-start" : "flex flex-col gap-5"}>
+              {tab === "fixtures" && fixtureStats ? <FixtureStatsCard stats={fixtureStats} /> : null}
+              <div className={tab === "fixtures" ? "flex-1 min-w-0 flex flex-col gap-5" : "contents"}>
               {tab === "leaderboard" ? (
                 <LiveFixtureBanner tournamentId={tournamentId} initial={liveFixtures} />
               ) : tab === "prizes" ? (
@@ -479,7 +484,7 @@ export default function PartyWcDashboard({
                           color: f.matchday === selectedFixtureMd ? "#0A0B1E" : "rgba(255,255,255,0.7)",
                         }}
                       >
-                        {t("party.tab.fixtures")} {f.matchday}
+                        {t("party.fixtures.matchdayShort")} {f.matchday}
                       </button>
                     ))}
                   </div>
@@ -609,6 +614,7 @@ export default function PartyWcDashboard({
                   title={t("party.matchdayPreds.rollingTitle")}
                 />
               ) : null}
+              </div>
             </div>
           )}
 
