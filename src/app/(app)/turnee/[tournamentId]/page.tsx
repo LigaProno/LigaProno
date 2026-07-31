@@ -285,21 +285,18 @@ export default async function PartyTournamentPage({
     prizeAllocation = { allocation, allPrefs, finished: tournament.closedAt != null };
   }
 
-  // Concurs separat pe o etapă (doar turneele cu prizeMatchday setat): clasament
-  // calculat DOAR din meciurile acelei etape, deci toți pornesc de la 0.
-  const prizeMatchday = tournament.prizeMatchday;
-  let prizeLeaderboard: LeaderboardRow[] = [];
-  if (prizeMatchday != null) {
-    const prizeMatches = matchesForMatchday(matches, prizeMatchday);
-    const prizeFinished = prizeMatches.filter(
+  // Clasament calculat DOAR din meciurile unei etape, deci toți pornesc de la 0.
+  // Refolosit atât de „Clasament premii", cât și de clasamentul pe etape.
+  function buildMatchdayLeaderboard(mdMatches: FootballDataMatch[]): LeaderboardRow[] {
+    const finishedMd = mdMatches.filter(
       (m) => m.status === "FINISHED" || m.status === "AWARDED",
     );
-    const prizeLast = prizeFinished.length ? prizeFinished[prizeFinished.length - 1] : null;
-    const prizeLastScores = prizeLast ? matchResultHtFt(prizeLast) : null;
+    const last = finishedMd.length ? finishedMd[finishedMd.length - 1] : null;
+    const lastScores = last ? matchResultHtFt(last) : null;
 
-    prizeLeaderboard = tournamentMembers.map((m) => {
+    const rows: LeaderboardRow[] = tournamentMembers.map((m) => {
       const pmap = predsByUser.get(m.userId) ?? new Map();
-      const totals = computeUserWcTotals(pmap, prizeMatches, oddsMaps ?? undefined);
+      const totals = computeUserWcTotals(pmap, mdMatches, oddsMaps ?? undefined);
       return {
         rank: 0,
         userId: m.userId,
@@ -312,26 +309,50 @@ export default async function PartyTournamentPage({
         correctScoreCount: totals.correctScoreCount,
         total: totals.total,
         lastMatch:
-          prizeLast ?
+          last ?
             {
-              matchId: prizeLast.id,
-              fixture: fixtureTlaPair(prizeLast),
-              pred: getMatchPredDisplay(pmap.get(prizeLast.id) ?? null),
-              actualHt: prizeLastScores?.ht ?? null,
-              actualFt: prizeLastScores?.ft ?? null,
+              matchId: last.id,
+              fixture: fixtureTlaPair(last),
+              pred: getMatchPredDisplay(pmap.get(last.id) ?? null),
+              actualHt: lastScores?.ht ?? null,
+              actualFt: lastScores?.ft ?? null,
             }
           : null,
         nextMatches: [null, null, null],
       };
     });
 
-    prizeLeaderboard.sort((a, b) => {
+    rows.sort((a, b) => {
       if (b.total !== a.total) return b.total - a.total;
       return a.displayName.localeCompare(b.displayName, "en");
     });
-    prizeLeaderboard.forEach((r, i) => {
+    rows.forEach((r, i) => {
       r.rank = i + 1;
     });
+    return rows;
+  }
+
+  // Concurs separat pe o etapă (doar turneele cu prizeMatchday setat): clasament
+  // calculat DOAR din meciurile acelei etape, deci toți pornesc de la 0.
+  const prizeMatchday = tournament.prizeMatchday;
+  const prizeLeaderboard: LeaderboardRow[] =
+    prizeMatchday != null ? buildMatchdayLeaderboard(matchesForMatchday(matches, prizeMatchday)) : [];
+
+  // Clasament pe etape (doar turneele cu perFixtureLeaderboard): câte un clasament
+  // separat pentru fiecare etapă deja începută din fereastra turneului.
+  let fixtureLeaderboards: { matchday: number; rows: LeaderboardRow[] }[] = [];
+  if (tournament.perFixtureLeaderboard) {
+    const byMatchday = new Map<number, FootballDataMatch[]>();
+    for (const m of matches) {
+      const md = m.matchday ?? 0;
+      if (md <= 0) continue;
+      if (!byMatchday.has(md)) byMatchday.set(md, []);
+      byMatchday.get(md)!.push(m);
+    }
+    fixtureLeaderboards = [...byMatchday.entries()]
+      .filter(([, ms]) => ms.some((m) => m.status !== "SCHEDULED" && m.status !== "TIMED"))
+      .sort((a, b) => a[0] - b[0])
+      .map(([md, ms]) => ({ matchday: md, rows: buildMatchdayLeaderboard(ms) }));
   }
 
   const myPredsRecord: Record<
@@ -438,6 +459,7 @@ export default async function PartyTournamentPage({
         otherTournaments={otherTournaments}
         prizeLeaderboard={prizeLeaderboard}
         prizeMatchday={prizeMatchday}
+        fixtureLeaderboards={fixtureLeaderboards}
       />
     </div>
   );

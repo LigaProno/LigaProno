@@ -163,8 +163,11 @@ export const ro: Messages = {
   "party.tab.leaderboard": "Clasament",
   "party.tab.predictions": "Pronosticuri",
   "party.tab.prizes": "Clasament premii",
+  "party.tab.fixtures": "Etapa",
   "party.prizes.hint":
     "Concurs separat pe etapa {matchday} — punctele se numără doar din meciurile acestei etape, toți pornesc de la 0. Clasamentul general rămâne neschimbat.",
+  "party.fixtures.hint":
+    "Clasament doar pe etapa {matchday} — punctele se numără exclusiv din meciurile acestei etape, toți pornesc de la 0. Clasamentul general rămâne neschimbat.",
   "party.prizePref.title": "Preferința ta de premii",
   "party.prizePref.hint": "Ordonează premiile după cât de mult le vrei — locul 1 = cel mai dorit. Poți schimba oricând până se încheie turneul.",
   "party.prizePref.save": "Salvează preferința",

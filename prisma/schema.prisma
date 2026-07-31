@@ -55,6 +55,9 @@ model Tournament {
   // Dacă e setat: turneul are un concurs separat pe etapa asta, cu clasament propriu
   // („Clasament premii"), unde toți pornesc de la 0. null = fără concurs.
   prizeMatchday        Int?
+  // Dacă e true: în loc de un singur „Clasament premii", turneul are un clasament
+  // separat pentru fiecare etapă jucată (selector de etape). null/false = dezactivat.
+  perFixtureLeaderboard Boolean?
   wcMatchPredictions   WcMatchPrediction[]
   wcExtraPredictions   WcExtraPrediction[]
   bettingOdds          TournamentBettingOdds?

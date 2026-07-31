@@ -87,6 +87,7 @@ export default function PartyWcDashboard({
   otherTournaments = [],
   prizeLeaderboard = [],
   prizeMatchday = null,
+  fixtureLeaderboards = [],
 }: {
   tournamentId: string;
   tournamentName: string;
@@ -115,13 +116,24 @@ export default function PartyWcDashboard({
   otherTournaments?: CopyTargetTournament[];
   prizeLeaderboard?: LeaderboardRow[];
   prizeMatchday?: number | null;
+  fixtureLeaderboards?: { matchday: number; rows: LeaderboardRow[] }[];
 }) {
   const router = useRouter();
   const { t, dateLocale } = useLocale();
-  const [tab, setTab] = useState<"leaderboard" | "predictions" | "prizes">("leaderboard");
+  const [tab, setTab] = useState<"leaderboard" | "predictions" | "prizes" | "fixtures">("leaderboard");
   const hasPrizeContest = prizeMatchday != null && prizeLeaderboard.length > 0;
-  // Tab-ul „premii" refolosește exact același tabel, doar cu alte rânduri.
-  const activeRows = tab === "prizes" ? prizeLeaderboard : leaderboard;
+  const hasFixtureLeaderboards = fixtureLeaderboards.length > 0;
+  // Clasament pe etape: implicit ultima etapă începută.
+  const [selectedFixtureMd, setSelectedFixtureMd] = useState(
+    () => fixtureLeaderboards[fixtureLeaderboards.length - 1]?.matchday ?? 0,
+  );
+  const selectedFixtureRows =
+    fixtureLeaderboards.find((f) => f.matchday === selectedFixtureMd)?.rows ?? [];
+  // Tab-urile „premii" și „pe etape" refolosesc același tabel, doar cu alte rânduri.
+  const activeRows =
+    tab === "prizes" ? prizeLeaderboard
+    : tab === "fixtures" ? selectedFixtureRows
+    : leaderboard;
   const [copyOpen, setCopyOpen] = useState(false);
   const [showAllLeaderboard, setShowAllLeaderboard] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -414,6 +426,7 @@ export default function PartyWcDashboard({
               [
                 ["leaderboard", "party.tab.leaderboard"],
                 ...(hasPrizeContest ? ([["prizes", "party.tab.prizes"]] as const) : []),
+                ...(hasFixtureLeaderboards ? ([["fixtures", "party.tab.fixtures"]] as const) : []),
                 ["predictions", "party.tab.predictions"],
               ] as const
             ).map(([id, labelKey]) => (
@@ -432,11 +445,11 @@ export default function PartyWcDashboard({
             ))}
           </div>
 
-          {(tab === "leaderboard" || tab === "prizes") && (
+          {(tab === "leaderboard" || tab === "prizes" || tab === "fixtures") && (
             <div className="flex flex-col gap-5">
               {tab === "leaderboard" ? (
                 <LiveFixtureBanner tournamentId={tournamentId} initial={liveFixtures} />
-              ) : (
+              ) : tab === "prizes" ? (
                 <p
                   className="text-sm rounded-xl border px-4 py-3"
                   style={{
@@ -447,6 +460,40 @@ export default function PartyWcDashboard({
                 >
                   {t("party.prizes.hint", { matchday: prizeMatchday ?? 0 })}
                 </p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {/* Selector de etapă — un clasament separat pentru fiecare etapă. */}
+                  <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+                    {fixtureLeaderboards.map((f) => (
+                      <button
+                        key={f.matchday}
+                        type="button"
+                        onClick={() => {
+                          setSelectedFixtureMd(f.matchday);
+                          setShowAllLeaderboard(false);
+                        }}
+                        className="shrink-0 px-3 h-9 rounded-lg text-xs font-bold transition-colors cursor-pointer whitespace-nowrap"
+                        style={{
+                          backgroundColor:
+                            f.matchday === selectedFixtureMd ? "#3B82F6" : "rgba(255,255,255,0.06)",
+                          color: f.matchday === selectedFixtureMd ? "#0A0B1E" : "rgba(255,255,255,0.7)",
+                        }}
+                      >
+                        {t("party.tab.fixtures")} {f.matchday}
+                      </button>
+                    ))}
+                  </div>
+                  <p
+                    className="text-sm rounded-xl border px-4 py-3"
+                    style={{
+                      borderColor: "rgba(59,130,246,0.3)",
+                      backgroundColor: "rgba(59,130,246,0.07)",
+                      color: "rgba(255,255,255,0.75)",
+                    }}
+                  >
+                    {t("party.fixtures.hint", { matchday: selectedFixtureMd })}
+                  </p>
+                </div>
               )}
               <div
                 className="rounded-2xl border overflow-x-auto"
