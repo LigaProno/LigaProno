@@ -18,6 +18,7 @@ import {
   fixtureTlaPair,
   filterMatchesForTournament,
   getMatchPredDisplay,
+  hasAnyMatchPrediction,
   lastFinishedAndNextThree,
   matchResultHtFt,
   matchesForMatchday,
@@ -38,6 +39,7 @@ import { loadTournamentLiveFixtures } from "@/lib/live-fixtures";
 import { PrizePreferencePanel } from "@/components/turnee/prize-preference-panel";
 import { PrizePreferencePrompt } from "@/components/turnee/prize-preference-prompt";
 import { PrizeAllocationView } from "@/components/turnee/prize-allocation-view";
+import { AdminActivityPanel } from "@/components/turnee/admin-activity-panel";
 
 function displayName(first?: string | null, last?: string | null): string {
   const s = `${first ?? ""} ${last ?? ""}`.trim();
@@ -260,6 +262,13 @@ export default async function PartyTournamentPage({
 
   // Repartizare premii (doar organizatorul o vede): draft în ordinea clasamentului.
   const isOrganizer = isCreator || isAdmin;
+
+  // Panou doar-admin: câți membri au pus efectiv cel puțin un pronostic (useri activi).
+  const activePredictorIds = new Set<string>();
+  for (const p of wcMatchPreds) {
+    if (hasAnyMatchPrediction(p)) activePredictorIds.add(p.userId);
+  }
+  const activePredictorCount = activePredictorIds.size;
   let prizeAllocation:
     | {
         allocation: { rank: number; name: string; total: number; shirt: string; fromPref: boolean }[];
@@ -451,6 +460,13 @@ export default async function PartyTournamentPage({
         </svg>
         {t("party.backToTournaments")}
       </Link>
+
+      {isAdmin ? (
+        <AdminActivityPanel
+          activeCount={activePredictorCount}
+          totalMembers={tournamentMembers.length}
+        />
+      ) : null}
 
       {prizeAllocation ? (
         <PrizeAllocationView
