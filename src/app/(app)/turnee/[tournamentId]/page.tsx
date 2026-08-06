@@ -263,12 +263,21 @@ export default async function PartyTournamentPage({
   // Repartizare premii (doar organizatorul o vede): draft în ordinea clasamentului.
   const isOrganizer = isCreator || isAdmin;
 
-  // Panou doar-admin: câți membri au pus efectiv cel puțin un pronostic (useri activi).
+  // Panou doar-admin: câți membri au pus efectiv cel puțin un pronostic (useri activi) + cine.
   const activePredictorIds = new Set<string>();
   for (const p of wcMatchPreds) {
     if (hasAnyMatchPrediction(p)) activePredictorIds.add(p.userId);
   }
-  const activePredictorCount = activePredictorIds.size;
+  const memberName = (m: (typeof tournamentMembers)[number]) =>
+    m.displayName ?? displayName(m.user.firstName, m.user.lastName);
+  const activeMemberNames = tournamentMembers
+    .filter((m) => activePredictorIds.has(m.userId))
+    .map(memberName)
+    .sort((a, b) => a.localeCompare(b, "ro"));
+  const inactiveMemberNames = tournamentMembers
+    .filter((m) => !activePredictorIds.has(m.userId))
+    .map(memberName)
+    .sort((a, b) => a.localeCompare(b, "ro"));
   let prizeAllocation:
     | {
         allocation: { rank: number; name: string; total: number; shirt: string; fromPref: boolean }[];
@@ -463,8 +472,8 @@ export default async function PartyTournamentPage({
 
       {isAdmin ? (
         <AdminActivityPanel
-          activeCount={activePredictorCount}
-          totalMembers={tournamentMembers.length}
+          activeNames={activeMemberNames}
+          inactiveNames={inactiveMemberNames}
         />
       ) : null}
 
