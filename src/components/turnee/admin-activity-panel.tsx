@@ -82,16 +82,24 @@ function NameList({
         <p className="mt-2 text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>{emptyText}</p>
       ) : (
         <div
-          className="mt-2 flex flex-col max-h-56 overflow-y-auto overscroll-contain rounded-lg border px-2"
+          className="mt-2 flex flex-col gap-1 max-h-72 overflow-y-auto overscroll-contain rounded-lg border p-2"
           style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(0,0,0,0.15)" }}
         >
           {names.map((name, i) => (
             <div
               key={`${i}-${name}`}
-              className="text-xs py-1.5 truncate"
-              style={{ color: "rgba(255,255,255,0.8)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}
+              className="flex items-center gap-2.5 rounded-md px-2.5 py-2"
+              style={{ backgroundColor: "rgba(255,255,255,0.04)" }}
             >
-              {name}
+              <span
+                className="w-6 shrink-0 text-[11px] tabular-nums text-right"
+                style={{ color: "rgba(255,255,255,0.35)" }}
+              >
+                {i + 1}
+              </span>
+              <span className="text-sm truncate" style={{ color: "rgba(255,255,255,0.9)" }}>
+                {name}
+              </span>
             </div>
           ))}
         </div>
