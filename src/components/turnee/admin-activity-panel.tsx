@@ -81,11 +81,14 @@ function NameList({
       {names.length === 0 ? (
         <p className="mt-2 text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>{emptyText}</p>
       ) : (
-        <div className="mt-2 flex flex-col gap-0.5 max-h-64 overflow-y-auto pr-1">
+        <div
+          className="mt-2 flex flex-col max-h-56 overflow-y-auto overscroll-contain rounded-lg border px-2"
+          style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(0,0,0,0.15)" }}
+        >
           {names.map((name, i) => (
             <div
               key={`${i}-${name}`}
-              className="text-xs py-1 truncate"
+              className="text-xs py-1.5 truncate"
               style={{ color: "rgba(255,255,255,0.8)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}
             >
               {name}
