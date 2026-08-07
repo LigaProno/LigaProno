@@ -123,6 +123,23 @@ async function fdFetch<T>(
 }
 
 /**
+ * Suprascrieri manuale de oră de start (matchId -> utcDate ISO). Folosite când
+ * furnizorul are data greșită sau meciul a fost reprogramat. Șterge intrarea
+ * după ce trece meciul.
+ */
+const KICKOFF_OVERRIDES: Record<number, string> = {
+  // UTA Arad – Rapid: furnizorul îl are pe 08.08, dar meciul se joacă azi 07.08 la 21:00 RO.
+  566720: "2026-08-07T18:00:00Z",
+};
+
+function applyKickoffOverrides(matches: FootballDataMatch[]): FootballDataMatch[] {
+  return matches.map((m) => {
+    const override = KICKOFF_OVERRIDES[m.id];
+    return override ? { ...m, utcDate: override } : m;
+  });
+}
+
+/**
  * Meciuri pentru o competiție + sezon (paginare limit/offset).
  */
 export async function fetchCompetitionMatches(
@@ -154,12 +171,13 @@ export async function fetchCompetitionMatches(
     offset += limit;
   }
 
-  collected.sort(
+  const adjusted = applyKickoffOverrides(collected);
+  adjusted.sort(
     (a, b) =>
       new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime(),
   );
 
-  return collected;
+  return adjusted;
 }
 
 /** Meciuri fără cache HTTP — pentru actualizare bracket KO după grupe. */
@@ -195,12 +213,13 @@ export async function fetchCompetitionMatchesFresh(
     offset += limit;
   }
 
-  collected.sort(
+  const adjusted = applyKickoffOverrides(collected);
+  adjusted.sort(
     (a, b) =>
       new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime(),
   );
 
-  return collected;
+  return adjusted;
 }
 
 /**
