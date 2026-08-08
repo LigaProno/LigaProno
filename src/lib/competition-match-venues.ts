@@ -18,7 +18,10 @@ export type StoredMatchVenue = {
 const VENUE_SOURCE = "oddsportal";
 /** Re-scrape periodic — programul Superliga se actualizează des. */
 const DEFAULT_VENUE_TTL_MS = 6 * 60 * 60 * 1000;
-const SCHEDULE_MATCH_MAX_DIFF_HOURS = 48;
+const SCHEDULE_MATCH_MAX_DIFF_HOURS = 14 * 24;
+/** Meciuri din fereastra apropiată fără oră/stadion → forțează refresh. */
+const NEAR_WINDOW_PAST_MS = 6 * 60 * 60 * 1000;
+const NEAR_WINDOW_FUTURE_MS = 21 * 24 * 60 * 60 * 1000;
 
 function getVenueTtlMs(): number {
   const raw = process.env.VENUE_CACHE_TTL_MS?.trim();
@@ -51,7 +54,6 @@ function buildVenueMapFromFixtures(
   for (const m of matches) {
     const fx = byMatchId.get(m.id);
     if (!fx) {
-      // Păstrăm venue-ul FD dacă există (rar pe RL1).
       const fromFd = venueFromMatch(m);
       if (fromFd) {
         out[String(m.id)] = { ...fromFd, utcDate: m.utcDate ?? null };
@@ -102,6 +104,34 @@ function storedVenueToFdVenue(
   };
 }
 
+function mergeVenueMaps(
+  base: Record<string, StoredMatchVenue>,
+  patch: Record<string, StoredMatchVenue>,
+): Record<string, StoredMatchVenue> {
+  const out: Record<string, StoredMatchVenue> = { ...base };
+  for (const [id, next] of Object.entries(patch)) {
+    const prev = out[id];
+    if (!prev) {
+      out[id] = next;
+      continue;
+    }
+    out[id] = {
+      stadium: next.stadium?.trim() || prev.stadium,
+      city: next.city?.trim() || prev.city,
+      utcDate: next.utcDate || prev.utcDate,
+    };
+  }
+  return out;
+}
+
+function sortMatchesByKickoff(matches: FootballDataMatch[]): FootballDataMatch[] {
+  return [...matches].sort(
+    (a, b) =>
+      new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime() ||
+      a.id - b.id,
+  );
+}
+
 /** Aplică stadionul/ora din cache pe lista de meciuri Football-Data. */
 export function applyCompetitionVenuesToMatches(
   matches: FootballDataMatch[],
@@ -126,19 +156,34 @@ function isCacheStale(fetchedAt: Date | null | undefined): boolean {
   return Date.now() - fetchedAt.getTime() > getVenueTtlMs();
 }
 
-/** Acoperire slabă pe meciuri viitoare → forțează re-scrape. */
+function effectiveKickoffMs(
+  m: FootballDataMatch,
+  venueMap: Record<string, StoredMatchVenue>,
+): number | null {
+  const stored = venueMap[String(m.id)]?.utcDate;
+  const iso = stored || m.utcDate;
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/** Orice meci din fereastra apropiată fără oră OP sau stadion → re-scrape. */
 function needsCoverageRefresh(
   venueMap: Record<string, StoredMatchVenue>,
   matches: FootballDataMatch[],
 ): boolean {
-  const upcoming = matches.filter(
-    (m) => m.status === "TIMED" || m.status === "SCHEDULED",
-  );
-  if (upcoming.length === 0) return false;
-  const withStadium = upcoming.filter(
-    (m) => Boolean(venueMap[String(m.id)]?.stadium?.trim()),
-  ).length;
-  return withStadium < Math.ceil(upcoming.length * 0.4);
+  const now = Date.now();
+  const near = matches.filter((m) => {
+    if (m.status !== "TIMED" && m.status !== "SCHEDULED") return false;
+    const ms = effectiveKickoffMs(m, venueMap);
+    if (ms == null) return true;
+    return ms >= now - NEAR_WINDOW_PAST_MS && ms <= now + NEAR_WINDOW_FUTURE_MS;
+  });
+  if (near.length === 0) return false;
+
+  return near.some((m) => {
+    const v = venueMap[String(m.id)];
+    return !v?.utcDate || !v.stadium?.trim();
+  });
 }
 
 async function scrapeAndPersistVenues(
@@ -146,12 +191,30 @@ async function scrapeAndPersistVenues(
   code: string,
   season: string,
   matches: FootballDataMatch[],
+  existing: Record<string, StoredMatchVenue>,
 ): Promise<Record<string, StoredMatchVenue>> {
   const fixtures = await fetchCompetitionScheduleFixtures(code, season);
-  if (fixtures.length === 0) return {};
+  if (fixtures.length === 0) return existing;
 
-  const venueMap = buildVenueMapFromFixtures(matches, fixtures);
-  if (Object.keys(venueMap).length === 0) return {};
+  const scraped = buildVenueMapFromFixtures(matches, fixtures);
+  if (Object.keys(scraped).length === 0) return existing;
+
+  // Merge: overview OP e parțial — păstrăm datele bune din cache pentru meciuri
+  // care nu apar pe pagină acum; pentru fereastra apropiată fără match nou, curățăm
+  // ca să nu rămână perechi greșite din matching-ul vechi.
+  const venueMap = mergeVenueMaps(existing, scraped);
+  const now = Date.now();
+  for (const m of matches) {
+    if (m.status !== "TIMED" && m.status !== "SCHEDULED") continue;
+    const ms = Date.parse(m.utcDate);
+    if (!Number.isFinite(ms)) continue;
+    if (ms < now - NEAR_WINDOW_PAST_MS || ms > now + NEAR_WINDOW_FUTURE_MS) {
+      continue;
+    }
+    if (!scraped[String(m.id)]) {
+      delete venueMap[String(m.id)];
+    }
+  }
 
   await prisma.competitionMatchVenues.upsert({
     where: { competition },
@@ -204,6 +267,7 @@ export async function ensureCompetitionMatchVenues(
       parsed.code,
       parsed.season,
       matches,
+      cached,
     );
     if (Object.keys(scraped).length > 0) return scraped;
     return cached;
@@ -219,13 +283,17 @@ export async function loadMatchesWithCompetitionVenues(
   matches: FootballDataMatch[],
 ): Promise<FootballDataMatch[]> {
   const venueMap = await ensureCompetitionMatchVenues(competition, matches);
-  const withVenues = applyCompetitionVenuesToMatches(matches, venueMap);
+  const withVenues = sortMatchesByKickoff(
+    applyCompetitionVenuesToMatches(matches, venueMap),
+  );
 
   try {
     const { loadMatchesWithScoreOverrides } = await import(
       "@/lib/competition-match-scores"
     );
-    return await loadMatchesWithScoreOverrides(competition, withVenues);
+    return sortMatchesByKickoff(
+      await loadMatchesWithScoreOverrides(competition, withVenues),
+    );
   } catch (error) {
     console.error(
       "[competition-match-venues] score fallback failed",

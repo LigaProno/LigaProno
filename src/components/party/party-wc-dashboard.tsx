@@ -174,7 +174,13 @@ export default function PartyWcDashboard({
       }
     }
     const sorted = [...byMatchday.keys()].sort((a, b) => a - b);
-    return sorted.map((md) => ({ matchday: md, matches: byMatchday.get(md)! }));
+    return sorted.map((md) => ({
+      matchday: md,
+      matches: [...(byMatchday.get(md) ?? [])].sort(
+        (a, b) =>
+          Date.parse(a.utcDate) - Date.parse(b.utcDate) || a.id - b.id,
+      ),
+    }));
   }, [matches]);
 
   const firstUnfinishedMatchday = useMemo(() => {

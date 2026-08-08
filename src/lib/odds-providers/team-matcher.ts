@@ -31,24 +31,49 @@ function parseFdMatchMs(m: FootballDataMatch): number | null {
   return Number.isFinite(ms) ? ms : null;
 }
 
+const TEAM_NAME_STOPWORDS = new Set([
+  "fc",
+  "cf",
+  "cs",
+  "as",
+  "afc",
+  "scf",
+  "acs",
+  "club",
+  "football",
+  "fotbal",
+  "the",
+  "and",
+  "de",
+  "la",
+]);
+
+function significantTokens(normalized: string): string[] {
+  return normalized.split(" ").filter((w) => w && !TEAM_NAME_STOPWORDS.has(w));
+}
+
 function teamsMatch(a: string, b: string): boolean {
   const na = normalizeTeamName(a);
   const nb = normalizeTeamName(b);
   if (na === nb) return true;
-  if (na.includes(nb) || nb.includes(na)) return true;
-  const ta = new Set(na.split(" ").filter(Boolean));
-  const tb = new Set(nb.split(" ").filter(Boolean));
-  if (ta.size && tb.size) {
-    let overlap = 0;
-    for (const w of ta) if (tb.has(w)) overlap++;
-    const min = Math.min(ta.size, tb.size);
-    if (overlap >= min && min >= 1) return true;
+  if (na.includes(nb) || nb.includes(na)) {
+    // Evită match pe tokeni scurți tip „u" / „fc".
+    if (Math.min(na.length, nb.length) >= 4) return true;
   }
+  const ta = new Set(significantTokens(na));
+  const tb = new Set(significantTokens(nb));
+  if (ta.size === 0 || tb.size === 0) return false;
+  let overlap = 0;
+  for (const w of ta) if (tb.has(w)) overlap++;
+  const min = Math.min(ta.size, tb.size);
+  // Cel puțin un token semnificativ comun, și acoperire completă pe partea mai scurtă.
+  if (overlap >= min && min >= 1) return true;
   return false;
 }
 
 function fdTeamNameVariants(team: FootballDataMatch["homeTeam"]): string[] {
-  const names = [team.name, team.shortName, team.tla].filter(
+  // Nu includem TLA — pe Superliga e nesigur (Rapid=BUK, Petrolul=P52) și produce false match.
+  const names = [team.name, team.shortName].filter(
     (v): v is string => typeof v === "string" && v.trim().length > 0,
   );
   return [...new Set(names)];
@@ -62,31 +87,57 @@ function fixtureSideMatchesFdTeam(
 }
 
 export type MatchFixtureOpts = {
-  /** Toleranță oră FD↔OddsPortal. Default 18h; mai mare când FD are placeholder (ex. 17:00Z). */
-  maxDiffHours?: number;
+  /** Toleranță oră FD↔OddsPortal. Default 18h; `null` = fără filtru dur (doar scor). */
+  maxDiffHours?: number | null;
+  /** Dacă true, preferă home↔home / away↔away față de swap. Default true. */
+  preferHomeAwayOrientation?: boolean;
 };
+
+function scoreFixtureAgainstMatch(
+  fixture: OpFixture,
+  fdMatch: FootballDataMatch,
+  opts?: MatchFixtureOpts,
+): number | null {
+  const homeHome = fixtureSideMatchesFdTeam(fixture.home, fdMatch.homeTeam);
+  const awayAway = fixtureSideMatchesFdTeam(fixture.away, fdMatch.awayTeam);
+  const homeAway = fixtureSideMatchesFdTeam(fixture.home, fdMatch.awayTeam);
+  const awayHome = fixtureSideMatchesFdTeam(fixture.away, fdMatch.homeTeam);
+
+  const orientedOk = homeHome && awayAway;
+  const swappedOk = homeAway && awayHome;
+  if (!orientedOk && !swappedOk) return null;
+
+  let score = orientedOk ? 100 : 40;
+
+  // Bonus pentru egalitate exactă pe nume normalizate.
+  for (const [side, team] of [
+    [fixture.home, fdMatch.homeTeam],
+    [fixture.away, fdMatch.awayTeam],
+  ] as const) {
+    const variants = fdTeamNameVariants(team).map(normalizeTeamName);
+    const n = normalizeTeamName(side);
+    if (variants.includes(n)) score += 15;
+  }
+
+  const maxDiffHours = opts?.maxDiffHours === undefined ? 18 : opts.maxDiffHours;
+  const fdMs = parseFdMatchMs(fdMatch);
+  const opMs = parseIsoMs(fixture.startDateIso);
+  if (fdMs != null && opMs != null) {
+    const diffH = Math.abs(fdMs - opMs) / 3_600_000;
+    if (maxDiffHours != null && diffH > maxDiffHours) return null;
+    // Mai aproape în timp = mai bun (soft).
+    score -= Math.min(diffH, 72) * 0.5;
+  }
+
+  return score;
+}
 
 export function matchFixtureToFootballData(
   fixture: OpFixture,
   fdMatch: FootballDataMatch,
   opts?: MatchFixtureOpts,
 ): boolean {
-  const homeOk =
-    fixtureSideMatchesFdTeam(fixture.home, fdMatch.homeTeam) ||
-    fixtureSideMatchesFdTeam(fixture.away, fdMatch.homeTeam);
-  const awayOk =
-    fixtureSideMatchesFdTeam(fixture.away, fdMatch.awayTeam) ||
-    fixtureSideMatchesFdTeam(fixture.home, fdMatch.awayTeam);
-  if (!homeOk || !awayOk) return false;
-
-  const maxDiffHours = opts?.maxDiffHours ?? 18;
-  const fdMs = parseFdMatchMs(fdMatch);
-  const opMs = parseIsoMs(fixture.startDateIso);
-  if (fdMs != null && opMs != null) {
-    const diffH = Math.abs(fdMs - opMs) / 3_600_000;
-    if (diffH > maxDiffHours) return false;
-  }
-  return true;
+  return scoreFixtureAgainstMatch(fixture, fdMatch, opts) != null;
 }
 
 export function mapFixturesToFootballDataMatches(
@@ -95,22 +146,28 @@ export function mapFixturesToFootballDataMatches(
   opts?: MatchFixtureOpts,
 ): Map<number, OpFixture> {
   const map = new Map<number, OpFixture>();
-  const usedOp = new Set<string>();
+  type Edge = { fdId: number; fx: OpFixture; score: number };
+  const edges: Edge[] = [];
 
   for (const fd of fdMatches) {
-    let best: OpFixture | null = null;
     for (const fx of fixtures) {
-      if (usedOp.has(fx.matchId)) continue;
-      if (matchFixtureToFootballData(fx, fd, opts)) {
-        best = fx;
-        break;
-      }
-    }
-    if (best) {
-      map.set(fd.id, best);
-      usedOp.add(best.matchId);
+      const score = scoreFixtureAgainstMatch(fx, fd, opts);
+      if (score == null) continue;
+      edges.push({ fdId: fd.id, fx, score });
     }
   }
+
+  edges.sort((a, b) => b.score - a.score);
+
+  const usedFd = new Set<number>();
+  const usedOp = new Set<string>();
+  for (const e of edges) {
+    if (usedFd.has(e.fdId) || usedOp.has(e.fx.matchId)) continue;
+    usedFd.add(e.fdId);
+    usedOp.add(e.fx.matchId);
+    map.set(e.fdId, e.fx);
+  }
+
   return map;
 }
 

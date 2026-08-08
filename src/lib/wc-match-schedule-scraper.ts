@@ -1,6 +1,6 @@
 import type { FootballDataMatch } from "@/lib/football-data";
 import {
-  fetchTournamentFixtures,
+  fetchTournamentFixturesForScoreFallback,
   type OpScheduleFixture,
 } from "@/lib/odds-providers/oddsportal/client";
 import { getOddsPortalCompetition } from "@/lib/odds-providers/oddsportal/competition-map";
@@ -8,8 +8,11 @@ import { mapFixturesToFootballDataMatches } from "@/lib/odds-providers/team-matc
 
 export type { OpScheduleFixture };
 
-/** FD pe ligi secundare folosește deseori 17:00Z — lăsăm fereastră mai largă la matching. */
-const SCHEDULE_MATCH_MAX_DIFF_HOURS = 48;
+/**
+ * FD pe ligi secundare folosește deseori 17:00Z pe ziua greșită —
+ * pentru schedule lăsăm fereastră largă; scorul de matching decide.
+ */
+const SCHEDULE_MATCH_MAX_DIFF_HOURS = 14 * 24;
 
 export async function fetchCompetitionScheduleFixtures(
   code: string,
@@ -17,7 +20,7 @@ export async function fetchCompetitionScheduleFixtures(
 ): Promise<OpScheduleFixture[]> {
   const config = getOddsPortalCompetition(code, season);
   if (!config) return [];
-  return fetchTournamentFixtures(config);
+  return fetchTournamentFixturesForScoreFallback(config);
 }
 
 function fixtureVenue(

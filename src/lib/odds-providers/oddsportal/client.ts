@@ -468,9 +468,42 @@ export async function fetchTournamentFixturesForScoreFallback(
     fetchTournamentFixtures(config).catch(() => [] as OpScheduleFixture[]),
     fetchTournamentResultFixtures(config).catch(() => [] as OpScheduleFixture[]),
   ]);
+  return mergeScheduleFixtures(results, upcoming);
+}
+
+/**
+ * Unește liste de fixture-uri; preferă intrarea cu stadion / oră mai completă.
+ */
+export function mergeScheduleFixtures(
+  ...lists: OpScheduleFixture[][]
+): OpScheduleFixture[] {
   const byId = new Map<string, OpScheduleFixture>();
-  for (const fx of [...results, ...upcoming]) {
-    if (!byId.has(fx.matchId)) byId.set(fx.matchId, fx);
+
+  function richness(fx: OpScheduleFixture): number {
+    let n = 0;
+    if (fx.stadium?.trim()) n += 4;
+    if (fx.city?.trim()) n += 1;
+    if (fx.startDateIso) n += 2;
+    return n;
   }
+
+  for (const list of lists) {
+    for (const fx of list) {
+      const prev = byId.get(fx.matchId);
+      if (!prev || richness(fx) > richness(prev)) {
+        byId.set(fx.matchId, prev ? { ...prev, ...fx, stadium: fx.stadium ?? prev.stadium, city: fx.city ?? prev.city, country: fx.country ?? prev.country, startDateIso: fx.startDateIso ?? prev.startDateIso } : fx);
+      } else if (prev) {
+        byId.set(fx.matchId, {
+          ...fx,
+          ...prev,
+          stadium: prev.stadium ?? fx.stadium,
+          city: prev.city ?? fx.city,
+          country: prev.country ?? fx.country,
+          startDateIso: prev.startDateIso ?? fx.startDateIso,
+        });
+      }
+    }
+  }
+
   return [...byId.values()];
 }
