@@ -5,10 +5,9 @@ import { LandingBento } from "@/components/landing/landing-bento";
 import { LandingFlow } from "@/components/landing/landing-flow";
 import { LandingHero } from "@/components/landing/landing-hero";
 import { Glass } from "@/components/landing/glass-surface";
-import { getLocaleFromCookies } from "@/lib/i18n/server";
+import { SiteFooter } from "@/components/site-footer";
 
 export async function LandingPage() {
-  const locale = await getLocaleFromCookies();
   return (
     <main className="landing-page relative min-h-screen overflow-x-hidden">
       <LandingAmbient />
@@ -19,7 +18,7 @@ export async function LandingPage() {
         <LandingBento />
 
         {/* CTA — glass slab, not a card box */}
-        <section className="px-5 pb-28 pt-8 sm:px-8 lg:px-12">
+        <section className="px-5 pb-16 pt-8 sm:px-8 lg:px-12">
           <Glass className="glass-liquid glass-cta mx-auto max-w-6xl overflow-hidden px-8 py-14 sm:px-14 sm:py-16">
             <div aria-hidden className="glass-cta-shine" />
             <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
@@ -46,17 +45,7 @@ export async function LandingPage() {
           </Glass>
         </section>
 
-        <footer className="px-5 pb-10 text-center flex flex-col items-center gap-2">
-          <Link
-            href="/confidentialitate"
-            className="text-[11px] uppercase tracking-[0.2em] text-white/40 hover:text-white/70 transition-colors"
-          >
-            {locale === "ro" ? "Politica de confidențialitate" : "Privacy Policy"}
-          </Link>
-          <p className="text-[11px] uppercase tracking-[0.2em] text-white/25">
-            © {new Date().getFullYear()} Liga Prono
-          </p>
-        </footer>
+        <SiteFooter variant="public" />
       </div>
     </main>
   );

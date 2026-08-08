@@ -1,11 +1,30 @@
 import type { FootballDataMatch } from "@/lib/football-data";
+import { parseStoredCompetition } from "@/lib/competition";
 import { prisma } from "@/lib/prisma";
+import {
+  enrichMatchesWithScrapedSchedule,
+  fetchCompetitionScheduleFixtures,
+  type OpScheduleFixture,
+} from "@/lib/wc-match-schedule-scraper";
+import { mapFixturesToFootballDataMatches } from "@/lib/odds-providers/team-matcher";
+import { getOddsPortalCompetition } from "@/lib/odds-providers/oddsportal/competition-map";
 
 export type StoredMatchVenue = {
   stadium: string | null;
   city: string | null;
   utcDate: string | null;
 };
+
+const VENUE_SOURCE = "oddsportal";
+/** Re-scrape periodic — programul Superliga se actualizează des. */
+const DEFAULT_VENUE_TTL_MS = 6 * 60 * 60 * 1000;
+const SCHEDULE_MATCH_MAX_DIFF_HOURS = 48;
+
+function getVenueTtlMs(): number {
+  const raw = process.env.VENUE_CACHE_TTL_MS?.trim();
+  const n = raw ? Number(raw) : DEFAULT_VENUE_TTL_MS;
+  return Number.isFinite(n) && n >= 30 * 60 * 1000 ? n : DEFAULT_VENUE_TTL_MS;
+}
 
 function venueFromMatch(m: FootballDataMatch): StoredMatchVenue | null {
   const v = m.venue;
@@ -20,16 +39,39 @@ function venueFromMatch(m: FootballDataMatch): StoredMatchVenue | null {
   return { stadium, city, utcDate: null };
 }
 
-function buildVenueMap(matches: FootballDataMatch[]): Record<string, StoredMatchVenue> {
+function buildVenueMapFromFixtures(
+  matches: FootballDataMatch[],
+  fixtures: OpScheduleFixture[],
+): Record<string, StoredMatchVenue> {
+  const byMatchId = mapFixturesToFootballDataMatches(fixtures, matches, {
+    maxDiffHours: SCHEDULE_MATCH_MAX_DIFF_HOURS,
+  });
   const out: Record<string, StoredMatchVenue> = {};
+
   for (const m of matches) {
-    const venue = venueFromMatch(m);
-    if (!venue) continue;
-    out[String(m.id)] = {
-      ...venue,
-      utcDate: m.utcDate ?? null,
-    };
+    const fx = byMatchId.get(m.id);
+    if (!fx) {
+      // Păstrăm venue-ul FD dacă există (rar pe RL1).
+      const fromFd = venueFromMatch(m);
+      if (fromFd) {
+        out[String(m.id)] = { ...fromFd, utcDate: m.utcDate ?? null };
+      }
+      continue;
+    }
+
+    const stadium = fx.stadium?.trim() || null;
+    const city =
+      [fx.city, fx.country].filter(Boolean).join(", ").trim() || null;
+    const utcDate =
+      fx.startDateIso ?
+        new Date(fx.startDateIso).toISOString()
+      : (m.utcDate ?? null);
+
+    if (!stadium && !city && !utcDate) continue;
+
+    out[String(m.id)] = { stadium, city, utcDate };
   }
+
   return out;
 }
 
@@ -79,24 +121,99 @@ export function applyCompetitionVenuesToMatches(
   });
 }
 
-/** Încarcă stadionul din DB pentru competiție (dacă există date stocate). */
+function isCacheStale(fetchedAt: Date | null | undefined): boolean {
+  if (!fetchedAt) return true;
+  return Date.now() - fetchedAt.getTime() > getVenueTtlMs();
+}
+
+/** Acoperire slabă pe meciuri viitoare → forțează re-scrape. */
+function needsCoverageRefresh(
+  venueMap: Record<string, StoredMatchVenue>,
+  matches: FootballDataMatch[],
+): boolean {
+  const upcoming = matches.filter(
+    (m) => m.status === "TIMED" || m.status === "SCHEDULED",
+  );
+  if (upcoming.length === 0) return false;
+  const withStadium = upcoming.filter(
+    (m) => Boolean(venueMap[String(m.id)]?.stadium?.trim()),
+  ).length;
+  return withStadium < Math.ceil(upcoming.length * 0.4);
+}
+
+async function scrapeAndPersistVenues(
+  competition: string,
+  code: string,
+  season: string,
+  matches: FootballDataMatch[],
+): Promise<Record<string, StoredMatchVenue>> {
+  const fixtures = await fetchCompetitionScheduleFixtures(code, season);
+  if (fixtures.length === 0) return {};
+
+  const venueMap = buildVenueMapFromFixtures(matches, fixtures);
+  if (Object.keys(venueMap).length === 0) return {};
+
+  await prisma.competitionMatchVenues.upsert({
+    where: { competition },
+    create: {
+      competition,
+      venues: venueMap as object,
+      source: VENUE_SOURCE,
+    },
+    update: {
+      venues: venueMap as object,
+      source: VENUE_SOURCE,
+      fetchedAt: new Date(),
+    },
+  });
+
+  return venueMap;
+}
+
+/**
+ * Încarcă stadion + oră din DB; dacă lipsește / e stale / acoperire slabă,
+ * scrape OddsPortal și persistă pentru toată competiția.
+ */
 export async function ensureCompetitionMatchVenues(
   competition: string,
   matches: FootballDataMatch[],
 ): Promise<Record<string, StoredMatchVenue>> {
   if (matches.length === 0) return {};
 
+  const parsed = parseStoredCompetition(competition);
+  if (!parsed) return {};
+
+  const opConfig = getOddsPortalCompetition(parsed.code, parsed.season);
+  if (!opConfig) return {};
+
   const existing = await prisma.competitionMatchVenues.findUnique({
     where: { competition },
   });
-  if (existing?.venues) {
-    return parseVenueMap(existing.venues);
+  const cached = existing?.venues ? parseVenueMap(existing.venues) : {};
+  const hasCache = Object.keys(cached).length > 0;
+  const stale = isCacheStale(existing?.fetchedAt);
+  const weakCoverage = needsCoverageRefresh(cached, matches);
+
+  if (hasCache && !stale && !weakCoverage) {
+    return cached;
   }
 
-  return {};
+  try {
+    const scraped = await scrapeAndPersistVenues(
+      competition,
+      parsed.code,
+      parsed.season,
+      matches,
+    );
+    if (Object.keys(scraped).length > 0) return scraped;
+    return cached;
+  } catch (e) {
+    console.warn("ensureCompetitionMatchVenues:", competition, e);
+    return cached;
+  }
 }
 
-/** Meciuri Football-Data cu stadion din cache-ul partajat al competiției. */
+/** Meciuri Football-Data cu stadion/oră din cache-ul partajat al competiției. */
 export async function loadMatchesWithCompetitionVenues(
   competition: string,
   matches: FootballDataMatch[],
@@ -117,4 +234,12 @@ export async function loadMatchesWithCompetitionVenues(
     );
     return withVenues;
   }
+}
+
+/** Util pentru teste / debug — aplică enrich fără persist. */
+export function previewEnrichWithFixtures(
+  matches: FootballDataMatch[],
+  fixtures: OpScheduleFixture[],
+): FootballDataMatch[] {
+  return enrichMatchesWithScrapedSchedule(matches, fixtures);
 }

@@ -515,4 +515,13 @@ export const en: Messages = {
   "profile.delete.confirmHint": "Type DELETE exactly to confirm.",
   "profile.delete.confirmWord": "DELETE",
   "profile.delete.submit": "Delete account permanently",
+  "footer.tagline":
+    "Predict with friends, live standings, and matchday energy — all in one place.",
+  "footer.explore": "Explore",
+  "footer.legal": "Legal",
+  "footer.contact": "Contact",
+  "footer.privacy": "Privacy policy",
+  "footer.getStarted": "Get started",
+  "footer.signIn": "Sign in",
+  "footer.madeForFans": "Built for football fans",
 };

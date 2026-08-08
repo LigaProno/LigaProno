@@ -484,6 +484,14 @@ export type MessageKey =
   | "profile.delete.typeConfirm"
   | "profile.delete.confirmHint"
   | "profile.delete.confirmWord"
-  | "profile.delete.submit";
+  | "profile.delete.submit"
+  | "footer.tagline"
+  | "footer.explore"
+  | "footer.legal"
+  | "footer.contact"
+  | "footer.privacy"
+  | "footer.getStarted"
+  | "footer.signIn"
+  | "footer.madeForFans";
 
 export type Messages = Record<MessageKey, string>;

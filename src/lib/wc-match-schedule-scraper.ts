@@ -3,9 +3,22 @@ import {
   fetchTournamentFixtures,
   type OpScheduleFixture,
 } from "@/lib/odds-providers/oddsportal/client";
+import { getOddsPortalCompetition } from "@/lib/odds-providers/oddsportal/competition-map";
 import { mapFixturesToFootballDataMatches } from "@/lib/odds-providers/team-matcher";
 
 export type { OpScheduleFixture };
+
+/** FD pe ligi secundare folosește deseori 17:00Z — lăsăm fereastră mai largă la matching. */
+const SCHEDULE_MATCH_MAX_DIFF_HOURS = 48;
+
+export async function fetchCompetitionScheduleFixtures(
+  code: string,
+  season: string,
+): Promise<OpScheduleFixture[]> {
+  const config = getOddsPortalCompetition(code, season);
+  if (!config) return [];
+  return fetchTournamentFixtures(config);
+}
 
 function fixtureVenue(
   fixture: OpScheduleFixture,
@@ -23,7 +36,9 @@ export function enrichMatchesWithScrapedSchedule(
   matches: FootballDataMatch[],
   fixtures: OpScheduleFixture[],
 ): FootballDataMatch[] {
-  const byMatchId = mapFixturesToFootballDataMatches(fixtures, matches);
+  const byMatchId = mapFixturesToFootballDataMatches(fixtures, matches, {
+    maxDiffHours: SCHEDULE_MATCH_MAX_DIFF_HOURS,
+  });
 
   return matches.map((match) => {
     const fixture = byMatchId.get(match.id);
@@ -42,4 +57,3 @@ export function enrichMatchesWithScrapedSchedule(
     };
   });
 }
-

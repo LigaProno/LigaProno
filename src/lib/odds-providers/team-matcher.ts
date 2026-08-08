@@ -61,9 +61,15 @@ function fixtureSideMatchesFdTeam(
   return fdTeamNameVariants(fdTeam).some((name) => teamsMatch(fixtureSide, name));
 }
 
+export type MatchFixtureOpts = {
+  /** Toleranță oră FD↔OddsPortal. Default 18h; mai mare când FD are placeholder (ex. 17:00Z). */
+  maxDiffHours?: number;
+};
+
 export function matchFixtureToFootballData(
   fixture: OpFixture,
   fdMatch: FootballDataMatch,
+  opts?: MatchFixtureOpts,
 ): boolean {
   const homeOk =
     fixtureSideMatchesFdTeam(fixture.home, fdMatch.homeTeam) ||
@@ -73,11 +79,12 @@ export function matchFixtureToFootballData(
     fixtureSideMatchesFdTeam(fixture.home, fdMatch.awayTeam);
   if (!homeOk || !awayOk) return false;
 
+  const maxDiffHours = opts?.maxDiffHours ?? 18;
   const fdMs = parseFdMatchMs(fdMatch);
   const opMs = parseIsoMs(fixture.startDateIso);
   if (fdMs != null && opMs != null) {
     const diffH = Math.abs(fdMs - opMs) / 3_600_000;
-    if (diffH > 18) return false;
+    if (diffH > maxDiffHours) return false;
   }
   return true;
 }
@@ -85,6 +92,7 @@ export function matchFixtureToFootballData(
 export function mapFixturesToFootballDataMatches(
   fixtures: OpFixture[],
   fdMatches: FootballDataMatch[],
+  opts?: MatchFixtureOpts,
 ): Map<number, OpFixture> {
   const map = new Map<number, OpFixture>();
   const usedOp = new Set<string>();
@@ -93,7 +101,7 @@ export function mapFixturesToFootballDataMatches(
     let best: OpFixture | null = null;
     for (const fx of fixtures) {
       if (usedOp.has(fx.matchId)) continue;
-      if (matchFixtureToFootballData(fx, fd)) {
+      if (matchFixtureToFootballData(fx, fd, opts)) {
         best = fx;
         break;
       }

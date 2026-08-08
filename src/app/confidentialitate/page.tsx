@@ -1,6 +1,7 @@
 /* eslint-disable react/no-unescaped-entities -- pagină de conținut cu ghilimele/apostrofuri în text */
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { SiteFooter } from "@/components/site-footer";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
 import { pageTitle } from "@/lib/site-metadata";
 
@@ -321,11 +322,8 @@ export default async function PrivacyPolicyPage() {
             </Section>
           </>
         )}
-
-        <footer className="pt-4 border-t border-white/10">
-          <p className="text-xs text-white/30">© {new Date().getFullYear()} Liga Prono</p>
-        </footer>
       </div>
+      <SiteFooter variant="public" />
     </main>
   );
 }

@@ -517,4 +517,13 @@ export const ro: Messages = {
   "profile.delete.confirmHint": "Scrie exact STERGE pentru a confirma.",
   "profile.delete.confirmWord": "STERGE",
   "profile.delete.submit": "Șterge contul definitiv",
+  "footer.tagline":
+    "Pronosticuri cu prietenii, clasamente live și vibe de etapă — totul într-un singur loc.",
+  "footer.explore": "Explorează",
+  "footer.legal": "Legal",
+  "footer.contact": "Contact",
+  "footer.privacy": "Politica de confidențialitate",
+  "footer.getStarted": "Începe acum",
+  "footer.signIn": "Autentificare",
+  "footer.madeForFans": "Făcut pentru fanii de fotbal",
 };
