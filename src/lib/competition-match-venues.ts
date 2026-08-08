@@ -15,7 +15,7 @@ export type StoredMatchVenue = {
   utcDate: string | null;
 };
 
-const VENUE_SOURCE = "oddsportal";
+const VENUE_SOURCE = "oddsportal-v2";
 /** Re-scrape periodic — programul Superliga se actualizează des. */
 const DEFAULT_VENUE_TTL_MS = 6 * 60 * 60 * 1000;
 const SCHEDULE_MATCH_MAX_DIFF_HOURS = 14 * 24;
@@ -254,7 +254,8 @@ export async function ensureCompetitionMatchVenues(
   });
   const cached = existing?.venues ? parseVenueMap(existing.venues) : {};
   const hasCache = Object.keys(cached).length > 0;
-  const stale = isCacheStale(existing?.fetchedAt);
+  const stale =
+    isCacheStale(existing?.fetchedAt) || existing?.source !== VENUE_SOURCE;
   const weakCoverage = needsCoverageRefresh(cached, matches);
 
   if (hasCache && !stale && !weakCoverage) {

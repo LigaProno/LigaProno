@@ -39,6 +39,11 @@ const TEAM_NAME_STOPWORDS = new Set([
   "afc",
   "scf",
   "acs",
+  "fk",
+  "sf",
+  "osk",
+  "osf",
+  "univ",
   "club",
   "football",
   "fotbal",
@@ -46,6 +51,22 @@ const TEAM_NAME_STOPWORDS = new Set([
   "and",
   "de",
   "la",
+]);
+
+/** Tokeni geografici ambigui — nu sunt suficienți singuri pentru match. */
+const WEAK_GEO_TOKENS = new Set([
+  "bucuresti",
+  "bucharest",
+  "bukarest",
+  "cluj",
+  "constanta",
+  "ploiesti",
+  "galati",
+  "pitesti",
+  "arad",
+  "sibiu",
+  "gheorghe",
+  "sfantu",
 ]);
 
 function significantTokens(normalized: string): string[] {
@@ -64,10 +85,22 @@ function teamsMatch(a: string, b: string): boolean {
   const tb = new Set(significantTokens(nb));
   if (ta.size === 0 || tb.size === 0) return false;
   let overlap = 0;
-  for (const w of ta) if (tb.has(w)) overlap++;
+  const shared: string[] = [];
+  for (const w of ta) {
+    if (tb.has(w)) {
+      overlap++;
+      shared.push(w);
+    }
+  }
   const min = Math.min(ta.size, tb.size);
   // Cel puțin un token semnificativ comun, și acoperire completă pe partea mai scurtă.
   if (overlap >= min && min >= 1) return true;
+  // Club distinct (ex. craiova, sepsi) chiar dacă OP scurtează numele.
+  if (
+    shared.some((w) => w.length >= 5 && !WEAK_GEO_TOKENS.has(w))
+  ) {
+    return true;
+  }
   return false;
 }
 
