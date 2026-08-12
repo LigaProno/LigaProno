@@ -275,6 +275,14 @@ model EmailDispatchLog {
   @@unique([kind, key])
 }
 
+// Opțiuni de premii custom (adăugate din admin/moderator) — catalog global, pe lângă PRIZE_OPTIONS.
+model CustomPrizeOption {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  label     String   @unique
+  createdBy String?
+  createdAt DateTime @default(now())
+}
+
 // Badge câștigat la un turneu public. Snapshot: odată acordat nu se recalculează,
 // chiar dacă scorurile se schimbă ulterior (cotele se actualizează zilnic).
 model TournamentWin {

@@ -90,8 +90,10 @@ function compareRowsChronologically(a: MixedMatchPickerRow, b: MixedMatchPickerR
 
 export default function CreateMixedPublicTournamentForm({
   competitionPickerOptions,
+  savedCustomPrizes = [],
 }: {
   competitionPickerOptions: FootballDataCompetitionPickerOption[];
+  savedCustomPrizes?: string[];
 }) {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -105,7 +107,7 @@ export default function CreateMixedPublicTournamentForm({
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [prizeCount, setPrizeCount] = useState(0);
   const [prizeSelections, setPrizeSelections] = useState<string[]>([]);
-  const [customPrizes, setCustomPrizes] = useState<string[]>([]);
+  const [customPrizes, setCustomPrizes] = useState<string[]>(savedCustomPrizes);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -194,7 +196,6 @@ export default function CreateMixedPublicTournamentForm({
         setSelectedMatchIds(new Set());
         setPrizeCount(0);
         setPrizeSelections([]);
-        setCustomPrizes([]);
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Eroare necunoscută.");
@@ -388,9 +389,7 @@ export default function CreateMixedPublicTournamentForm({
           });
         }}
         customPrizes={customPrizes}
-        onAddCustomPrize={(prize) => {
-          setCustomPrizes((prev) => (prev.includes(prize) ? prev : [...prev, prize]));
-        }}
+        onCustomPrizesChange={setCustomPrizes}
       />
 
       {error && <p className="text-sm text-red-400">{error}</p>}

@@ -26,14 +26,21 @@ export default async function ModeratorPage({
   const createMode = create === "mix" ? "mix" : "classic";
 
   // Doar turneele create de acest cont (adminii folosesc /admin pentru overview global).
-  const publicTournaments = await prisma.tournament.findMany({
-    where: {
-      isPublic: true,
-      creatorId: user.id,
-    },
-    include: { _count: { select: { members: true } } },
-    orderBy: { createdAt: "asc" },
-  });
+  const [publicTournaments, savedCustomPrizes] = await Promise.all([
+    prisma.tournament.findMany({
+      where: {
+        isPublic: true,
+        creatorId: user.id,
+      },
+      include: { _count: { select: { members: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.customPrizeOption.findMany({
+      orderBy: { createdAt: "asc" },
+      select: { label: true },
+    }),
+  ]);
+  const customPrizeLabels = savedCustomPrizes.map((p) => p.label);
 
   return (
     <div className="w-full p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
@@ -181,9 +188,15 @@ export default async function ModeratorPage({
             </div>
 
             {createMode === "mix" ? (
-              <CreateMixedPublicTournamentForm competitionPickerOptions={COMPETITION_PICKER_OPTIONS} />
+              <CreateMixedPublicTournamentForm
+                competitionPickerOptions={COMPETITION_PICKER_OPTIONS}
+                savedCustomPrizes={customPrizeLabels}
+              />
             ) : (
-              <CreatePublicTournamentForm competitionPickerOptions={COMPETITION_PICKER_OPTIONS} />
+              <CreatePublicTournamentForm
+                competitionPickerOptions={COMPETITION_PICKER_OPTIONS}
+                savedCustomPrizes={customPrizeLabels}
+              />
             )}
           </aside>
         </div>

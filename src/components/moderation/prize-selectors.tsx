@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { PRIZE_OPTIONS, placeLabel } from "@/lib/tournament-prizes";
 import { darkOptionStyle, darkSelectStyle } from "@/components/moderation/dark-select-styles";
+import { addCustomPrizeOption } from "@/app/actions/admin";
 
 const MAX_PRIZE_PLACES = 10;
 
@@ -11,9 +12,9 @@ type PrizeSelectorsProps = {
   prizeSelections: string[];
   onPrizeCountChange: (count: number) => void;
   onPrizeChange: (index: number, value: string) => void;
-  /** Listă extra de premii custom adăugate în sesiune. */
+  /** Premii custom deja persistate (DB) + cele adăugate în sesiune. */
   customPrizes: string[];
-  onAddCustomPrize: (prize: string) => void;
+  onCustomPrizesChange: (prizes: string[]) => void;
 };
 
 export function PrizeSelectors({
@@ -22,19 +23,36 @@ export function PrizeSelectors({
   onPrizeCountChange,
   onPrizeChange,
   customPrizes,
-  onAddCustomPrize,
+  onCustomPrizesChange,
 }: PrizeSelectorsProps) {
   const [newPrizeDraft, setNewPrizeDraft] = useState("");
   const [showNewPrize, setShowNewPrize] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSaving, startSave] = useTransition();
 
-  const allOptions = [...PRIZE_OPTIONS, ...customPrizes.filter((p) => !(PRIZE_OPTIONS as readonly string[]).includes(p))];
+  const allOptions = [
+    ...PRIZE_OPTIONS,
+    ...customPrizes.filter((p) => !(PRIZE_OPTIONS as readonly string[]).includes(p)),
+  ];
 
   function submitNewPrize() {
     const trimmed = newPrizeDraft.trim();
     if (!trimmed) return;
-    onAddCustomPrize(trimmed);
-    setNewPrizeDraft("");
-    setShowNewPrize(false);
+    setSaveError(null);
+    startSave(async () => {
+      try {
+        const saved = await addCustomPrizeOption(trimmed);
+        onCustomPrizesChange(
+          customPrizes.some((p) => p.toLowerCase() === saved.toLowerCase())
+            ? customPrizes
+            : [...customPrizes, saved],
+        );
+        setNewPrizeDraft("");
+        setShowNewPrize(false);
+      } catch (err) {
+        setSaveError(err instanceof Error ? err.message : "Nu am putut salva premiul.");
+      }
+    });
   }
 
   return (
@@ -104,6 +122,7 @@ export function PrizeSelectors({
                 onChange={(e) => setNewPrizeDraft(e.target.value)}
                 placeholder="ex. Tricou personalizat"
                 maxLength={80}
+                disabled={isSaving}
                 className="w-full rounded-xl px-3 py-2.5 text-sm outline-none border"
                 style={{ backgroundColor: "rgba(255,255,255,0.03)", color: "#fff", borderColor: "rgba(255,255,255,0.12)" }}
               />
@@ -111,24 +130,30 @@ export function PrizeSelectors({
                 <button
                   type="button"
                   onClick={submitNewPrize}
-                  disabled={!newPrizeDraft.trim()}
+                  disabled={!newPrizeDraft.trim() || isSaving}
                   className="px-3 py-2 rounded-lg text-xs font-bold disabled:opacity-40 cursor-pointer"
                   style={{ backgroundColor: "#3B82F6", color: "#0A0B1E" }}
                 >
-                  Adaugă
+                  {isSaving ? "Se salvează…" : "Adaugă"}
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     setShowNewPrize(false);
                     setNewPrizeDraft("");
+                    setSaveError(null);
                   }}
+                  disabled={isSaving}
                   className="px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer"
                   style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)" }}
                 >
                   Anulează
                 </button>
               </div>
+              {saveError ? <p className="text-xs text-red-400">{saveError}</p> : null}
+              <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
+                Premiul se salvează în catalog și rămâne disponibil la turneele următoare.
+              </p>
             </div>
           )}
         </div>

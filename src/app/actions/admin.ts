@@ -220,3 +220,27 @@ export async function deletePublicTournament(tournamentId: string): Promise<void
   revalidatePath("/admin");
   revalidatePath("/turnee");
 }
+
+export async function addCustomPrizeOption(rawLabel: string): Promise<string> {
+  const user = await assertPublicTournamentManager();
+  const label = rawLabel.trim().slice(0, 80);
+  if (!label) throw new Error("Premiul nu poate fi gol.");
+
+  const rows = await prisma.customPrizeOption.findMany({ select: { label: true } });
+  const existing = rows.find((r) => r.label.toLowerCase() === label.toLowerCase());
+  if (existing) return existing.label;
+
+  try {
+    const created = await prisma.customPrizeOption.create({
+      data: { label, createdBy: user.email },
+    });
+    revalidatePath("/admin");
+    revalidatePath("/moderator");
+    return created.label;
+  } catch {
+    // Race pe unique: returnează varianta deja salvată.
+    const again = await prisma.customPrizeOption.findUnique({ where: { label } });
+    if (again) return again.label;
+    throw new Error("Nu am putut salva premiul.");
+  }
+}

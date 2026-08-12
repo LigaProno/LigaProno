@@ -29,14 +29,19 @@ export default async function AdminPage({
     tab === "support" ? "support" : tab === "private" ? "private" : "tournaments";
   const createMode = create === "mix" ? "mix" : "classic";
 
-  const [publicTournaments, openSupportCount] = await Promise.all([
+  const [publicTournaments, openSupportCount, savedCustomPrizes] = await Promise.all([
     prisma.tournament.findMany({
       where: { isPublic: true },
       include: { _count: { select: { members: true } } },
       orderBy: { createdAt: "asc" },
     }),
     prisma.supportMessage.count({ where: { status: "OPEN" } }),
+    prisma.customPrizeOption.findMany({
+      orderBy: { createdAt: "asc" },
+      select: { label: true },
+    }),
   ]);
+  const customPrizeLabels = savedCustomPrizes.map((p) => p.label);
 
   return (
     <div className="w-full p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
@@ -240,9 +245,15 @@ export default async function AdminPage({
               </div>
 
               {createMode === "mix" ? (
-                <CreateMixedPublicTournamentForm competitionPickerOptions={COMPETITION_PICKER_OPTIONS} />
+                <CreateMixedPublicTournamentForm
+                  competitionPickerOptions={COMPETITION_PICKER_OPTIONS}
+                  savedCustomPrizes={customPrizeLabels}
+                />
               ) : (
-                <CreatePublicTournamentForm competitionPickerOptions={COMPETITION_PICKER_OPTIONS} />
+                <CreatePublicTournamentForm
+                  competitionPickerOptions={COMPETITION_PICKER_OPTIONS}
+                  savedCustomPrizes={customPrizeLabels}
+                />
               )}
             </aside>
           </div>
