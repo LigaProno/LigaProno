@@ -30,6 +30,25 @@ function profileFromClerk(clerkUser: ClerkProfile) {
   };
 }
 
+type ProfileFields = ReturnType<typeof profileFromClerk>;
+
+function profileUnchanged(
+  user: {
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+    imageUrl: string | null;
+  },
+  data: ProfileFields,
+): boolean {
+  return (
+    user.email === data.email &&
+    user.firstName === data.firstName &&
+    user.lastName === data.lastName &&
+    user.imageUrl === data.imageUrl
+  );
+}
+
 function isUniqueConstraintError(error: unknown): boolean {
   return (
     typeof error === "object" &&
@@ -70,7 +89,10 @@ export async function syncClerkUser(clerkUser: ClerkProfile): Promise<string> {
     where: { clerkId: clerkUser.id },
   });
   if (existingByClerk) {
-    await prisma.user.update({ where: { clerkId: clerkUser.id }, data });
+    // Evită UPDATE pe fiecare navigare când profilul e deja la zi.
+    if (!profileUnchanged(existingByClerk, data)) {
+      await prisma.user.update({ where: { clerkId: clerkUser.id }, data });
+    }
     return data.email;
   }
 
@@ -123,10 +145,17 @@ export async function getOrSyncDbUser(): Promise<DbUser | null> {
   const clerkUser = await currentUser();
   if (!clerkUser) return null;
 
+  const byClerk = await prisma.user.findUnique({ where: { clerkId: clerkUser.id } });
+  if (byClerk) {
+    const data = profileFromClerk(clerkUser);
+    if (profileUnchanged(byClerk, data)) return byClerk;
+    return prisma.user.update({ where: { id: byClerk.id }, data });
+  }
+
   await syncClerkUserSafe(clerkUser);
 
-  const byClerk = await prisma.user.findUnique({ where: { clerkId: clerkUser.id } });
-  if (byClerk) return byClerk;
+  const linked = await prisma.user.findUnique({ where: { clerkId: clerkUser.id } });
+  if (linked) return linked;
 
   const email = resolveEmail(clerkUser);
   return prisma.user.findUnique({ where: { email } });

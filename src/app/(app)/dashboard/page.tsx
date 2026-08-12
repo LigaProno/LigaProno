@@ -1,5 +1,9 @@
 import DashboardHome from "@/components/dashboard/dashboard-home";
 import { getTodayDashboardNews } from "@/lib/wc-dashboard-news";
+import {
+  parseDashboardNewsLeague,
+  type DashboardNewsLeagueId,
+} from "@/lib/dashboard-news-leagues";
 import { pageTitle } from "@/lib/site-metadata";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -7,7 +11,28 @@ import { getOrSyncDbUser } from "@/lib/sync-clerk-user";
 
 export const metadata = pageTitle("Acasă");
 
-export const dynamic = "force-dynamic";
+async function DashboardNewsBody({ league }: { league?: string }) {
+  const { items, fetchedAt, dateKey, leagueId } = await getTodayDashboardNews(league);
+  return (
+    <DashboardHome
+      news={items}
+      newsFetchedAt={fetchedAt}
+      newsDateKey={dateKey}
+      leagueId={leagueId}
+    />
+  );
+}
+
+function DashboardShellFallback({ leagueId }: { leagueId: DashboardNewsLeagueId }) {
+  return (
+    <DashboardHome
+      news={[]}
+      newsFetchedAt={null}
+      newsDateKey=""
+      leagueId={leagueId}
+    />
+  );
+}
 
 export default async function DashboardPage({
   searchParams,
@@ -20,16 +45,11 @@ export default async function DashboardPage({
   }
 
   const { league } = await searchParams;
-  const { items, fetchedAt, dateKey, leagueId } = await getTodayDashboardNews(league);
+  const leagueId = parseDashboardNewsLeague(league);
 
   return (
-    <Suspense fallback={null}>
-      <DashboardHome
-        news={items}
-        newsFetchedAt={fetchedAt}
-        newsDateKey={dateKey}
-        leagueId={leagueId}
-      />
+    <Suspense fallback={<DashboardShellFallback leagueId={leagueId} />}>
+      <DashboardNewsBody league={league} />
     </Suspense>
   );
 }

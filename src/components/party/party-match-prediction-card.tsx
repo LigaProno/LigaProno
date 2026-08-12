@@ -16,6 +16,7 @@ import { computeMatchPoints } from "@/lib/wc-scoring";
 import { PotentialPoints } from "@/components/party/potential-points";
 import { MatchInsightsModal } from "@/components/party/match-insights-modal";
 import { formatTeamDisplayName } from "@/lib/team-display";
+import { isMatchSettled, matchStatusBadge } from "@/lib/match-status";
 import {
   WC_BORDER,
   WC_CARD_GRADIENT,
@@ -166,7 +167,8 @@ export function PartyMatchPredictionCard({
   const awayGoalsRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
   const [insightsOpen, setInsightsOpen] = useState(false);
-  const finished = m.status === "FINISHED";
+  const finished = isMatchSettled(m);
+  const statusBadge = matchStatusBadge(m);
   const formLocked = finished || predictionLockedReason != null;
 
   useEffect(() => {
@@ -277,17 +279,37 @@ export function PartyMatchPredictionCard({
               </div>
             : (
               <>
-                <span
-                  className="text-[11px] sm:text-xs font-semibold leading-snug line-clamp-3 px-1"
-                  style={{ color: "#67E8F9" }}
-                >
-                  {venue ?? "Stadion de confirmat"}
-                </span>
+                {statusBadge?.tone === "postponed" || statusBadge?.tone === "cancelled" ? (
+                  <span
+                    className="text-[11px] sm:text-xs font-bold uppercase tracking-wide px-2 py-1 rounded-md mb-1"
+                    style={{
+                      backgroundColor:
+                        statusBadge.tone === "postponed"
+                          ? "rgba(251,191,36,0.15)"
+                          : "rgba(255,255,255,0.08)",
+                      color:
+                        statusBadge.tone === "postponed" ? "#FBBF24" : "rgba(255,255,255,0.55)",
+                    }}
+                  >
+                    {statusBadge.label}
+                  </span>
+                ) : (
+                  <span
+                    className="text-[11px] sm:text-xs font-semibold leading-snug line-clamp-3 px-1"
+                    style={{ color: "#67E8F9" }}
+                  >
+                    {venue ?? "Stadion de confirmat"}
+                  </span>
+                )}
                 <span
                   className="text-[10px] mt-2 font-medium tabular-nums"
                   style={{ color: WC_LIME }}
                 >
-                  {when} · ora României
+                  {statusBadge?.tone === "postponed"
+                    ? "Dată de confirmat"
+                    : statusBadge?.tone === "cancelled"
+                      ? "Nu se mai joacă"
+                      : `${when} · ora României`}
                 </span>
               </>
             )}

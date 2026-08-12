@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import {
-  fetchCompetitionMatchesFresh,
+  fetchCompetitionMatches,
   fetchPartyStandings,
   partitionFootballDataMatches,
   sortKnockoutStageLabels,
@@ -23,7 +23,6 @@ export const metadata = publicPage(
   "Program complet de meciuri, rezultate live și clasamente pe grupe — Premier League, La Liga, Serie A, Bundesliga, Ligue 1 și Cupa Mondială.",
   "/matches",
 );
-export const dynamic = "force-dynamic";
 
 export default async function MatchesPage({
   searchParams,
@@ -43,25 +42,24 @@ export default async function MatchesPage({
   let loadError: string | null = null;
 
   try {
-    matches = await fetchCompetitionMatchesFresh(selectedComp.code, selectedComp.season);
+    // Cache HTTP (revalidate) în loc de no-store pe fiecare vizită.
+    matches = await fetchCompetitionMatches(selectedComp.code, selectedComp.season);
     const { loadMatchesWithCompetitionVenues } = await import(
       "@/lib/competition-match-venues"
     );
-    matches = await loadMatchesWithCompetitionVenues(
-      selectedComp.storageKey,
-      matches,
-    );
+    const [withVenues, nextStandings] = await Promise.all([
+      loadMatchesWithCompetitionVenues(selectedComp.storageKey, matches, {
+        cacheOnly: true,
+      }),
+      fetchPartyStandings(selectedComp.code, selectedComp.season, matches).catch(
+        () => [] as GroupStanding[],
+      ),
+    ]);
+    matches = withVenues;
+    standings = nextStandings;
   } catch (e) {
     loadError =
       e instanceof Error ? e.message : t("matches.loadErrorDefault");
-  }
-
-  if (!loadError) {
-    try {
-      standings = await fetchPartyStandings(selectedComp.code, selectedComp.season, matches);
-    } catch {
-      standings = [];
-    }
   }
 
   const { groups, knockoutByStageLabel } =

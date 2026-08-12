@@ -236,10 +236,12 @@ async function scrapeAndPersistVenues(
 /**
  * Încarcă stadion + oră din DB; dacă lipsește / e stale / acoperire slabă,
  * scrape OddsPortal și persistă pentru toată competiția.
+ * `cacheOnly: true` — doar citire DB (path interactiv; scrape rămâne pe cron).
  */
 export async function ensureCompetitionMatchVenues(
   competition: string,
   matches: FootballDataMatch[],
+  options?: { cacheOnly?: boolean },
 ): Promise<Record<string, StoredMatchVenue>> {
   if (matches.length === 0) return {};
 
@@ -254,6 +256,11 @@ export async function ensureCompetitionMatchVenues(
   });
   const cached = existing?.venues ? parseVenueMap(existing.venues) : {};
   const hasCache = Object.keys(cached).length > 0;
+
+  if (options?.cacheOnly) {
+    return cached;
+  }
+
   const stale =
     isCacheStale(existing?.fetchedAt) || existing?.source !== VENUE_SOURCE;
   const weakCoverage = needsCoverageRefresh(cached, matches);
@@ -282,8 +289,13 @@ export async function ensureCompetitionMatchVenues(
 export async function loadMatchesWithCompetitionVenues(
   competition: string,
   matches: FootballDataMatch[],
+  options?: { cacheOnly?: boolean },
 ): Promise<FootballDataMatch[]> {
-  const venueMap = await ensureCompetitionMatchVenues(competition, matches);
+  const venueMap = await ensureCompetitionMatchVenues(
+    competition,
+    matches,
+    options,
+  );
   const withVenues = sortMatchesByKickoff(
     applyCompetitionVenuesToMatches(matches, venueMap),
   );
@@ -293,7 +305,7 @@ export async function loadMatchesWithCompetitionVenues(
       "@/lib/competition-match-scores"
     );
     return sortMatchesByKickoff(
-      await loadMatchesWithScoreOverrides(competition, withVenues),
+      await loadMatchesWithScoreOverrides(competition, withVenues, options),
     );
   } catch (error) {
     console.error(

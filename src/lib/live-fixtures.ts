@@ -5,6 +5,10 @@ import {
 import { parseStoredCompetition } from "@/lib/competition";
 import { formatTeamDisplayName } from "@/lib/team-display";
 import { filterMatchesForTournament } from "@/lib/wc-pred-display";
+import {
+  resolveTournamentCompetitionKeys,
+  type TournamentCompetitionFields,
+} from "@/lib/tournament-matches";
 
 export type LiveFixture = {
   matchId: number;
@@ -16,12 +20,6 @@ export type LiveFixture = {
   awayScore: number;
   /** IN_PLAY = live, PAUSED = pauză. */
   status: "IN_PLAY" | "PAUSED";
-};
-
-type TournamentWindow = {
-  competition: string | null;
-  startMatchday: number | null;
-  endMatchday: number | null;
 };
 
 function toFixture(m: FootballDataMatch): LiveFixture {
@@ -43,17 +41,25 @@ function toFixture(m: FootballDataMatch): LiveFixture {
  * Gol dacă turneul n-are competiție, dacă API-ul pică sau dacă nu e nimic live.
  */
 export async function loadTournamentLiveFixtures(
-  tournament: TournamentWindow,
+  tournament: TournamentCompetitionFields,
 ): Promise<LiveFixture[]> {
-  const parsed = parseStoredCompetition(tournament.competition);
-  if (!parsed) return [];
+  const keys = resolveTournamentCompetitionKeys(tournament);
+  if (keys.length === 0) return [];
 
-  let live: FootballDataMatch[] = [];
-  try {
-    live = await fetchCompetitionLiveMatches(parsed.code, parsed.season);
-  } catch {
-    return []; // API indisponibil — pur și simplu nu arătăm banner-ul
-  }
+  const liveBatches = await Promise.all(
+    keys.map(async (key) => {
+      const parsed = parseStoredCompetition(key);
+      if (!parsed) return [] as FootballDataMatch[];
+      try {
+        return await fetchCompetitionLiveMatches(parsed.code, parsed.season);
+      } catch {
+        return [];
+      }
+    }),
+  );
+
+  const live = liveBatches.flat();
+  if (live.length === 0) return [];
 
   const inWindow = filterMatchesForTournament(live, tournament);
   return inWindow

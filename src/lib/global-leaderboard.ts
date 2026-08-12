@@ -6,6 +6,7 @@ import {
 import { loadCompetitionOddsSnapshot } from "@/lib/competition-odds";
 import {
   filterUsableMatchOdds,
+  mergeBettingPayloads,
   payloadToOddsMaps,
   type BettingOddsPayload,
   type TournamentOddsMaps,
@@ -27,12 +28,17 @@ import {
   lastFinishedAndNextThree,
   matchResultHtFt,
   type MatchPredDisplay,
+  type TournamentMatchFilterFields,
 } from "@/lib/wc-pred-display";
 import {
   computeMatchPoints,
   computeUserWcTotals,
   type MatchPredictionInput,
 } from "@/lib/wc-scoring";
+import {
+  primaryTournamentCompetition,
+  resolveTournamentCompetitionKeys,
+} from "@/lib/tournament-matches";
 
 export type GlobalLeaderboardLastMatch = {
   matchId: number;
@@ -150,7 +156,7 @@ function scoreUser(
   tournamentName: string,
   competitionCtx: CompetitionScoringContext,
   memberData: TournamentMemberData,
-  tournamentMatchdayFields: { startMatchday: number | null; endMatchday: number | null },
+  tournamentMatchdayFields: TournamentMatchFilterFields,
 ): Pick<
   GlobalLeaderboardRow,
   | "bestTournamentId"
@@ -182,7 +188,7 @@ function buildLastMatch(
   userId: string,
   memberData: TournamentMemberData,
   competitionCtx: CompetitionScoringContext,
-  tournamentMatchdayFields: { startMatchday: number | null; endMatchday: number | null },
+  tournamentMatchdayFields: TournamentMatchFilterFields,
 ): GlobalLeaderboardLastMatch | null {
   const tournamentMatches = filterMatchesForTournament(
     competitionCtx.matches,
@@ -198,6 +204,36 @@ function buildLastMatch(
     pred: getMatchPredDisplay(pmap.get(lastFinished.id) ?? null),
     actualHt: lastScores?.ht ?? null,
     actualFt: lastScores?.ft ?? null,
+  };
+}
+
+function mergeCompetitionContexts(
+  keys: string[],
+  competitionCtxByKey: Map<string, CompetitionScoringContext>,
+  oddsByCompetition: Map<string, BettingOddsPayload | null>,
+): CompetitionScoringContext | null {
+  if (keys.length === 0) return null;
+  if (keys.length === 1) return competitionCtxByKey.get(keys[0]) ?? null;
+
+  const byId = new Map<number, FootballDataMatch>();
+  let mergedPayload: BettingOddsPayload | null = null;
+  for (const key of keys) {
+    const ctx = competitionCtxByKey.get(key);
+    if (ctx) {
+      for (const m of ctx.matches) byId.set(m.id, m);
+    }
+    const payload = oddsByCompetition.get(key) ?? null;
+    if (payload) {
+      mergedPayload = mergedPayload
+        ? mergeBettingPayloads(mergedPayload, payload)
+        : payload;
+    }
+  }
+  if (byId.size === 0) return null;
+  const oddsMaps = payloadToOddsMaps(mergedPayload);
+  return {
+    matches: [...byId.values()],
+    oddsMaps: oddsMaps ?? undefined,
   };
 }
 
@@ -275,16 +311,14 @@ export async function refreshAllScores(): Promise<{
   newlyClosedTournamentIds: string[];
 }> {
   const tournaments = await prisma.tournament.findMany({
-    where: { competition: { not: null } },
     include: { members: true },
   });
+  const activeTournaments = tournaments.filter(
+    (t) => resolveTournamentCompetitionKeys(t).length > 0,
+  );
 
   const competitions = [
-    ...new Set(
-      tournaments
-        .map((t) => t.competition)
-        .filter((c): c is string => typeof c === "string" && c.length > 0),
-    ),
+    ...new Set(activeTournaments.flatMap((t) => resolveTournamentCompetitionKeys(t))),
   ];
   const oddsByCompetition = await loadCompetitionOddsPayloadMap(competitions);
 
@@ -306,10 +340,13 @@ export async function refreshAllScores(): Promise<{
   let badgesAwarded = 0;
   const newlyClosedTournamentIds: string[] = [];
 
-  for (const tournament of tournaments) {
-    if (!tournament.competition) continue;
-
-    const competitionCtx = competitionCtxByKey.get(tournament.competition);
+  for (const tournament of activeTournaments) {
+    const keys = resolveTournamentCompetitionKeys(tournament);
+    const competitionCtx = mergeCompetitionContexts(
+      keys,
+      competitionCtxByKey,
+      oddsByCompetition,
+    );
     if (!competitionCtx) { errors++; continue; }
 
     let memberData: TournamentMemberData;
@@ -344,7 +381,6 @@ export async function refreshAllScores(): Promise<{
       }),
     );
 
-    // Scorurile tocmai s-au scris, deci `cachedTotal` reflectă clasamentul final.
     try {
       const { awarded, justClosed } = await awardTournamentWinIfComplete(
         tournament,
@@ -358,11 +394,10 @@ export async function refreshAllScores(): Promise<{
     }
   }
 
-  // Badge-ul de șiruri: calculat aici (o dată), citit ieftin de clasamente din User.cachedBestStreak.
   try {
     const publicMemberIds = [
       ...new Set(
-        tournaments
+        activeTournaments
           .filter((t) => t.isPublic)
           .flatMap((t) => t.members.map((m) => m.userId)),
       ),
@@ -390,7 +425,6 @@ export async function loadGlobalMemberPredictions(memberUserId: string): Promise
 } | null> {
   const tournaments = await prisma.tournament.findMany({
     where: {
-      competition: { not: null },
       members: { some: { userId: memberUserId } },
     },
     include: {
@@ -403,14 +437,13 @@ export async function loadGlobalMemberPredictions(memberUserId: string): Promise
     },
   });
 
-  if (tournaments.length === 0) return null;
+  const withCompetition = tournaments.filter(
+    (t) => resolveTournamentCompetitionKeys(t).length > 0,
+  );
+  if (withCompetition.length === 0) return null;
 
   const competitions = [
-    ...new Set(
-      tournaments
-        .map((t) => t.competition)
-        .filter((c): c is string => typeof c === "string" && c.length > 0),
-    ),
+    ...new Set(withCompetition.flatMap((t) => resolveTournamentCompetitionKeys(t))),
   ];
   const oddsByCompetition = await loadCompetitionOddsPayloadMap(competitions);
 
@@ -433,15 +466,19 @@ export async function loadGlobalMemberPredictions(memberUserId: string): Promise
     total: number;
     memberData: TournamentMemberData;
     competitionCtx: CompetitionScoringContext;
-    tournamentMatchdayFields: { startMatchday: number | null; endMatchday: number | null };
+    tournamentMatchdayFields: TournamentMatchFilterFields;
   } | null = null;
 
-  for (const tournament of tournaments) {
-    if (!tournament.competition) continue;
+  for (const tournament of withCompetition) {
     const member = tournament.members[0];
     if (!member) continue;
 
-    const competitionCtx = competitionCtxByKey.get(tournament.competition);
+    const keys = resolveTournamentCompetitionKeys(tournament);
+    const competitionCtx = mergeCompetitionContexts(
+      keys,
+      competitionCtxByKey,
+      oddsByCompetition,
+    );
     if (!competitionCtx) continue;
 
     const memberData = await loadTournamentMemberData(tournament.id);
@@ -459,7 +496,7 @@ export async function loadGlobalMemberPredictions(memberUserId: string): Promise
         tournamentId: tournament.id,
         tournamentName: tournament.name,
         memberDisplayName: displayName(member.user.firstName, member.user.lastName),
-        competition: tournament.competition,
+        competition: primaryTournamentCompetition(tournament) ?? keys[0],
         total: score.total,
         memberData,
         competitionCtx,
@@ -517,7 +554,6 @@ export async function loadGlobalMemberPredictions(memberUserId: string): Promise
 
 export async function buildGlobalLeaderboard(): Promise<GlobalLeaderboardResult> {
   const tournaments = await prisma.tournament.findMany({
-    where: { competition: { not: null } },
     include: {
       members: {
         include: {
@@ -526,13 +562,12 @@ export async function buildGlobalLeaderboard(): Promise<GlobalLeaderboardResult>
       },
     },
   });
+  const activeTournaments = tournaments.filter(
+    (t) => resolveTournamentCompetitionKeys(t).length > 0,
+  );
 
   const competitions = [
-    ...new Set(
-      tournaments
-        .map((t) => t.competition)
-        .filter((c): c is string => typeof c === "string" && c.length > 0),
-    ),
+    ...new Set(activeTournaments.flatMap((t) => resolveTournamentCompetitionKeys(t))),
   ];
   const oddsByCompetition = await loadCompetitionOddsPayloadMap(competitions);
 
@@ -550,14 +585,18 @@ export async function buildGlobalLeaderboard(): Promise<GlobalLeaderboardResult>
   const bestByUser = new Map<string, GlobalLeaderboardRow>();
   const memberDataByTournament = new Map<string, TournamentMemberData>();
 
-  for (const tournament of tournaments) {
-    if (!tournament.competition) continue;
-
-    const competitionCtx = competitionCtxByKey.get(tournament.competition);
+  for (const tournament of activeTournaments) {
+    const keys = resolveTournamentCompetitionKeys(tournament);
+    const competitionCtx = mergeCompetitionContexts(
+      keys,
+      competitionCtxByKey,
+      oddsByCompetition,
+    );
     if (!competitionCtx) continue;
 
     const memberData = await loadTournamentMemberData(tournament.id);
     memberDataByTournament.set(tournament.id, memberData);
+    const competitionLabel = primaryTournamentCompetition(tournament) ?? keys[0];
 
     for (const member of tournament.members) {
       const score = scoreUser(
@@ -574,9 +613,9 @@ export async function buildGlobalLeaderboard(): Promise<GlobalLeaderboardResult>
         rank: 0,
         userId: member.userId,
         displayName: name,
-        wins: [], // completat după deduplicare, într-o singură interogare
+        wins: [],
         bestStreak: member.user.cachedBestStreak,
-        bestTournamentCompetition: tournament.competition,
+        bestTournamentCompetition: competitionLabel,
         lastMatch,
         ...score,
       };

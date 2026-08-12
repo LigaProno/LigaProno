@@ -8,7 +8,6 @@ import {
 } from "@/lib/dashboard-news-leagues";
 import {
   fetchLeagueNewsViaScraper,
-  WC_NEWS_SCRAPER_SOURCE,
 } from "@/lib/wc-news-scraper";
 
 export type { WcNewsItem };
@@ -79,11 +78,6 @@ export type DashboardNewsResult = {
   fromCache: boolean;
 };
 
-function isStaleNewsSnapshot(geminiModel: string | null | undefined): boolean {
-  const source = geminiModel?.trim() ?? "";
-  return source !== WC_NEWS_SCRAPER_SOURCE;
-}
-
 /** Încarcă știrile pentru campionatul selectat. */
 export async function getTodayDashboardNews(
   leagueInput?: string | null,
@@ -98,8 +92,9 @@ export async function getTodayDashboardNews(
 
   if (existing) {
     const cached = parseItems(existing.items);
-    const stale = isStaleNewsSnapshot(existing.geminiModel);
-    if (!stale && (cached.length > 0 || !REFRESH_ON_DASHBOARD_LOAD)) {
+    // Pe path-ul dashboard nu scrapăm RSS — cronul reîmprospătează.
+    // Returnăm orice cache util, chiar dacă sursa e veche.
+    if (cached.length > 0 || !REFRESH_ON_DASHBOARD_LOAD) {
       return {
         items: cached,
         fetchedAt: existing.fetchedAt,
@@ -108,11 +103,21 @@ export async function getTodayDashboardNews(
         fromCache: true,
       };
     }
-    if (stale) {
-      console.info(
-        `getTodayDashboardNews(${leagueId}): snapshot vechi — reîmprospătare RSS`,
-      );
-    }
+  }
+
+  if (!REFRESH_ON_DASHBOARD_LOAD) {
+    const latest = await prisma.dashboardNewsSnapshot.findFirst({
+      where: { dateKey: { startsWith: `${leagueId}:` } },
+      orderBy: { fetchedAt: "desc" },
+    });
+    const fallback = latest ? parseItems(latest.items) : [];
+    return {
+      items: fallback,
+      fetchedAt: latest?.fetchedAt ?? null,
+      dateKey: latest?.dateKey.split(":")[1] ?? dateKey,
+      leagueId,
+      fromCache: true,
+    };
   }
 
   try {

@@ -1,11 +1,16 @@
-import { fetchCompetitionMatches, type FootballDataMatch } from "@/lib/football-data";
-import { parseStoredCompetition } from "@/lib/competition";
+import type { FootballDataMatch } from "@/lib/football-data";
 import { prisma } from "@/lib/prisma";
 import { filterMatchesForTournament } from "@/lib/wc-pred-display";
 import { computeMatchPredictionHits, type MatchPredictionInput } from "@/lib/wc-scoring";
+import {
+  loadTournamentMatches,
+  resolveTournamentCompetitionKeys,
+} from "@/lib/tournament-matches";
+
+import { isMatchSettled } from "@/lib/match-status";
 
 function isSettled(m: FootballDataMatch): boolean {
-  return m.status === "FINISHED" || m.status === "AWARDED";
+  return isMatchSettled(m);
 }
 
 /** Sub acest prag nu arătăm badge. */
@@ -27,19 +32,28 @@ export async function loadStreakBadgesByUser(
   if (userIds.length === 0) return best;
 
   const publicTournaments = await prisma.tournament.findMany({
-    where: { isPublic: true, competition: { not: null } },
-    select: { id: true, competition: true, startMatchday: true, endMatchday: true },
+    where: { isPublic: true },
+    select: {
+      id: true,
+      competition: true,
+      competitions: true,
+      selectedMatchIds: true,
+      startMatchday: true,
+      endMatchday: true,
+    },
   });
-  if (publicTournaments.length === 0) return best;
+  const withCompetition = publicTournaments.filter(
+    (t) => resolveTournamentCompetitionKeys(t).length > 0,
+  );
+  if (withCompetition.length === 0) return best;
 
   const preds = await prisma.wcMatchPrediction.findMany({
     where: {
-      tournamentId: { in: publicTournaments.map((t) => t.id) },
+      tournamentId: { in: withCompetition.map((t) => t.id) },
       userId: { in: userIds },
     },
   });
 
-  // tournamentId → userId → matchId → pred
   const byTournamentUser = new Map<string, Map<string, Map<number, MatchPredictionInput>>>();
   for (const p of preds) {
     let byUser = byTournamentUser.get(p.tournamentId);
@@ -60,25 +74,9 @@ export async function loadStreakBadgesByUser(
     });
   }
 
-  // Meciuri per competiție (cache partajat), o singură dată per competiție.
-  const matchesByCompetition = new Map<string, FootballDataMatch[]>();
-  for (const t of publicTournaments) {
-    if (!t.competition || matchesByCompetition.has(t.competition)) continue;
-    const parsed = parseStoredCompetition(t.competition);
-    if (!parsed) continue;
-    try {
-      matchesByCompetition.set(
-        t.competition,
-        await fetchCompetitionMatches(parsed.code, parsed.season),
-      );
-    } catch {
-      matchesByCompetition.set(t.competition, []);
-    }
-  }
-
-  for (const t of publicTournaments) {
-    if (!t.competition) continue;
-    const settled = filterMatchesForTournament(matchesByCompetition.get(t.competition) ?? [], t)
+  for (const t of withCompetition) {
+    const { matches } = await loadTournamentMatches(t, { cacheOnly: true });
+    const settled = filterMatchesForTournament(matches, t)
       .filter(isSettled)
       .sort((a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate));
     if (settled.length === 0) continue;

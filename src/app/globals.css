@@ -154,6 +154,35 @@ button:disabled { cursor: not-allowed; }
 }
 .page-transition { animation: pageEnter 0.2s ease-out both; }
 
+/* Route / nav loading — no fade-in (prevents glitch on overlay ↔ RSC swap) */
+@keyframes pageLoadingSpin {
+  to { transform: rotate(360deg); }
+}
+.page-loading {
+  width: 100%;
+}
+.page-loading-spinner {
+  animation: pageLoadingSpin 0.85s linear infinite;
+}
+
+/* Covers the main pane only (sidebar stays). md sidebar = w-56 = 14rem */
+.nav-loading-overlay {
+  position: fixed;
+  z-index: 40;
+  inset: 3.5rem 0 0 0; /* below mobile top bar */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #0A0B1E;
+  transition: opacity 0.16s ease-out;
+  pointer-events: all;
+}
+@media (min-width: 768px) {
+  .nav-loading-overlay {
+    inset: 0 0 0 14rem; /* right of desktop sidebar */
+  }
+}
+
 /* ── Auth pages (sign-in / sign-up) — same base as dashboard app shell ── */
 .auth-page {
   background-color: #0A0B1E;

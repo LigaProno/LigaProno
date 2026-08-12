@@ -4,6 +4,7 @@ import type { FootballDataMatch } from "@/lib/football-data";
 import { formatTeamDisplayName } from "@/lib/team-display";
 import { formatMatchKickoff } from "@/lib/match-datetime";
 import { getMatchScoreAfter90 } from "@/lib/match-score";
+import { isMatchSettled, matchStatusBadge } from "@/lib/match-status";
 
 export function MatchdayFixturesBar({
   matches,
@@ -26,11 +27,12 @@ export function MatchdayFixturesBar({
       </p>
       <div className="flex flex-col gap-1.5">
         {matches.map((m) => {
-          const finished = m.status === "FINISHED" || m.status === "AWARDED";
+          const finished = isMatchSettled(m);
           const score = finished ? getMatchScoreAfter90(m) : null;
           const home = formatTeamDisplayName(m.homeTeam);
           const away = formatTeamDisplayName(m.awayTeam);
           const active = activeMatchId === m.id;
+          const badge = matchStatusBadge(m);
 
           return (
             <button
@@ -44,7 +46,9 @@ export function MatchdayFixturesBar({
               }}
             >
               <span className="text-[10px] tabular-nums shrink-0 w-12 text-white/35">
-                {formatMatchKickoff(m.utcDate).split(" ")[1] ?? "—"}
+                {badge?.tone === "postponed" || badge?.tone === "cancelled"
+                  ? "—"
+                  : (formatMatchKickoff(m.utcDate).split(" ")[1] ?? "—")}
               </span>
               <span className="flex-1 min-w-0 text-xs sm:text-sm truncate">
                 <span className="font-semibold text-white/90">{home}</span>
@@ -55,8 +59,18 @@ export function MatchdayFixturesBar({
                 <span className="text-xs font-bold tabular-nums text-[#C5A059] shrink-0">
                   {score.home}:{score.away}
                 </span>
-              : m.status === "IN_PLAY" || m.status === "PAUSED" ?
-                <span className="text-[10px] font-bold text-red-400 shrink-0">LIVE</span>
+              : badge ?
+                <span
+                  className="text-[10px] font-bold shrink-0"
+                  style={{
+                    color:
+                      badge.tone === "live" ? "#f87171"
+                      : badge.tone === "postponed" ? "#FBBF24"
+                      : "rgba(255,255,255,0.45)",
+                  }}
+                >
+                  {badge.label}
+                </span>
               : null}
             </button>
           );

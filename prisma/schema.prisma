@@ -40,6 +40,10 @@ model Tournament {
   creator              User                 @relation("CreatedTournaments", fields: [creatorId], references: [id])
   members              TournamentMember[]
   competition          String?
+  // Mix / multi-campionat: chei COD_an din care se fetch-uiesc meciurile. Gol = folosește `competition`.
+  competitions         String[]
+  // Selecție manuală de meciuri (ID-uri Football-Data). Gol = filtrare pe fereastră matchday / sezon.
+  selectedMatchIds     Int[]
   // Gameweek window: null = whole tournament. Set at creation time from current matchday.
   startMatchday        Int?
   endMatchday          Int?

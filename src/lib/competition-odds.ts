@@ -53,8 +53,20 @@ export async function loadCompetitionOddsSnapshot(
   });
 
   const shared = parseBettingOddsPayload(row?.payload ?? null);
-  const legacy = await bestLegacyTournamentOddsPayload(competition);
 
+  // Snapshot-ul partajat e suficient pe path-ul interactiv — nu mai scanăm
+  // toate turneele legacy la fiecare încărcare de pagină.
+  if (shared && payloadMatchCount(shared) > 0) {
+    return {
+      competition,
+      payload: fillEstimatedQualifyOdds(shared),
+      fetchedAt: row?.fetchedAt ?? null,
+      lastManualRefreshAt: row?.lastManualRefreshAt ?? null,
+      oddsSource: row?.oddsSource ?? null,
+    };
+  }
+
+  const legacy = await bestLegacyTournamentOddsPayload(competition);
   const merged =
     shared && legacy ?
       mergeBettingPayloads(shared, legacy)
@@ -67,5 +79,51 @@ export async function loadCompetitionOddsSnapshot(
     fetchedAt: row?.fetchedAt ?? null,
     lastManualRefreshAt: row?.lastManualRefreshAt ?? null,
     oddsSource: row?.oddsSource ?? null,
+  };
+}
+
+/**
+ * Încarcă și unește snapshot-urile de cote pentru una sau mai multe competiții
+ * (turnee mix). `lastManualRefreshAt` = cel mai recent dintre chei.
+ */
+export async function loadTournamentOddsSnapshot(
+  competitionKeys: string[],
+): Promise<CompetitionOddsSnapshot | null> {
+  const keys = [...new Set(competitionKeys.map((k) => k.trim()).filter(Boolean))];
+  if (keys.length === 0) return null;
+  if (keys.length === 1) {
+    return loadCompetitionOddsSnapshot(keys[0]);
+  }
+
+  const snapshots = await Promise.all(keys.map((k) => loadCompetitionOddsSnapshot(k)));
+  let mergedPayload: BettingOddsPayload | null = null;
+  let fetchedAt: Date | null = null;
+  let lastManualRefreshAt: Date | null = null;
+  let oddsSource: string | null = null;
+
+  for (const snap of snapshots) {
+    if (snap.payload) {
+      mergedPayload = mergedPayload
+        ? mergeBettingPayloads(mergedPayload, snap.payload)
+        : snap.payload;
+    }
+    if (snap.fetchedAt && (!fetchedAt || snap.fetchedAt > fetchedAt)) {
+      fetchedAt = snap.fetchedAt;
+    }
+    if (
+      snap.lastManualRefreshAt &&
+      (!lastManualRefreshAt || snap.lastManualRefreshAt > lastManualRefreshAt)
+    ) {
+      lastManualRefreshAt = snap.lastManualRefreshAt;
+    }
+    if (!oddsSource && snap.oddsSource) oddsSource = snap.oddsSource;
+  }
+
+  return {
+    competition: keys.join("+"),
+    payload: mergedPayload ? fillEstimatedQualifyOdds(mergedPayload) : null,
+    fetchedAt,
+    lastManualRefreshAt,
+    oddsSource,
   };
 }

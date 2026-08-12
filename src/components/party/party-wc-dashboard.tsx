@@ -17,6 +17,7 @@ import {
 import { useLocale } from "@/components/i18n/locale-provider";
 import { formatCaughtError } from "@/lib/i18n/errors";
 import { getMatchPredictionLockReason } from "@/lib/knockout-predictions";
+import { isMatchSettled } from "@/lib/match-status";
 import {
   PartyMatchPredictionCard,
   predFromSaved,
@@ -185,7 +186,7 @@ export default function PartyWcDashboard({
 
   const firstUnfinishedMatchday = useMemo(() => {
     for (const block of matchdayBlocks) {
-      if (block.matches.some((m) => m.status !== "FINISHED" && m.status !== "AWARDED")) {
+      if (block.matches.some((m) => !isMatchSettled(m) && m.status !== "CANCELLED")) {
         return block.matchday;
       }
     }
@@ -238,7 +239,7 @@ export default function PartyWcDashboard({
     startTransition(async () => {
       try {
         const toSave = selectedMatchdayMatches.filter(
-          (m) => m.status !== "FINISHED" && lockReasonForMatch(m) == null,
+          (m) => !isMatchSettled(m) && lockReasonForMatch(m) == null,
         );
         for (const m of toSave) {
           const getPayload = matchDraftGettersRef.current.get(m.id);
@@ -256,7 +257,7 @@ export default function PartyWcDashboard({
   // Persistă draftul etapei curente (fără toast/refresh) — folosit înainte de copiere.
   async function saveCurrentDraft() {
     const toSave = selectedMatchdayMatches.filter(
-      (m) => m.status !== "FINISHED" && lockReasonForMatch(m) == null,
+      (m) => !isMatchSettled(m) && lockReasonForMatch(m) == null,
     );
     for (const m of toSave) {
       const getPayload = matchDraftGettersRef.current.get(m.id);
@@ -648,10 +649,13 @@ export default function PartyWcDashboard({
               <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
                 {matchdayBlocks.map(({ matchday, matches: mdMatches }) => {
                   const allDone = mdMatches.every(
-                    (m) => m.status === "FINISHED" || m.status === "AWARDED",
+                    (m) => isMatchSettled(m) || m.status === "CANCELLED",
                   );
                   const anyStarted = mdMatches.some(
-                    (m) => m.status === "FINISHED" || m.status === "IN_PLAY" || m.status === "PAUSED",
+                    (m) =>
+                      isMatchSettled(m) ||
+                      m.status === "IN_PLAY" ||
+                      m.status === "PAUSED",
                   );
                   const isCurrent = !allDone && anyStarted;
                   const isSelected = matchday === selectedMatchday;

@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { tournamentCompetitionLabel } from "@/lib/tournament-matches";
 import { COMPETITION_PICKER_OPTIONS } from "@/lib/competition";
 import { createTranslator } from "@/lib/i18n";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
@@ -19,33 +20,34 @@ export default async function TurneePage() {
   const t = createTranslator(locale);
   const { userId: clerkId } = await auth();
 
-  const user = await prisma.user.findUnique({
-    where: { clerkId: clerkId! },
-    include: {
-      memberships: {
-        include: {
-          tournament: {
-            include: {
-              _count: { select: { members: true } },
-              creator: { select: { firstName: true, lastName: true } },
+  const [user, publicTournaments] = await Promise.all([
+    prisma.user.findUnique({
+      where: { clerkId: clerkId! },
+      include: {
+        memberships: {
+          include: {
+            tournament: {
+              include: {
+                _count: { select: { members: true } },
+                creator: { select: { firstName: true, lastName: true } },
+              },
             },
           },
+          orderBy: { joinedAt: "desc" },
         },
-        orderBy: { joinedAt: "desc" },
       },
-    },
-  });
+    }),
+    prisma.tournament.findMany({
+      where: { isPublic: true },
+      include: { _count: { select: { members: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
 
   const tournaments = user?.memberships.map((m) => m.tournament) ?? [];
   const userId = user?.id ?? null;
   const joinedIds = new Set(tournaments.map((tournament) => tournament.id));
   const privateTournaments = tournaments.filter((tournament) => !tournament.isPublic);
-
-  const publicTournaments = await prisma.tournament.findMany({
-    where: { isPublic: true },
-    include: { _count: { select: { members: true } } },
-    orderBy: { createdAt: "asc" },
-  });
 
   const visiblePublicTournaments = getVisiblePublicTournaments(publicTournaments);
 
@@ -86,9 +88,12 @@ export default async function TurneePage() {
     );
   }
 
-  function competitionLabel(competition: string | null) {
-    if (!competition) return null;
-    return COMPETITION_PICKER_OPTIONS.find((o) => o.storageKey === competition)?.label ?? competition;
+  function competitionLabelForTournament(tournament: {
+    competition: string | null;
+    competitions?: string[];
+    selectedMatchIds?: number[];
+  }) {
+    return tournamentCompetitionLabel(tournament);
   }
 
   const stepLabels = [
@@ -149,7 +154,7 @@ export default async function TurneePage() {
                     name={tournament.name}
                     memberCount={tournament._count.members}
                     inviteCode={tournament.inviteCode}
-                    competitionLabel={competitionLabel(tournament.competition)}
+                    competitionLabel={competitionLabelForTournament(tournament)}
                     isOwner={userId === tournament.creatorId}
                     createdByText={t("tournament.page.createdBy", {
                       name:

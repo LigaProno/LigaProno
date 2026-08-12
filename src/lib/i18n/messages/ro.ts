@@ -10,6 +10,7 @@ export const ro: Messages = {
   "nav.account": "Cont",
   "nav.openMenu": "Deschide meniul",
   "nav.admin": "Admin",
+  "nav.moderator": "Moderator",
   "nav.support": "Suport",
   "nav.instagram": "Instagram",
   "nav.signOut": "Deconectare",

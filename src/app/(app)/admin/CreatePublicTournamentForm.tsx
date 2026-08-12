@@ -4,9 +4,9 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createPublicTournament } from "@/app/actions/admin";
 import type { FootballDataCompetitionPickerOption } from "@/lib/competition";
-import { PRIZE_OPTIONS, placeLabel } from "@/lib/tournament-prizes";
-
-const MAX_PRIZE_PLACES = 10;
+import { PRIZE_OPTIONS } from "@/lib/tournament-prizes";
+import { PrizeSelectors } from "@/components/moderation/prize-selectors";
+import { darkOptionStyle, darkSelectStyle } from "@/components/moderation/dark-select-styles";
 
 export default function CreatePublicTournamentForm({
   competitionPickerOptions,
@@ -19,6 +19,7 @@ export default function CreatePublicTournamentForm({
   const [matchdayCount, setMatchdayCount] = useState<number | "">(0);
   const [prizeCount, setPrizeCount] = useState(0);
   const [prizeSelections, setPrizeSelections] = useState<string[]>([]);
+  const [customPrizes, setCustomPrizes] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -27,16 +28,9 @@ export default function CreatePublicTournamentForm({
     setPrizeCount(count);
     setPrizeSelections((prev) => {
       const next = [...prev];
-      while (next.length < count) next.push(PRIZE_OPTIONS[0]);
+      const fallback = customPrizes[0] ?? PRIZE_OPTIONS[0];
+      while (next.length < count) next.push(fallback);
       return next.slice(0, count);
-    });
-  }
-
-  function handlePrizeChange(index: number, value: string) {
-    setPrizeSelections((prev) => {
-      const next = [...prev];
-      next[index] = value;
-      return next;
     });
   }
 
@@ -62,6 +56,7 @@ export default function CreatePublicTournamentForm({
         setMatchdayCount(0);
         setPrizeCount(0);
         setPrizeSelections([]);
+        setCustomPrizes([]);
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Eroare necunoscută.");
@@ -70,8 +65,7 @@ export default function CreatePublicTournamentForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      {/* Name */}
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4 min-w-0">
       <div className="flex flex-col gap-1.5">
         <label className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
           Nume turneu
@@ -87,7 +81,6 @@ export default function CreatePublicTournamentForm({
         />
       </div>
 
-      {/* Competition */}
       <div className="flex flex-col gap-1.5">
         <label className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
           Competiție
@@ -98,21 +91,21 @@ export default function CreatePublicTournamentForm({
           required
           className="w-full rounded-xl px-4 py-3 text-sm outline-none border"
           style={{
-            backgroundColor: "rgba(255,255,255,0.03)",
-            color: competitionKey ? "#fff" : "rgba(255,255,255,0.4)",
-            borderColor: "rgba(255,255,255,0.12)",
+            ...darkSelectStyle,
+            color: competitionKey ? "#fff" : "rgba(255,255,255,0.45)",
           }}
         >
-          <option value="" disabled>Selectează o competiție</option>
+          <option value="" disabled style={darkOptionStyle}>
+            Selectează o competiție
+          </option>
           {competitionPickerOptions.map((c) => (
-            <option key={c.storageKey} value={c.storageKey} style={{ color: "#fff" }}>
+            <option key={c.storageKey} value={c.storageKey} style={darkOptionStyle}>
               {c.label}
             </option>
           ))}
         </select>
       </div>
 
-      {/* Fixture count */}
       <div className="flex flex-col gap-1.5">
         <label className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
           Număr etape
@@ -136,58 +129,22 @@ export default function CreatePublicTournamentForm({
         </p>
       </div>
 
-      {/* Prize places count */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
-          Câte locuri premiante?
-        </label>
-        <input
-          type="number"
-          min={0}
-          max={MAX_PRIZE_PLACES}
-          value={prizeCount === 0 ? "" : prizeCount}
-          placeholder="0 (fără premii)"
-          onChange={(e) => {
-            const v = Math.min(MAX_PRIZE_PLACES, Math.max(0, parseInt(e.target.value) || 0));
-            handlePrizeCountChange(v);
-          }}
-          className="w-32 rounded-xl px-4 py-3 text-sm outline-none border"
-          style={{ backgroundColor: "rgba(255,255,255,0.03)", color: "#fff", borderColor: "rgba(255,255,255,0.12)" }}
-        />
-      </div>
-
-      {/* Per-place prize selectors */}
-      {prizeCount > 0 && (
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
-            Premii per loc
-          </label>
-          <div className="flex flex-col gap-2">
-            {Array.from({ length: prizeCount }, (_, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <span
-                  className="text-xs font-bold shrink-0 w-14 text-right"
-                  style={{ color: i === 0 ? "#60A5FA" : i === 1 ? "#3B82F6" : "rgba(255,255,255,0.45)" }}
-                >
-                  {placeLabel(i + 1)}
-                </span>
-                <select
-                  value={prizeSelections[i] ?? PRIZE_OPTIONS[0]}
-                  onChange={(e) => handlePrizeChange(i, e.target.value)}
-                  className="flex-1 rounded-xl px-3 py-2.5 text-sm outline-none border"
-                  style={{ backgroundColor: "rgba(255,255,255,0.03)", color: "#fff", borderColor: "rgba(255,255,255,0.12)" }}
-                >
-                  {PRIZE_OPTIONS.map((p) => (
-                    <option key={p} value={p} style={{ color: "#fff" }}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <PrizeSelectors
+        prizeCount={prizeCount}
+        prizeSelections={prizeSelections}
+        onPrizeCountChange={handlePrizeCountChange}
+        onPrizeChange={(index, value) => {
+          setPrizeSelections((prev) => {
+            const next = [...prev];
+            next[index] = value;
+            return next;
+          });
+        }}
+        customPrizes={customPrizes}
+        onAddCustomPrize={(prize) => {
+          setCustomPrizes((prev) => (prev.includes(prize) ? prev : [...prev, prize]));
+        }}
+      />
 
       {error && <p className="text-sm text-red-400">{error}</p>}
       {success && <p className="text-sm" style={{ color: "#60A5FA" }}>{success}</p>}

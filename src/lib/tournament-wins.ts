@@ -1,6 +1,7 @@
 import type { FootballDataMatch } from "@/lib/football-data";
 import { prisma } from "@/lib/prisma";
 import { filterMatchesForTournament } from "@/lib/wc-pred-display";
+import { isMatchSettled, isMatchVoidForTournament } from "@/lib/match-status";
 
 export type TournamentWinBadge = {
   tournamentId: string;
@@ -8,23 +9,23 @@ export type TournamentWinBadge = {
   awardedAt: Date;
 };
 
-/** Un meci nu mai poate schimba clasamentul doar dacă s-a jucat (sau a fost decis administrativ). */
-function isMatchSettled(match: FootballDataMatch): boolean {
-  return match.status === "FINISHED" || match.status === "AWARDED";
-}
-
 /**
- * Turneul e gata doar dacă are meciuri în fereastră ȘI toate s-au încheiat.
- * Zero meciuri = date lipsă din API, nu turneu terminat — altfel am acorda
- * badge-uri pe un clasament gol la prima eroare de fetch.
+ * Turneul e gata doar dacă are meciuri în fereastră ȘI fiecare e terminat sau anulat.
+ * Amânările țin turneul deschis. Zero meciuri = date lipsă din API, nu turneu terminat.
  */
 export function isTournamentComplete(
   matches: FootballDataMatch[],
-  tournament: { startMatchday: number | null; endMatchday: number | null },
+  tournament: {
+    startMatchday: number | null;
+    endMatchday: number | null;
+    selectedMatchIds?: number[] | null;
+  },
 ): boolean {
   const inWindow = filterMatchesForTournament(matches, tournament);
   if (inWindow.length === 0) return false;
-  return inWindow.every(isMatchSettled);
+  return inWindow.every(
+    (m) => isMatchSettled(m) || isMatchVoidForTournament(m),
+  );
 }
 
 export type AwardTournamentWinResult = {
@@ -47,6 +48,7 @@ export async function awardTournamentWinIfComplete(
     closedAt: Date | null;
     startMatchday: number | null;
     endMatchday: number | null;
+    selectedMatchIds?: number[] | null;
   },
   matches: FootballDataMatch[],
 ): Promise<AwardTournamentWinResult> {

@@ -1,5 +1,6 @@
 import { refreshOddsForCompetition } from "@/lib/refresh-competition-odds";
 import { prisma } from "@/lib/prisma";
+import { resolveTournamentCompetitionKeys } from "@/lib/tournament-matches";
 
 export type RefreshOddsResult =
   | {
@@ -12,34 +13,46 @@ export type RefreshOddsResult =
     }
   | { ok: false; tournamentId: string; error: string };
 
-/** Delegă la snapshot-ul partajat al competiției (toate party-urile văd aceleași cote). */
+/** Delegă la snapshot-urile partajate ale competițiilor turneului. */
 export async function refreshOddsForTournament(
   tournamentId: string,
 ): Promise<RefreshOddsResult> {
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
-    select: { id: true, competition: true },
+    select: { id: true, competition: true, competitions: true },
   });
 
   if (!tournament) {
     return { ok: false, tournamentId, error: "Turneu inexistent." };
   }
 
-  if (!tournament.competition) {
+  const keys = resolveTournamentCompetitionKeys(tournament);
+  if (keys.length === 0) {
     return { ok: false, tournamentId, error: "Competiție nesetată." };
   }
 
-  const result = await refreshOddsForCompetition(tournament.competition);
-  if (!result.ok) {
-    return { ok: false, tournamentId, error: result.error };
+  let matchCount = 0;
+  let teamCount = 0;
+  let oddsSource = "";
+  let usedFallback = false;
+
+  for (const key of keys) {
+    const result = await refreshOddsForCompetition(key);
+    if (!result.ok) {
+      return { ok: false, tournamentId, error: result.error };
+    }
+    matchCount += result.matchCount;
+    teamCount += result.teamCount;
+    oddsSource = result.oddsSource;
+    usedFallback = usedFallback || result.usedFallback;
   }
 
   return {
     ok: true,
     tournamentId,
-    matchCount: result.matchCount,
-    teamCount: result.teamCount,
-    oddsSource: result.oddsSource,
-    usedFallback: result.usedFallback,
+    matchCount,
+    teamCount,
+    oddsSource,
+    usedFallback,
   };
 }

@@ -13,6 +13,7 @@ export type MessageKey =
   | "nav.account"
   | "nav.openMenu"
   | "nav.admin"
+  | "nav.moderator"
   | "nav.support"
   | "nav.instagram"
   | "nav.signOut"

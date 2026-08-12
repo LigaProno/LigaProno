@@ -181,10 +181,12 @@ async function persistOverrideMap(
 /**
  * Încarcă override-urile din DB; dacă există meciuri stale fără override,
  * scrapează scorul de pe OddsPortal și persistă.
+ * `cacheOnly: true` — doar citire DB (fără scrape pe path-ul de pagină).
  */
 export async function ensureCompetitionMatchScoreOverrides(
   competition: string,
   matches: FootballDataMatch[],
+  options?: { cacheOnly?: boolean },
 ): Promise<{
   overrides: Record<string, StoredMatchScoreOverride>;
   scraped: number;
@@ -202,6 +204,10 @@ export async function ensureCompetitionMatchScoreOverrides(
     matches,
     parseScoreOverrideMap(existingRow?.overrides),
   );
+
+  if (options?.cacheOnly) {
+    return { overrides: map, scraped: 0, errors };
+  }
 
   const staleNeedingFetch = matches.filter((m) => {
     if (!isMatchStaleForScoreFallback(m)) return false;
@@ -283,14 +289,16 @@ export async function ensureCompetitionMatchScoreOverrides(
   return { overrides: map, scraped, errors };
 }
 
-/** Meciuri cu override OddsPortal aplicat (fără scrape dacă nu e nevoie). */
+/** Meciuri cu override OddsPortal aplicat (fără scrape dacă nu e nevoie / cacheOnly). */
 export async function loadMatchesWithScoreOverrides(
   competition: string,
   matches: FootballDataMatch[],
+  options?: { cacheOnly?: boolean },
 ): Promise<FootballDataMatch[]> {
   const { overrides } = await ensureCompetitionMatchScoreOverrides(
     competition,
     matches,
+    options,
   );
   return applyScoreOverridesToMatches(matches, overrides);
 }

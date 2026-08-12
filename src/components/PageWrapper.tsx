@@ -1,13 +1,17 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { Suspense, type ReactNode } from "react";
+import { NavigationLoadingOverlay } from "@/components/ui/navigation-loading-overlay";
+import { SiteFooter } from "@/components/site-footer";
 
-export default function PageWrapper({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-
+export default function PageWrapper({ children }: { children: ReactNode }) {
   return (
-    <div key={pathname} className="page-transition">
-      {children}
+    <div className="relative flex min-h-full flex-col">
+      <div className="flex-1 w-full">{children}</div>
+      <SiteFooter variant="app" />
+      <Suspense fallback={null}>
+        <NavigationLoadingOverlay />
+      </Suspense>
     </div>
   );
 }

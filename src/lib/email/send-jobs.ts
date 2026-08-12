@@ -155,23 +155,49 @@ async function loadOddsMapsByCompetition(competitions: string[]) {
 type ActiveTournament = {
   id: string;
   name: string;
-  competition: string;
+  competition: string | null;
+  competitions: string[];
+  selectedMatchIds: number[];
   startMatchday: number | null;
   endMatchday: number | null;
   closedAt: Date | null;
   members: { userId: string; user: { id: string; email: string; firstName: string | null; lastName: string | null } }[];
 };
 
+function competitionKeysForEmailTournament(
+  t: Pick<ActiveTournament, "competition" | "competitions">,
+): string[] {
+  const fromList = (t.competitions ?? []).map((c) => c.trim()).filter(Boolean);
+  if (fromList.length > 0) return [...new Set(fromList)];
+  const single = t.competition?.trim();
+  return single ? [single] : [];
+}
+
+function matchesForEmailTournament(
+  tournament: ActiveTournament,
+  matchesByCompetition: Map<string, FootballDataMatch[]>,
+): FootballDataMatch[] {
+  const keys = competitionKeysForEmailTournament(tournament);
+  const byId = new Map<number, FootballDataMatch>();
+  for (const key of keys) {
+    for (const m of matchesByCompetition.get(key) ?? []) {
+      byId.set(m.id, m);
+    }
+  }
+  return filterMatchesForTournament([...byId.values()], tournament);
+}
+
 async function loadActiveTournaments(): Promise<ActiveTournament[]> {
   const rows = await prisma.tournament.findMany({
     where: {
-      competition: { not: null },
       closedAt: null,
     },
     select: {
       id: true,
       name: true,
       competition: true,
+      competitions: true,
+      selectedMatchIds: true,
       startMatchday: true,
       endMatchday: true,
       closedAt: true,
@@ -186,9 +212,7 @@ async function loadActiveTournaments(): Promise<ActiveTournament[]> {
     },
   });
 
-  return rows.filter(
-    (t): t is ActiveTournament => typeof t.competition === "string" && t.competition.length > 0,
-  );
+  return rows.filter((t) => competitionKeysForEmailTournament(t).length > 0);
 }
 
 /** Reminder D−1: meciuri mâine (Bucharest) fără predicție. */
@@ -204,7 +228,9 @@ export async function sendPredictionReminders(
   const tournaments = await loadActiveTournaments();
   if (tournaments.length === 0) return result;
 
-  const competitions = [...new Set(tournaments.map((t) => t.competition))];
+  const competitions = [
+    ...new Set(tournaments.flatMap((t) => competitionKeysForEmailTournament(t))),
+  ];
   const matchesByCompetition = await loadMatchesByCompetition(competitions);
 
   type Pending = {
@@ -221,8 +247,7 @@ export async function sendPredictionReminders(
   >();
 
   for (const tournament of tournaments) {
-    const allMatches = matchesByCompetition.get(tournament.competition) ?? [];
-    const inWindow = filterMatchesForTournament(allMatches, tournament);
+    const inWindow = matchesForEmailTournament(tournament, matchesByCompetition);
     const tomorrowUpcoming = inWindow.filter((m) => {
       if (matchDateKeyBucharest(m.utcDate) !== tomorrowKey) return false;
       if (Date.parse(m.utcDate) <= now.getTime()) return false;
@@ -311,13 +336,15 @@ export async function sendDailyDigests(now: Date = new Date()): Promise<EmailJob
 
   // Include și turneele recent închise — scorurile din ziua D−1 tot contează.
   const tournaments = await prisma.tournament.findMany({
-    where: { competition: { not: null } },
     select: {
       id: true,
       name: true,
       competition: true,
+      competitions: true,
+      selectedMatchIds: true,
       startMatchday: true,
       endMatchday: true,
+      closedAt: true,
       members: {
         select: {
           userId: true,
@@ -330,12 +357,13 @@ export async function sendDailyDigests(now: Date = new Date()): Promise<EmailJob
   });
 
   const active = tournaments.filter(
-    (t): t is typeof t & { competition: string } =>
-      typeof t.competition === "string" && t.competition.length > 0,
-  );
+    (t) => competitionKeysForEmailTournament(t).length > 0,
+  ) as ActiveTournament[];
   if (active.length === 0) return result;
 
-  const competitions = [...new Set(active.map((t) => t.competition))];
+  const competitions = [
+    ...new Set(active.flatMap((t) => competitionKeysForEmailTournament(t))),
+  ];
   const [matchesByCompetition, oddsByCompetition] = await Promise.all([
     loadMatchesByCompetition(competitions),
     loadOddsMapsByCompetition(competitions),
@@ -356,8 +384,7 @@ export async function sendDailyDigests(now: Date = new Date()): Promise<EmailJob
   >();
 
   for (const tournament of active) {
-    const allMatches = matchesByCompetition.get(tournament.competition) ?? [];
-    const inWindow = filterMatchesForTournament(allMatches, tournament);
+    const inWindow = matchesForEmailTournament(tournament, matchesByCompetition);
     const yesterdayFinished = inWindow.filter((m) => {
       if (matchDateKeyBucharest(m.utcDate) !== yesterdayKey) return false;
       return m.status === "FINISHED" || m.status === "AWARDED";
@@ -375,12 +402,20 @@ export async function sendDailyDigests(now: Date = new Date()): Promise<EmailJob
       predByUserMatch.set(`${p.userId}:${p.matchId}`, p);
     }
 
-    const oddsMaps = oddsByCompetition.get(tournament.competition);
+    const keys = competitionKeysForEmailTournament(tournament);
+    const oddsLookup = (matchId: number) => {
+      for (const key of keys) {
+        const maps = oddsByCompetition.get(key);
+        const row = maps?.matchById.get(matchId);
+        if (row) return row;
+      }
+      return null;
+    };
 
     for (const member of tournament.members) {
       for (const match of yesterdayFinished) {
         const pred = predByUserMatch.get(`${member.userId}:${match.id}`);
-        const oddsRow = oddsMaps?.matchById.get(match.id) ?? null;
+        const oddsRow = oddsLookup(match.id);
         const points = pred
           ? computeMatchPoints(pred, match, oddsRow).total
           : 0;
@@ -558,13 +593,17 @@ export async function sendStageRankingEmails(
   const tournaments = await loadActiveTournaments();
   if (tournaments.length === 0) return merged;
 
-  const competitions = [...new Set(tournaments.map((t) => t.competition))];
+  const competitions = [
+    ...new Set(tournaments.flatMap((t) => competitionKeysForEmailTournament(t))),
+  ];
   const matchesByCompetition = await loadMatchesByCompetition(competitions);
   const todayKey = formatDateKeyBucharest(now);
 
   for (const tournament of tournaments) {
-    const allMatches = matchesByCompetition.get(tournament.competition) ?? [];
-    const inWindow = filterMatchesForTournament(allMatches, tournament);
+    // Mix: etapele din ligi diferite se ciocnesc — skip ranking pe etapă.
+    if ((tournament.selectedMatchIds?.length ?? 0) > 0) continue;
+
+    const inWindow = matchesForEmailTournament(tournament, matchesByCompetition);
 
     const byMatchday = new Map<number, FootballDataMatch[]>();
     for (const m of inWindow) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { refreshOddsForCompetition } from "@/lib/refresh-competition-odds";
 import { prisma } from "@/lib/prisma";
+import { resolveTournamentCompetitionKeys } from "@/lib/tournament-matches";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -18,18 +19,11 @@ export async function GET(req: NextRequest) {
   }
 
   const tournaments = await prisma.tournament.findMany({
-    where: {
-      competition: { not: null },
-    },
-    select: { competition: true },
+    select: { competition: true, competitions: true },
   });
 
   const competitions = [
-    ...new Set(
-      tournaments
-        .map((t) => t.competition)
-        .filter((c): c is string => typeof c === "string" && c.length > 0),
-    ),
+    ...new Set(tournaments.flatMap((t) => resolveTournamentCompetitionKeys(t))),
   ];
 
   const results: {

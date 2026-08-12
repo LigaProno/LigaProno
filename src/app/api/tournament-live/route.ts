@@ -19,7 +19,13 @@ export async function GET(req: NextRequest) {
 
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
-    select: { competition: true, startMatchday: true, endMatchday: true },
+    select: {
+      competition: true,
+      competitions: true,
+      selectedMatchIds: true,
+      startMatchday: true,
+      endMatchday: true,
+    },
   });
   if (!tournament) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

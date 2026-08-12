@@ -2,6 +2,7 @@ import type { FootballDataMatch, FootballDataTeam } from "@/lib/football-data";
 import type { MatchPredictionInput } from "@/lib/wc-scoring";
 import { getMatchScoreAfter90 } from "@/lib/match-score";
 import { formatTeamDisplayName } from "@/lib/team-display";
+import { isMatchSettled, matchUpcomingSortTime } from "@/lib/match-status";
 
 function isKnockoutStageLocal(stage: string | undefined): boolean {
   return !!stage && stage !== "GROUP_STAGE" && stage !== "REGULAR_SEASON";
@@ -204,13 +205,13 @@ export function lastFinishedAndNextThree(matches: FootballDataMatch[]): {
   nextThree: FootballDataMatch[];
 } {
   const finished = matches
-    .filter((m) => m.status === "FINISHED")
+    .filter((m) => isMatchSettled(m))
     .sort((a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate));
   const lastFinished = finished[finished.length - 1] ?? null;
 
   const upcoming = matches
-    .filter((m) => m.status !== "FINISHED")
-    .sort((a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate))
+    .filter((m) => !isMatchSettled(m) && m.status !== "CANCELLED")
+    .sort((a, b) => matchUpcomingSortTime(a) - matchUpcomingSortTime(b))
     .slice(0, 3);
 
   return { lastFinished, nextThree: upcoming };
@@ -226,16 +227,14 @@ export function recentAndUpcomingMatches(
   prev: number,
   next: number,
 ): FootballDataMatch[] {
-  const isDone = (m: FootballDataMatch) => m.status === "FINISHED" || m.status === "AWARDED";
-
   const finished = matches
-    .filter(isDone)
+    .filter((m) => isMatchSettled(m))
     .sort((a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate))
     .slice(-prev);
 
   const upcoming = matches
-    .filter((m) => !isDone(m))
-    .sort((a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate))
+    .filter((m) => !isMatchSettled(m) && m.status !== "CANCELLED")
+    .sort((a, b) => matchUpcomingSortTime(a) - matchUpcomingSortTime(b))
     .slice(0, next);
 
   return [...finished, ...upcoming];
@@ -254,7 +253,8 @@ export function resolveCurrentMatchday(matches: FootballDataMatch[]): number {
   const sorted = [...byMatchday.keys()].sort((a, b) => a - b);
   for (const md of sorted) {
     const mdMatches = byMatchday.get(md)!;
-    if (mdMatches.some((m) => m.status !== "FINISHED" && m.status !== "AWARDED")) {
+    // Etapa e „deschisă" dacă mai are meciuri de jucat (inclusiv amânate).
+    if (mdMatches.some((m) => !isMatchSettled(m) && m.status !== "CANCELLED")) {
       return md;
     }
   }
@@ -278,6 +278,11 @@ export type TournamentMatchdayWindow = {
 export type TournamentMatchdayFields = {
   startMatchday: number | null;
   endMatchday: number | null;
+};
+
+/** Câmpuri de filtrare meciuri: fereastră matchday SAU selecție manuală de ID-uri. */
+export type TournamentMatchFilterFields = TournamentMatchdayFields & {
+  selectedMatchIds?: number[] | null;
 };
 
 /** Prima etapă cu meciuri nedecise (folosită ca start la crearea turneului). */
@@ -320,8 +325,13 @@ export function resolveTournamentMatchdayWindow(
 
 export function filterMatchesForTournament(
   matches: FootballDataMatch[],
-  tournament: TournamentMatchdayFields,
+  tournament: TournamentMatchFilterFields,
 ): FootballDataMatch[] {
+  const selected = tournament.selectedMatchIds ?? [];
+  if (selected.length > 0) {
+    const set = new Set(selected);
+    return matches.filter((m) => set.has(m.id));
+  }
   const window = resolveTournamentMatchdayWindow(tournament, matches);
   if (!window) return matches;
   return matches.filter((m) => {
@@ -332,9 +342,13 @@ export function filterMatchesForTournament(
 
 export function isMatchInTournamentWindow(
   match: FootballDataMatch,
-  tournament: TournamentMatchdayFields,
+  tournament: TournamentMatchFilterFields,
   allMatches: FootballDataMatch[],
 ): boolean {
+  const selected = tournament.selectedMatchIds ?? [];
+  if (selected.length > 0) {
+    return selected.includes(match.id);
+  }
   const window = resolveTournamentMatchdayWindow(tournament, allMatches);
   if (!window) return true;
   const md = match.matchday ?? 0;

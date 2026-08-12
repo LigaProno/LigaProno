@@ -5,18 +5,14 @@ import PartyWcDashboard, {
   type LeaderboardRow,
 } from "@/components/party/party-wc-dashboard";
 import {
-  fetchCompetitionMatches,
   venueLabel,
   type FootballDataMatch,
 } from "@/lib/football-data";
-import { parseStoredCompetition } from "@/lib/competition";
-import { loadCompetitionOddsSnapshot } from "@/lib/competition-odds";
-import { loadMatchesWithCompetitionVenues } from "@/lib/competition-match-venues";
+import { loadTournamentOddsSnapshot } from "@/lib/competition-odds";
 import { canManualRefreshOddsToday } from "@/lib/odds-refresh-limit";
 import { prisma } from "@/lib/prisma";
 import {
   fixtureTlaPair,
-  filterMatchesForTournament,
   getMatchPredDisplay,
   hasAnyMatchPrediction,
   lastFinishedAndNextThree,
@@ -34,8 +30,13 @@ import {
 import { createTranslator } from "@/lib/i18n";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
 import { loadWinBadgesByUser } from "@/lib/tournament-wins";
-import { isAdminEmail } from "@/lib/admin";
+import { canMonitorTournaments } from "@/lib/admin";
 import { loadTournamentLiveFixtures } from "@/lib/live-fixtures";
+import {
+  loadTournamentMatches,
+  primaryTournamentCompetition,
+  resolveTournamentCompetitionKeys,
+} from "@/lib/tournament-matches";
 import { PrizePreferencePanel } from "@/components/turnee/prize-preference-panel";
 import { PrizePreferencePrompt } from "@/components/turnee/prize-preference-prompt";
 import { PrizeAllocationView } from "@/components/turnee/prize-allocation-view";
@@ -76,44 +77,47 @@ export default async function PartyTournamentPage({
   if (!user) redirect("/sign-in");
   if (!tournament) notFound();
 
-  const isAdmin = isAdminEmail(user.email);
+  const canMonitor = canMonitorTournaments(user.email);
   const isMember = tournament.members.some((m) => m.userId === user.id);
-  // Adminii pot inspecta orice turneu fără să fie membri.
-  if (!isMember && !isAdmin) redirect("/turnee");
+  // Adminii / moderatorii pot inspecta orice turneu fără să fie membri.
+  if (!isMember && !canMonitor) redirect("/turnee");
 
   const isCreator = tournament.creatorId === user.id;
   const tournamentMembers = tournament.members;
 
-  const parsedCompetition = parseStoredCompetition(tournament.competition);
+  const competitionKeys = resolveTournamentCompetitionKeys(tournament);
+  const hasCompetition = competitionKeys.length > 0;
+  const primaryCompetition = primaryTournamentCompetition(tournament);
 
-  let matches: FootballDataMatch[] = [];
-  let loadError: string | null = null;
+  // Pornește I/O-ul independent în paralel cu fetch-ul de meciuri.
+  const memberIds = tournamentMembers.map((m) => m.userId);
+  const sideDataPromise = Promise.all([
+    hasCompetition ?
+      loadTournamentOddsSnapshot(competitionKeys)
+    : Promise.resolve(null),
+    loadWinBadgesByUser(memberIds),
+    loadTournamentLiveFixtures(tournament),
+    prisma.tournamentMember.findMany({
+      where: { userId: user.id, NOT: { tournamentId } },
+      select: {
+        tournament: {
+          select: { id: true, name: true, competition: true, closedAt: true },
+        },
+      },
+      orderBy: { joinedAt: "desc" },
+    }),
+  ]);
 
-  if (parsedCompetition) {
-    try {
-      matches = await fetchCompetitionMatches(
-        parsedCompetition.code,
-        parsedCompetition.season,
-      );
-    } catch (e) {
-      loadError = e instanceof Error ? e.message : "Could not load matches.";
-    }
-  }
+  const { matches, loadError } = await loadTournamentMatches(tournament, {
+    cacheOnly: true,
+  });
 
-  if (parsedCompetition && !loadError && matches.length > 0) {
-    matches = await loadMatchesWithCompetitionVenues(
-      tournament.competition!,
-      matches,
-    );
-  }
-
-  matches = filterMatchesForTournament(matches, tournament);
-
-
-  const competitionOddsSnapshot =
-    tournament.competition ?
-      await loadCompetitionOddsSnapshot(tournament.competition)
-    : null;
+  const [
+    competitionOddsSnapshot,
+    winsByUser,
+    liveFixtures,
+    otherMemberships,
+  ] = await sideDataPromise;
 
   const canManualRefreshOddsTodayFlag = canManualRefreshOddsToday(
     competitionOddsSnapshot?.lastManualRefreshAt,
@@ -182,19 +186,6 @@ export default async function PartyTournamentPage({
   const matchdayMemberPreds: NextThreeMatchPreds[] =
     tournament.isPublic ? [] : memberPredsWindow.map(buildMemberPredsBlock);
 
-  // O singură interogare pentru badge-urile tuturor membrilor, nu una per rând.
-  const memberIds = tournamentMembers.map((m) => m.userId);
-  const winsByUser = await loadWinBadgesByUser(memberIds);
-
-  // Meciurile live din fereastra turneului (cache 60s, partajat) pentru banner.
-  const liveFixtures = await loadTournamentLiveFixtures(tournament);
-
-  // Celelalte turnee ale userului — ținte pentru „copiază pronosticurile".
-  const otherMemberships = await prisma.tournamentMember.findMany({
-    where: { userId: user.id, NOT: { tournamentId } },
-    select: { tournament: { select: { id: true, name: true, competition: true, closedAt: true } } },
-    orderBy: { joinedAt: "desc" },
-  });
   // Turneele încheiate nu apar ca ținte: nu mai poți schimba pronosticuri acolo.
   // Filtrăm în JS — pe MongoDB `closedAt: null` ca filtru de query nu prinde
   // documentele unde câmpul lipsește (turneele deschise), deci ar goli lista.
@@ -261,7 +252,7 @@ export default async function PartyTournamentPage({
   });
 
   // Repartizare premii (doar organizatorul o vede): draft în ordinea clasamentului.
-  const isOrganizer = isCreator || isAdmin;
+  const isOrganizer = isCreator || canMonitor;
 
   // Panou doar-admin: câți membri au pus efectiv cel puțin un pronostic (useri activi) + cine.
   const activePredictorIds = new Set<string>();
@@ -470,7 +461,7 @@ export default async function PartyTournamentPage({
         {t("party.backToTournaments")}
       </Link>
 
-      {isAdmin ? (
+      {canMonitor ? (
         <AdminActivityPanel
           activeNames={activeMemberNames}
           inactiveNames={inactiveMemberNames}
@@ -512,7 +503,7 @@ export default async function PartyTournamentPage({
         </div>
       ) : null}
 
-      {loadError && parsedCompetition && (
+      {loadError && hasCompetition && (
         <div
           className="mb-6 rounded-xl border px-4 py-3 text-sm text-red-300"
           style={{
@@ -528,7 +519,7 @@ export default async function PartyTournamentPage({
         tournamentId={tournament.id}
         tournamentName={tournament.name}
         inviteCode={tournament.inviteCode}
-        competition={tournament.competition}
+        competition={primaryCompetition}
         isPublic={tournament.isPublic}
         isCreator={isCreator}
         currentUserId={user.id}

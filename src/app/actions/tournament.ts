@@ -42,6 +42,8 @@ export async function createTournament(
       inviteCode,
       creatorId: user.id,
       competition,
+      competitions: [],
+      selectedMatchIds: [],
     },
   });
 

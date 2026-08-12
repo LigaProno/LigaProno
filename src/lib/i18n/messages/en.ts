@@ -10,6 +10,7 @@ export const en: Messages = {
   "nav.account": "Account",
   "nav.openMenu": "Open menu",
   "nav.admin": "Admin",
+  "nav.moderator": "Moderator",
   "nav.support": "Support",
   "nav.instagram": "Instagram",
   "nav.signOut": "Sign out",

@@ -1,18 +1,17 @@
 import { auth } from "@clerk/nextjs/server";
-import { isAdminEmail } from "@/lib/admin";
+import { canMonitorTournaments } from "@/lib/admin";
 import { notFound, redirect } from "next/navigation";
 import MemberPredictionsView from "@/components/party/member-predictions-view";
-import {
-  fetchCompetitionMatches,
-  type FootballDataMatch,
-} from "@/lib/football-data";
-import { parseStoredCompetition } from "@/lib/competition";
 import { prisma } from "@/lib/prisma";
-import { hasAnyMatchPrediction, filterMatchesForTournament } from "@/lib/wc-pred-display";
+import { hasAnyMatchPrediction } from "@/lib/wc-pred-display";
 import { isMatchKickoffPassed } from "@/lib/knockout-predictions";
 import { computeMatchPoints, type MatchPredictionInput } from "@/lib/wc-scoring";
-import { loadCompetitionOddsSnapshot } from "@/lib/competition-odds";
+import { loadTournamentOddsSnapshot } from "@/lib/competition-odds";
 import { payloadToOddsMaps } from "@/lib/betting-odds";
+import {
+  loadTournamentMatches,
+  resolveTournamentCompetitionKeys,
+} from "@/lib/tournament-matches";
 
 function displayName(first?: string | null, last?: string | null): string {
   const s = `${first ?? ""} ${last ?? ""}`.trim();
@@ -45,44 +44,23 @@ export default async function PartyMemberPredictionsPage({
 
   if (!tournament) notFound();
 
-  const isAdmin = isAdminEmail(user.email);
+  const canMonitor = canMonitorTournaments(user.email);
   const isMember = tournament.members.some((m) => m.userId === user.id);
-  if (!isMember && !isAdmin) redirect("/turnee");
+  if (!isMember && !canMonitor) redirect("/turnee");
 
-  // La pronosticurile ALTORA arătăm doar meciurile deja începute (live) sau încheiate;
-  // cele viitoare rămân ascunse ca să nu fie copiate înainte de start. La propriile
-  // pronosticuri se vede tot. Se aplică peste tot (public, privat, chiar și admin).
   const restrictToStarted = memberUserId !== user.id;
 
-  const parsedCompetition = parseStoredCompetition(tournament.competition);
-  if (!parsedCompetition) {
+  const competitionKeys = resolveTournamentCompetitionKeys(tournament);
+  if (competitionKeys.length === 0) {
     redirect(`/turnee/${tournamentId}`);
   }
 
   const targetMembership = tournament.members.find((m) => m.userId === memberUserId);
   if (!targetMembership) notFound();
 
-  let matches: FootballDataMatch[] = [];
-  let loadError: string | null = null;
-  try {
-    matches = await fetchCompetitionMatches(
-      parsedCompetition.code,
-      parsedCompetition.season,
-    );
-    if (tournament.competition) {
-      const { loadMatchesWithCompetitionVenues } = await import(
-        "@/lib/competition-match-venues"
-      );
-      matches = await loadMatchesWithCompetitionVenues(
-        tournament.competition,
-        matches,
-      );
-    }
-  } catch (e) {
-    loadError = e instanceof Error ? e.message : "Could not load matches.";
-  }
-
-  matches = filterMatchesForTournament(matches, tournament);
+  const { matches, loadError } = await loadTournamentMatches(tournament, {
+    cacheOnly: true,
+  });
 
   const predsDb = await prisma.wcMatchPrediction.findMany({
     where: { tournamentId, userId: memberUserId },
@@ -98,10 +76,7 @@ export default async function PartyMemberPredictionsPage({
     });
   }
 
-  // Cotele competiției — necesare pentru punctele per meci.
-  const oddsSnapshot = tournament.competition
-    ? await loadCompetitionOddsSnapshot(tournament.competition)
-    : null;
+  const oddsSnapshot = await loadTournamentOddsSnapshot(competitionKeys);
   const oddsMaps = payloadToOddsMaps(oddsSnapshot?.payload ?? null);
 
   const rows = [...matches]
@@ -119,7 +94,7 @@ export default async function PartyMemberPredictionsPage({
 
   return (
     <MemberPredictionsView
-      tournamentId={tournament.id}
+      tournamentId={tournamentId}
       tournamentName={tournament.name}
       memberDisplayName={
         targetMembership.displayName ??
