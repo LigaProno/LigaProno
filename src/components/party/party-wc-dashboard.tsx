@@ -7,6 +7,7 @@ import type { FootballDataMatch } from "@/lib/football-data";
 import {
   parseStoredCompetition,
   COMPETITION_PICKER_OPTIONS,
+  competitionShortLabel,
 } from "@/lib/competition";
 import type { MatchOddsRow } from "@/lib/betting-odds";
 import { refreshTournamentBettingOdds } from "@/app/actions/betting-odds";
@@ -74,6 +75,8 @@ export default function PartyWcDashboard({
   tournamentName,
   inviteCode,
   competition,
+  competitions = [],
+  isMixed = false,
   isPublic = false,
   isCreator,
   currentUserId,
@@ -96,6 +99,9 @@ export default function PartyWcDashboard({
   tournamentName: string;
   inviteCode: string;
   competition: string | null;
+  /** Chei COD_an pentru turnee mix (ordine afișare tab-uri). */
+  competitions?: string[];
+  isMixed?: boolean;
   isPublic?: boolean;
   isCreator: boolean;
   currentUserId: string;
@@ -165,7 +171,32 @@ export default function PartyWcDashboard({
 
   const competitionActive = parseStoredCompetition(competition) != null;
 
-  const matchdayBlocks = useMemo(() => {
+  const predictionBlocks = useMemo(() => {
+    const sortMatches = (list: FootballDataMatch[]) =>
+      [...list].sort(
+        (a, b) =>
+          Date.parse(a.utcDate) - Date.parse(b.utcDate) || a.id - b.id,
+      );
+
+    if (isMixed) {
+      const byKey = new Map<string, FootballDataMatch[]>();
+      for (const m of matches) {
+        const key = m.competitionKey?.trim();
+        if (!key) continue;
+        if (!byKey.has(key)) byKey.set(key, []);
+        byKey.get(key)!.push(m);
+      }
+      const orderedKeys = [
+        ...competitions.filter((k) => byKey.has(k)),
+        ...[...byKey.keys()].filter((k) => !competitions.includes(k)),
+      ];
+      return orderedKeys.map((key) => ({
+        id: key,
+        label: competitionShortLabel(key),
+        matches: sortMatches(byKey.get(key) ?? []),
+      }));
+    }
+
     const byMatchday = new Map<number, FootballDataMatch[]>();
     for (const m of matches) {
       const md = m.matchday ?? 0;
@@ -176,32 +207,34 @@ export default function PartyWcDashboard({
     }
     const sorted = [...byMatchday.keys()].sort((a, b) => a - b);
     return sorted.map((md) => ({
-      matchday: md,
-      matches: [...(byMatchday.get(md) ?? [])].sort(
-        (a, b) =>
-          Date.parse(a.utcDate) - Date.parse(b.utcDate) || a.id - b.id,
-      ),
+      id: String(md),
+      label: `Etapa ${md}`,
+      matches: sortMatches(byMatchday.get(md) ?? []),
     }));
-  }, [matches]);
+  }, [matches, isMixed, competitions]);
 
-  const firstUnfinishedMatchday = useMemo(() => {
-    for (const block of matchdayBlocks) {
+  const firstUnfinishedBlockId = useMemo(() => {
+    for (const block of predictionBlocks) {
       if (block.matches.some((m) => !isMatchSettled(m) && m.status !== "CANCELLED")) {
-        return block.matchday;
+        return block.id;
       }
     }
-    return matchdayBlocks[0]?.matchday ?? 1;
-  }, [matchdayBlocks]);
+    return predictionBlocks[0]?.id ?? "";
+  }, [predictionBlocks]);
 
-  const [selectedMatchday, setSelectedMatchday] = useState(0);
+  const [selectedBlockId, setSelectedBlockId] = useState("");
   useEffect(() => {
-    if (firstUnfinishedMatchday > 0) setSelectedMatchday(firstUnfinishedMatchday);
-  }, [firstUnfinishedMatchday]);
+    if (firstUnfinishedBlockId) setSelectedBlockId(firstUnfinishedBlockId);
+  }, [firstUnfinishedBlockId]);
 
-  const selectedMatchdayMatches = useMemo(
-    () => matchdayBlocks.find((b) => b.matchday === selectedMatchday)?.matches ?? [],
-    [matchdayBlocks, selectedMatchday],
+  const selectedBlockMatches = useMemo(
+    () => predictionBlocks.find((b) => b.id === selectedBlockId)?.matches ?? [],
+    [predictionBlocks, selectedBlockId],
   );
+
+  const selectedBlockLabel =
+    predictionBlocks.find((b) => b.id === selectedBlockId)?.label ??
+    (isMixed ? "" : `Etapa ${selectedBlockId}`);
 
   function lockReasonForMatch(m: FootballDataMatch) {
     return getMatchPredictionLockReason(m);
@@ -238,7 +271,7 @@ export default function PartyWcDashboard({
     setMsg(null);
     startTransition(async () => {
       try {
-        const toSave = selectedMatchdayMatches.filter(
+        const toSave = selectedBlockMatches.filter(
           (m) => !isMatchSettled(m) && lockReasonForMatch(m) == null,
         );
         for (const m of toSave) {
@@ -254,9 +287,9 @@ export default function PartyWcDashboard({
     });
   }
 
-  // Persistă draftul etapei curente (fără toast/refresh) — folosit înainte de copiere.
+  // Persistă draftul blocului curent (fără toast/refresh) — folosit înainte de copiere.
   async function saveCurrentDraft() {
-    const toSave = selectedMatchdayMatches.filter(
+    const toSave = selectedBlockMatches.filter(
       (m) => !isMatchSettled(m) && lockReasonForMatch(m) == null,
     );
     for (const m of toSave) {
@@ -647,24 +680,28 @@ export default function PartyWcDashboard({
               ) : null}
               <PointsScoringLegend />
               <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
-                {matchdayBlocks.map(({ matchday, matches: mdMatches }) => {
-                  const allDone = mdMatches.every(
+                {predictionBlocks.map(({ id, label, matches: blockMatches }) => {
+                  const allDone = blockMatches.every(
                     (m) => isMatchSettled(m) || m.status === "CANCELLED",
                   );
-                  const anyStarted = mdMatches.some(
+                  const anyStarted = blockMatches.some(
                     (m) =>
                       isMatchSettled(m) ||
                       m.status === "IN_PLAY" ||
                       m.status === "PAUSED",
                   );
                   const isCurrent = !allDone && anyStarted;
-                  const isSelected = matchday === selectedMatchday;
+                  const isSelected = id === selectedBlockId;
                   return (
                     <button
-                      key={matchday}
+                      key={id}
                       type="button"
-                      onClick={() => setSelectedMatchday(matchday)}
-                      className="shrink-0 w-9 h-9 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                      onClick={() => setSelectedBlockId(id)}
+                      className={
+                        isMixed
+                          ? "shrink-0 px-3 h-9 rounded-lg text-xs font-bold transition-colors cursor-pointer whitespace-nowrap"
+                          : "shrink-0 w-9 h-9 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                      }
                       style={{
                         backgroundColor:
                           isSelected ? "#3B82F6"
@@ -680,7 +717,7 @@ export default function PartyWcDashboard({
                           : "1px solid transparent",
                       }}
                     >
-                      {matchday}
+                      {isMixed ? label : id}
                     </button>
                   );
                 })}
@@ -692,18 +729,18 @@ export default function PartyWcDashboard({
               >
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <h3 className="text-lg font-bold text-white">
-                    Etapa {selectedMatchday}
+                    {selectedBlockLabel}
                   </h3>
-                  {selectedMatchdayMatches.length > 0 ?
+                  {selectedBlockMatches.length > 0 ?
                     <div className="flex flex-wrap items-center gap-2">
                       <ShareButton
                         className="inline-flex items-center gap-1.5 rounded-xl px-4 py-3 text-sm font-bold transition-colors"
                         getText={() =>
                           buildMyMatchdayShareText({
                             title: t("party.share.myTitle"),
-                            matchdayLabel: `Etapa ${selectedMatchday}`,
+                            matchdayLabel: selectedBlockLabel,
                             tournamentName,
-                            rows: selectedMatchdayMatches.map((m) => ({
+                            rows: selectedBlockMatches.map((m) => ({
                               fixture: fixtureTlaPair(m),
                               pred: getMatchPredDisplay(myPreds[m.id]),
                             })),
@@ -730,13 +767,13 @@ export default function PartyWcDashboard({
                     </div>
                   : null}
                 </div>
-                {selectedMatchdayMatches.length === 0 ?
+                {selectedBlockMatches.length === 0 ?
                   <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
                     {t("party.group.noMatches")}
                   </p>
                 : (
                   <div className="flex flex-col gap-5">
-                    {selectedMatchdayMatches.map((m) => renderMatchCard(m))}
+                    {selectedBlockMatches.map((m) => renderMatchCard(m))}
                   </div>
                 )}
               </div>

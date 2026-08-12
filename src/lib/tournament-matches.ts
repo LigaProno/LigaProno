@@ -1,6 +1,7 @@
 import {
   parseStoredCompetition,
   COMPETITION_PICKER_OPTIONS,
+  competitionShortLabel,
 } from "@/lib/competition";
 import {
   fetchCompetitionMatches,
@@ -47,14 +48,7 @@ export function tournamentCompetitionLabel(
 ): string {
   if (isMixedTournament(tournament)) {
     const keys = resolveTournamentCompetitionKeys(tournament);
-    const labels = keys.map((key) => {
-      const opt = COMPETITION_PICKER_OPTIONS.find((o) => o.storageKey === key);
-      if (opt) {
-        // "Premier League (2026–27)" → "Premier League"
-        return opt.label.replace(/\s*\([^)]*\)\s*$/, "").trim();
-      }
-      return key.split("_")[0] ?? key;
-    });
+    const labels = keys.map((key) => competitionShortLabel(key));
     if (labels.length === 0) return "Mix";
     if (labels.length === 1) return `Mix · ${labels[0]}`;
     if (labels.length === 2) return `Mix · ${labels[0]} + ${labels[1]}`;
@@ -116,7 +110,7 @@ export async function loadTournamentMatches(
             cacheOnly: options?.cacheOnly ?? true,
           });
         }
-        return matches;
+        return matches.map((m) => ({ ...m, competitionKey: key }));
       }),
     );
 

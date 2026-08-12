@@ -36,6 +36,7 @@ import {
   loadTournamentMatches,
   primaryTournamentCompetition,
   resolveTournamentCompetitionKeys,
+  isMixedTournament,
 } from "@/lib/tournament-matches";
 import { PrizePreferencePanel } from "@/components/turnee/prize-preference-panel";
 import { PrizePreferencePrompt } from "@/components/turnee/prize-preference-prompt";
@@ -520,6 +521,8 @@ export default async function PartyTournamentPage({
         tournamentName={tournament.name}
         inviteCode={tournament.inviteCode}
         competition={primaryCompetition}
+        competitions={competitionKeys}
+        isMixed={isMixedTournament(tournament)}
         isPublic={tournament.isPublic}
         isCreator={isCreator}
         currentUserId={user.id}

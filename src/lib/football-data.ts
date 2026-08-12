@@ -45,6 +45,8 @@ export type FootballDataMatch = {
   stage?: string;
   group?: string | null;
   matchday?: number | null;
+  /** Cheie stocată (ex. RL1_2026) — setată la load pe turnee multi-campionat. */
+  competitionKey?: string;
   homeTeam: FootballDataTeam;
   awayTeam: FootballDataTeam;
   venue?: string | { name?: string; city?: string | null } | null;

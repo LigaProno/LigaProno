@@ -50,3 +50,14 @@ export function findCompetitionPickerOption(
   return COMPETITION_PICKER_OPTIONS[0];
 }
 
+/** Label scurt fără sezon: „SuperLiga României”, „La Liga”. */
+export function competitionShortLabel(
+  storageKey: string | null | undefined,
+): string {
+  const key = storageKey?.trim();
+  if (!key) return "—";
+  const opt = COMPETITION_PICKER_OPTIONS.find((o) => o.storageKey === key);
+  if (opt) return opt.label.replace(/\s*\([^)]*\)\s*$/, "").trim();
+  return key.split("_")[0] ?? key;
+}
+
