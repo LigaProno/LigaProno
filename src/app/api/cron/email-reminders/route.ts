@@ -12,7 +12,7 @@ function isCronAuthorised(req: NextRequest): boolean {
 }
 
 /**
- * Reminder D−1 (meciuri mâine) — trigger manual / legacy.
+ * Reminder D−2 + D−1 (meciuri fără predicție) — trigger manual / legacy.
  * În producție rulează din `/api/cron/email-digest` la 09:00 București.
  */
 export async function GET(req: NextRequest) {

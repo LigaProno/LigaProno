@@ -46,6 +46,14 @@ async function tryClaimDispatch(kind: string, key: string): Promise<boolean> {
   }
 }
 
+async function releaseDispatchClaim(kind: string, key: string): Promise<void> {
+  try {
+    await prisma.emailDispatchLog.deleteMany({ where: { kind, key } });
+  } catch {
+    // best-effort — claim-ul rămas blochează retry până la curățare manuală
+  }
+}
+
 /** Claim + send; în modul EMAIL_TEST_TO nu claim-uiește recipientii săriți de limită. */
 async function claimAndSend(opts: {
   kind: string;
@@ -93,8 +101,13 @@ async function claimAndSend(opts: {
     html: opts.html,
     text: opts.text,
   });
-  if (send.ok) result.sent++;
-  else result.errors.push(`${opts.to}: ${send.reason}`);
+  if (send.ok) {
+    result.sent++;
+  } else {
+    result.errors.push(`${opts.to}: ${send.reason}`);
+    // Eliberează claim-ul ca cronul să poată reîncerca la următoarea rulare.
+    await releaseDispatchClaim(opts.kind, opts.dedupeKey);
+  }
 }
 
 function displayName(first?: string | null, last?: string | null): string {
@@ -188,10 +201,8 @@ function matchesForEmailTournament(
 }
 
 async function loadActiveTournaments(): Promise<ActiveTournament[]> {
+  // MongoDB: `closedAt: null` în where e nesigur — filtrăm în JS (ca la digest).
   const rows = await prisma.tournament.findMany({
-    where: {
-      closedAt: null,
-    },
     select: {
       id: true,
       name: true,
@@ -212,17 +223,19 @@ async function loadActiveTournaments(): Promise<ActiveTournament[]> {
     },
   });
 
-  return rows.filter((t) => competitionKeysForEmailTournament(t).length > 0);
+  return rows.filter(
+    (t) =>
+      t.closedAt == null &&
+      competitionKeysForEmailTournament(t).length > 0,
+  );
 }
 
-/** Reminder D−1: meciuri mâine (Bucharest) fără predicție. */
+/** Reminder D−2 + D−1: meciuri fără predicție peste 2 zile, respectiv mâine (Bucharest). */
 export async function sendPredictionReminders(
   now: Date = new Date(),
 ): Promise<EmailJobResult> {
   const result: EmailJobResult = { attempted: 0, sent: 0, skipped: 0, errors: [] };
   const todayKey = formatDateKeyBucharest(now);
-  const tomorrowKey = addDaysToDateKey(todayKey, 1);
-  const dateLabel = formatBucharestDateLabel(tomorrowKey);
   const base = appBaseUrl();
 
   const tournaments = await loadActiveTournaments();
@@ -241,86 +254,93 @@ export async function sendPredictionReminders(
     matchId: number;
   };
 
-  const pendingByUser = new Map<
-    string,
-    { email: string; firstName: string | null; items: Pending[] }
-  >();
+  // D−2 întâi, apoi D−1 — dedupe separat pe ziua țintă.
+  for (const daysAhead of [2, 1] as const) {
+    const targetKey = addDaysToDateKey(todayKey, daysAhead);
+    const dateLabel = formatBucharestDateLabel(targetKey);
 
-  for (const tournament of tournaments) {
-    const inWindow = matchesForEmailTournament(tournament, matchesByCompetition);
-    const tomorrowUpcoming = inWindow.filter((m) => {
-      if (matchDateKeyBucharest(m.utcDate) !== tomorrowKey) return false;
-      if (Date.parse(m.utcDate) <= now.getTime()) return false;
-      const status = m.status ?? "";
-      return status === "SCHEDULED" || status === "TIMED" || status === "";
-    });
-    if (tomorrowUpcoming.length === 0) continue;
+    const pendingByUser = new Map<
+      string,
+      { email: string; firstName: string | null; items: Pending[] }
+    >();
 
-    const preds = await prisma.wcMatchPrediction.findMany({
-      where: {
-        tournamentId: tournament.id,
-        matchId: { in: tomorrowUpcoming.map((m) => m.id) },
-      },
-      select: {
-        userId: true,
-        matchId: true,
-        htOutcome: true,
-        ftOutcome: true,
-        predHomeGoals: true,
-        predAwayGoals: true,
-      },
-    });
+    for (const tournament of tournaments) {
+      const inWindow = matchesForEmailTournament(tournament, matchesByCompetition);
+      const upcoming = inWindow.filter((m) => {
+        if (matchDateKeyBucharest(m.utcDate) !== targetKey) return false;
+        if (Date.parse(m.utcDate) <= now.getTime()) return false;
+        const status = m.status ?? "";
+        return status === "SCHEDULED" || status === "TIMED" || status === "";
+      });
+      if (upcoming.length === 0) continue;
 
-    const predMap = new Map<string, MatchPredictionInput>();
-    for (const p of preds) {
-      predMap.set(`${p.userId}:${p.matchId}`, p);
-    }
-
-    for (const member of tournament.members) {
-      for (const match of tomorrowUpcoming) {
-        const pred = predMap.get(`${member.userId}:${match.id}`);
-        if (hasAnyMatchPrediction(pred)) continue;
-
-        const entry = pendingByUser.get(member.userId) ?? {
-          email: member.user.email,
-          firstName: member.user.firstName,
-          items: [],
-        };
-        entry.items.push({
+      const preds = await prisma.wcMatchPrediction.findMany({
+        where: {
           tournamentId: tournament.id,
-          tournamentName: tournament.name,
-          fixture: fixtureFullName(match),
-          kickoff: formatKickoffBucharest(match.utcDate),
-          matchId: match.id,
-        });
-        pendingByUser.set(member.userId, entry);
+          matchId: { in: upcoming.map((m) => m.id) },
+        },
+        select: {
+          userId: true,
+          matchId: true,
+          htOutcome: true,
+          ftOutcome: true,
+          predHomeGoals: true,
+          predAwayGoals: true,
+        },
+      });
+
+      const predMap = new Map<string, MatchPredictionInput>();
+      for (const p of preds) {
+        predMap.set(`${p.userId}:${p.matchId}`, p);
+      }
+
+      for (const member of tournament.members) {
+        for (const match of upcoming) {
+          const pred = predMap.get(`${member.userId}:${match.id}`);
+          if (hasAnyMatchPrediction(pred)) continue;
+
+          const entry = pendingByUser.get(member.userId) ?? {
+            email: member.user.email,
+            firstName: member.user.firstName,
+            items: [],
+          };
+          entry.items.push({
+            tournamentId: tournament.id,
+            tournamentName: tournament.name,
+            fixture: fixtureFullName(match),
+            kickoff: formatKickoffBucharest(match.utcDate),
+            matchId: match.id,
+          });
+          pendingByUser.set(member.userId, entry);
+        }
       }
     }
-  }
 
-  for (const [userId, data] of pendingByUser) {
-    if (data.items.length === 0) continue;
-    const primaryTournamentId = data.items[0]!.tournamentId;
-    const rendered = renderPredictionReminderEmail({
-      firstName: data.firstName,
-      dateLabel,
-      matches: data.items.map((i) => ({
-        tournamentName: i.tournamentName,
-        fixture: i.fixture,
-        kickoff: i.kickoff,
-      })),
-      ctaHref: `${base}/turnee/${primaryTournamentId}`,
-    });
+    for (const [userId, data] of pendingByUser) {
+      if (data.items.length === 0) continue;
+      const primaryTournamentId = data.items[0]!.tournamentId;
+      const rendered = renderPredictionReminderEmail({
+        firstName: data.firstName,
+        dateLabel,
+        daysAhead,
+        matches: data.items.map((i) => ({
+          tournamentName: i.tournamentName,
+          fixture: i.fixture,
+          kickoff: i.kickoff,
+        })),
+        ctaHref: `${base}/turnee/${primaryTournamentId}`,
+      });
 
-    await claimAndSend({
-      kind: "reminder",
-      dedupeKey: `${userId}:${tomorrowKey}`,
-      to: data.email,
-      subject: rendered.subject,
-      html: rendered.html,
-      text: rendered.text,
-      result,
-    });
+      await claimAndSend({
+        kind: "reminder",
+        dedupeKey: `${userId}:d${daysAhead}:${targetKey}`,
+        to: data.email,
+        subject: rendered.subject,
+        html: rendered.html,
+        text: rendered.text,
+        result,
+      });
+    }
   }
 
   return result;
@@ -684,6 +704,7 @@ export async function sendTestEmails(to: string): Promise<{
   const reminder = renderPredictionReminderEmail({
     firstName: "Teodor",
     dateLabel: formatBucharestDateLabel(formatDateKeyBucharest()),
+    daysAhead: 1,
     matches: [
       {
         tournamentName: "Liga Demo",

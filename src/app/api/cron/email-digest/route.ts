@@ -16,7 +16,11 @@ function isCronAuthorised(req: NextRequest): boolean {
   return auth === `Bearer ${secret}`;
 }
 
-/** Digest D−1 + reminder (meciuri mâine) + clasamente etapă — țintă 09:00 Europe/Bucharest. */
+/**
+ * Digest D−1 + reminder D−2/D−1 + clasamente etapă — țintă 09:00 Europe/Bucharest.
+ * Cron-ul e programat la 06:00 și 07:00 UTC ca să lovească 09:00 atât iarna (EET)
+ * cât și vara (EEST). Dedupe pe EmailDispatchLog previne dublurile.
+ */
 export async function GET(req: NextRequest) {
   if (!isCronAuthorised(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -30,11 +34,10 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const [digest, reminder, stageRank] = await Promise.all([
-    sendDailyDigests(),
-    sendPredictionReminders(),
-    sendStageRankingEmails(),
-  ]);
+  // Secvențial: SMTP Gmail + claim-uri clare în loguri (fără curse între job-uri).
+  const digest = await sendDailyDigests();
+  const reminder = await sendPredictionReminders();
+  const stageRank = await sendStageRankingEmails();
 
   return NextResponse.json({ ok: true, digest, reminder, stageRank });
 }
