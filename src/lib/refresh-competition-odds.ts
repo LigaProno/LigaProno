@@ -71,17 +71,34 @@ export async function refreshOddsForCompetition(
 
     const competitionLabel = `${parsed.code} ${parsed.season}`;
     /**
-     * Meciuri terminate care necesită refresh: fie nu au deloc row în payload,
-     * fie au row dar fără cote complete (ex. lipsește correct score).
+     * Meciuri care necesită refresh explicit (în afara celor upcoming standard):
+     * - FINISHED fără row sau cu cote incomplete (re-fetch pentru correct score)
+     * - Upcoming fără row deloc (meciuri noi adăugate recent)
      */
     const matchIdsNeedingOddsRefresh = matches
       .filter((m) => {
         if (m.status === "CANCELLED") return false;
-        if (m.status !== "FINISHED") return false;
         const row = existingPayload?.matches[String(m.id)];
-        return !row || !hasCompleteMatchOdds(row);
+        if (m.status === "FINISHED") {
+          return !row || !hasCompleteMatchOdds(row);
+        }
+        // Upcoming fără niciun row — le adăugăm explicit
+        return !row;
       })
       .map((m) => m.id);
+
+    const upcomingCount = matches.filter(
+      (m) => m.status !== "FINISHED" && m.status !== "CANCELLED",
+    ).length;
+    const existingOddsCount = existingPayload
+      ? Object.keys(existingPayload.matches).length
+      : 0;
+
+    console.info(
+      `[odds] ${competitionKey}: ${matches.length} meciuri total, ` +
+      `${upcomingCount} upcoming, ${existingOddsCount} cu cote existente, ` +
+      `${matchIdsNeedingOddsRefresh.length} necesită refresh explicit`,
+    );
 
     const ctx = {
       competitionLabel,

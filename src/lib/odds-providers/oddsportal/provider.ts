@@ -68,6 +68,20 @@ export class OddsPortalProvider implements OddsProvider {
     const fixtures = await fetchTournamentFixturesForScoreFallback(config);
     const fdToOp = mapFixturesToFootballDataMatches(fixtures, targetMatches);
 
+    console.info(
+      `[odds] ${ctx.competitionLabel}: ${targetMatches.length} meciuri țintă, ` +
+      `${fixtures.length} fixtures OddsPortal, ${fdToOp.size} potrivite`,
+    );
+    
+    if (fdToOp.size < targetMatches.length) {
+      const unmatchedIds = targetMatches
+        .filter((m) => !fdToOp.has(m.id))
+        .map((m) => `${m.id}:${m.homeTeam?.name ?? "?"} vs ${m.awayTeam?.name ?? "?"}`);
+      if (unmatchedIds.length > 0 && unmatchedIds.length <= 10) {
+        console.warn(`[odds] Meciuri fără corespondent OddsPortal: ${unmatchedIds.join(", ")}`);
+      }
+    }
+
     const matches: Record<string, MatchOddsRow> = {};
     const errors: string[] = [];
     const referer = config.tournamentPageUrl;
