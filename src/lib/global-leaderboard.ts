@@ -637,7 +637,10 @@ export async function buildGlobalLeaderboard(): Promise<GlobalLeaderboardResult>
   const winsByUser = await loadWinBadgesByUser(rows.map((r) => r.userId));
   rows.forEach((r, i) => {
     r.rank = i + 1;
-    r.wins = winsByUser.get(r.userId) ?? [];
+    r.wins = (winsByUser.get(r.userId) ?? []).map((w) => ({
+      tournamentId: w.tournamentId,
+      tournamentName: w.tournamentName,
+    }));
   });
 
   return {
