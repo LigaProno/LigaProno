@@ -70,12 +70,16 @@ export async function refreshOddsForCompetition(
       }));
 
     const competitionLabel = `${parsed.code} ${parsed.season}`;
-    /** Meciuri cu 1X2 dar fără scor corect — le re-cerem pe OddsPortal (inclusiv terminate). */
+    /**
+     * Meciuri terminate care necesită refresh: fie nu au deloc row în payload,
+     * fie au row dar fără cote complete (ex. lipsește correct score).
+     */
     const matchIdsNeedingOddsRefresh = matches
       .filter((m) => {
         if (m.status === "CANCELLED") return false;
+        if (m.status !== "FINISHED") return false;
         const row = existingPayload?.matches[String(m.id)];
-        return Boolean(row) && !hasCompleteMatchOdds(row);
+        return !row || !hasCompleteMatchOdds(row);
       })
       .map((m) => m.id);
 
