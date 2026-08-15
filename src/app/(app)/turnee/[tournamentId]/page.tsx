@@ -83,7 +83,8 @@ export default async function PartyTournamentPage({
   // Adminii / moderatorii pot inspecta orice turneu fără să fie membri.
   if (!isMember && !canMonitor) redirect("/turnee");
 
-  const isCreator = tournament.creatorId === user.id;
+  // Creator sau admin/moderator poate gestiona cotele
+  const isCreator = tournament.creatorId === user.id || canMonitor;
   const tournamentMembers = tournament.members;
 
   const competitionKeys = resolveTournamentCompetitionKeys(tournament);
