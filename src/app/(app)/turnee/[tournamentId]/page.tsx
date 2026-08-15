@@ -233,7 +233,10 @@ export default async function PartyTournamentPage({
       rank: 0,
       userId: m.userId,
       displayName: m.displayName ?? displayName(m.user.firstName, m.user.lastName),
-      wins: winsByUser.get(m.userId) ?? [],
+      wins: (winsByUser.get(m.userId) ?? []).map((w) => ({
+        tournamentId: w.tournamentId,
+        tournamentName: w.tournamentName,
+      })),
       bestStreak: m.user.cachedBestStreak,
       fg: totals.fullTimeGuessPoints,
       pg: totals.halfTimeGuessPoints,
@@ -313,7 +316,10 @@ export default async function PartyTournamentPage({
         rank: 0,
         userId: m.userId,
         displayName: m.displayName ?? displayName(m.user.firstName, m.user.lastName),
-        wins: winsByUser.get(m.userId) ?? [],
+        wins: (winsByUser.get(m.userId) ?? []).map((w) => ({
+        tournamentId: w.tournamentId,
+        tournamentName: w.tournamentName,
+      })),
         bestStreak: m.user.cachedBestStreak,
         fg: totals.fullTimeGuessPoints,
         pg: totals.halfTimeGuessPoints,
