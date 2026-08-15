@@ -20,6 +20,12 @@ model User {
   favoriteTeamCompetition String?
   // Cel mai lung șir de scoruri exacte la rând (turnee publice) — calculat de cronul refresh-scores.
   cachedBestStreak    Int                  @default(0)
+  // Consimțământ pentru email marketing (GDPR). null = încă nu a fost întrebat.
+  marketingConsent    Boolean?
+  marketingConsentAt  DateTime?
+  // Acceptare termeni și condiții. null = încă nu a acceptat.
+  termsAccepted       Boolean?
+  termsAcceptedAt     DateTime?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   memberships         TournamentMember[]

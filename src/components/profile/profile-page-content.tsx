@@ -13,6 +13,7 @@ import {
   type ProfileData,
   type ProfileTeamOption,
 } from "@/app/actions/profile";
+import { updateMarketingConsent } from "@/app/actions/consent";
 import { DEFAULT_FAVORITE_TEAM_COMPETITION } from "@/lib/favorite-team";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { FavoriteTeamDisplay } from "@/components/profile/favorite-team-display";
@@ -30,10 +31,12 @@ export function ProfilePageContent({
   initialProfile,
   initialTeams,
   competitions,
+  initialMarketingConsent,
 }: {
   initialProfile: ProfileData;
   initialTeams: ProfileTeamOption[];
   competitions: ProfileCompetitionOption[];
+  initialMarketingConsent: boolean | null;
 }) {
   const { t, locale } = useLocale();
   const { user, isLoaded } = useUser();
@@ -61,17 +64,21 @@ export function ProfilePageContent({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
 
+  const [marketingConsent, setMarketingConsent] = useState(initialMarketingConsent ?? false);
+
   const [nameSaving, setNameSaving] = useState(false);
   const [avatarSaving, setAvatarSaving] = useState(false);
   const [teamSaving, setTeamSaving] = useState(false);
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [deleteSaving, setDeleteSaving] = useState(false);
+  const [marketingSaving, setMarketingSaving] = useState(false);
 
   const [nameMessage, setNameMessage] = useState<string>();
   const [avatarMessage, setAvatarMessage] = useState<string>();
   const [teamMessage, setTeamMessage] = useState<string>();
   const [passwordMessage, setPasswordMessage] = useState<string>();
   const [deleteMessage, setDeleteMessage] = useState<string>();
+  const [marketingMessage, setMarketingMessage] = useState<string>();
 
   useEffect(() => {
     if (!isLoaded || !user) return;
@@ -445,6 +452,47 @@ export function ProfilePageContent({
               />
             </div>
           ) : null}
+        </ProfileSection>
+      ) : null}
+
+      {!onboarding ? (
+        <ProfileSection
+          title={t("profile.marketing.title")}
+          description={t("profile.marketing.description")}
+        >
+          <div className="max-w-md space-y-4">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={marketingConsent}
+                onChange={async (e) => {
+                  const newValue = e.target.checked;
+                  setMarketingConsent(newValue);
+                  setMarketingSaving(true);
+                  setMarketingMessage(undefined);
+                  const result = await updateMarketingConsent(newValue);
+                  setMarketingSaving(false);
+                  if (result.ok) {
+                    setMarketingMessage(t("profile.saved"));
+                  } else {
+                    setMarketingMessage(result.error);
+                    setMarketingConsent(!newValue);
+                  }
+                }}
+                disabled={marketingSaving}
+                className="mt-0.5 w-5 h-5 rounded border-2 border-white/20 bg-white/5 checked:bg-blue-500 checked:border-blue-500 cursor-pointer transition-colors disabled:opacity-50"
+              />
+              <span className="text-sm text-white/70 leading-relaxed">
+                {t("profile.marketing.checkbox")}
+              </span>
+            </label>
+            {marketingMessage ? (
+              <ProfileAlert
+                message={marketingMessage}
+                tone={marketingMessage === t("profile.saved") ? "success" : "error"}
+              />
+            ) : null}
+          </div>
         </ProfileSection>
       ) : null}
 

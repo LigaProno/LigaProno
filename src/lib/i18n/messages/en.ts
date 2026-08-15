@@ -516,6 +516,10 @@ export const en: Messages = {
   "profile.delete.confirmHint": "Type DELETE exactly to confirm.",
   "profile.delete.confirmWord": "DELETE",
   "profile.delete.submit": "Delete account permanently",
+  "profile.marketing.title": "Email communications",
+  "profile.marketing.description": "Manage your marketing email preferences.",
+  "profile.marketing.checkbox":
+    "I want to receive news, promotions and information about Liga Prono by email.",
   "footer.tagline":
     "Predict with friends, live standings, and matchday energy — all in one place.",
   "footer.explore": "Explore",

@@ -110,6 +110,13 @@ export default async function AdminPage({
               </span>
             ) : null}
           </Link>
+          <Link
+            href="/admin/email-subscription"
+            className="px-4 py-2 text-sm font-semibold transition-colors -mb-px border-b-2"
+            style={{ color: "rgba(255,255,255,0.45)", borderColor: "transparent" }}
+          >
+            Email marketing
+          </Link>
         </div>
 
         {activeTab === "support" ? (
