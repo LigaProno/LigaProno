@@ -244,3 +244,97 @@ export async function addCustomPrizeOption(rawLabel: string): Promise<string> {
     throw new Error("Nu am putut salva premiul.");
   }
 }
+
+export type SubscribedUser = {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  marketingConsentAt: string | null;
+};
+
+export async function getSubscribedUsers(opts: {
+  skip?: number;
+  take?: number;
+  search?: string;
+}): Promise<SubscribedUser[]> {
+  const user = await requireDbUser();
+  if (!isAdminEmail(user.email)) throw new Error("Acces interzis.");
+
+  const { skip = 0, take = 20, search } = opts;
+
+  const where = {
+    marketingConsent: true,
+    ...(search
+      ? {
+          OR: [
+            { email: { contains: search, mode: "insensitive" as const } },
+            { firstName: { contains: search, mode: "insensitive" as const } },
+            { lastName: { contains: search, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  };
+
+  const users = await prisma.user.findMany({
+    where,
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      marketingConsentAt: true,
+    },
+    orderBy: { marketingConsentAt: "desc" },
+    skip,
+    take,
+  });
+
+  return users.map((u) => ({
+    id: u.id,
+    email: u.email,
+    firstName: u.firstName,
+    lastName: u.lastName,
+    marketingConsentAt: u.marketingConsentAt?.toISOString() ?? null,
+  }));
+}
+
+export async function sendMarketingEmail(data: {
+  subject: string;
+  body: string;
+}): Promise<{ ok: true; sentCount: number } | { ok: false; error: string }> {
+  const user = await requireDbUser();
+  if (!isAdminEmail(user.email)) {
+    return { ok: false, error: "Acces interzis." };
+  }
+
+  const { subject, body } = data;
+
+  if (subject.trim().length < 5) {
+    return { ok: false, error: "Subiectul trebuie să aibă cel puțin 5 caractere." };
+  }
+  if (body.trim().length < 20) {
+    return { ok: false, error: "Conținutul trebuie să aibă cel puțin 20 caractere." };
+  }
+
+  const subscribers = await prisma.user.findMany({
+    where: { marketingConsent: true },
+    select: { id: true, email: true, firstName: true },
+  });
+
+  if (subscribers.length === 0) {
+    return { ok: false, error: "Nu există abonați." };
+  }
+
+  // TODO: Implementează trimiterea reală prin serviciul de email (Resend, etc.)
+  // Pentru moment, doar logăm și returnăm succes.
+  console.info(
+    `[marketing-email] Would send to ${subscribers.length} subscribers:`,
+    { subject, bodyLength: body.length },
+  );
+
+  // Aici ar trebui să folosești serviciul de email configurat
+  // await sendBulkMarketingEmails(subscribers, subject, body);
+
+  return { ok: true, sentCount: subscribers.length };
+}

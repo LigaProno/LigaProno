@@ -518,6 +518,10 @@ export const ro: Messages = {
   "profile.delete.confirmHint": "Scrie exact STERGE pentru a confirma.",
   "profile.delete.confirmWord": "STERGE",
   "profile.delete.submit": "Șterge contul definitiv",
+  "profile.marketing.title": "Comunicări email",
+  "profile.marketing.description": "Gestionează preferințele pentru emailuri de marketing.",
+  "profile.marketing.checkbox":
+    "Doresc să primesc noutăți, promoții și informații despre Liga Prono prin email.",
   "footer.tagline":
     "Pronosticuri cu prietenii, clasamente live și vibe de etapă — totul într-un singur loc.",
   "footer.explore": "Explorează",

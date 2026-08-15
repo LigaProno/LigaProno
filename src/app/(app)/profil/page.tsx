@@ -5,13 +5,17 @@ import {
   getFavoriteTeamOptions,
   getProfileData,
 } from "@/app/actions/profile";
+import { getConsentStatus } from "@/app/actions/consent";
 import { DEFAULT_FAVORITE_TEAM_COMPETITION } from "@/lib/favorite-team";
 import { pageTitle } from "@/lib/site-metadata";
 
 export const metadata = pageTitle("Profil");
 
 export default async function ProfilPage() {
-  const profile = await getProfileData();
+  const [profile, consentStatus] = await Promise.all([
+    getProfileData(),
+    getConsentStatus(),
+  ]);
   const competitionKey = profile.favoriteTeamCompetition ?? DEFAULT_FAVORITE_TEAM_COMPETITION;
   const [competitions, teams] = await Promise.all([
     getFavoriteTeamCompetitionOptions(),
@@ -30,6 +34,7 @@ export default async function ProfilPage() {
         initialProfile={profile}
         initialTeams={teams}
         competitions={competitions}
+        initialMarketingConsent={consentStatus.marketingConsent}
       />
     </Suspense>
   );
