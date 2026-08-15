@@ -10,11 +10,18 @@ export type ConsentStatus = {
 };
 
 export async function getConsentStatus(): Promise<ConsentStatus> {
-  const user = await requireDbUser();
-  return {
-    termsAccepted: user.termsAccepted ?? false,
-    marketingConsent: user.marketingConsent ?? null,
-  };
+  try {
+    const user = await requireDbUser();
+    return {
+      termsAccepted: (user as { termsAccepted?: boolean }).termsAccepted ?? false,
+      marketingConsent: (user as { marketingConsent?: boolean | null }).marketingConsent ?? null,
+    };
+  } catch {
+    return {
+      termsAccepted: false,
+      marketingConsent: null,
+    };
+  }
 }
 
 export async function saveConsent(data: {
