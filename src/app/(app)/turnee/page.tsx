@@ -21,22 +21,24 @@ export default async function TurneePage() {
   const { userId: clerkId } = await auth();
 
   const [user, publicTournaments] = await Promise.all([
-    prisma.user.findUnique({
-      where: { clerkId: clerkId! },
-      include: {
-        memberships: {
+    clerkId
+      ? prisma.user.findUnique({
+          where: { clerkId },
           include: {
-            tournament: {
+            memberships: {
               include: {
-                _count: { select: { members: true } },
-                creator: { select: { firstName: true, lastName: true } },
+                tournament: {
+                  include: {
+                    _count: { select: { members: true } },
+                    creator: { select: { firstName: true, lastName: true } },
+                  },
+                },
               },
+              orderBy: { joinedAt: "desc" },
             },
           },
-          orderBy: { joinedAt: "desc" },
-        },
-      },
-    }),
+        })
+      : Promise.resolve(null),
     prisma.tournament.findMany({
       where: { isPublic: true },
       include: { _count: { select: { members: true } } },
