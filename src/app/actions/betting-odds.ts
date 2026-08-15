@@ -7,6 +7,7 @@ import { canManualRefreshOddsToday } from "@/lib/odds-refresh-limit";
 import { I18nError } from "@/lib/i18n/errors";
 import { resolveTournamentCompetitionKeys } from "@/lib/tournament-matches";
 import { loadTournamentOddsSnapshot } from "@/lib/competition-odds";
+import { canMonitorTournaments } from "@/lib/admin";
 
 export async function refreshTournamentBettingOdds(
   tournamentId: string,
@@ -23,7 +24,9 @@ export async function refreshTournamentBettingOdds(
     where: { id: tournamentId },
   });
   if (!tournament) throw new I18nError("errors.tournamentNotFound");
-  if (tournament.creatorId !== user.id) {
+  
+  const isCreatorOrAdmin = tournament.creatorId === user.id || canMonitorTournaments(user.email);
+  if (!isCreatorOrAdmin) {
     throw new I18nError("errors.onlyCreatorOdds");
   }
 
