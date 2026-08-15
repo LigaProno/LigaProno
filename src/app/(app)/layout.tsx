@@ -31,14 +31,8 @@ async function SyncedSidebar() {
 }
 
 async function ConsentCheck() {
-  try {
-    const user = await getOrSyncDbUser();
-    const needsConsent = user ? user.termsAccepted !== true : false;
-    return <ConsentGate needsConsent={needsConsent} />;
-  } catch {
-    // Dacă DB nu e disponibil sau user nu e autentificat, nu afișa popup
-    return null;
-  }
+  // Temporar dezactivat până rezolvăm eroarea
+  return null;
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
