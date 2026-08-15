@@ -4,9 +4,8 @@ import { currentUser } from "@clerk/nextjs/server";
 import { AuthTasksRedirect } from "@/components/auth/auth-tasks-redirect";
 import Sidebar from "@/components/Sidebar";
 import PageWrapper from "@/components/PageWrapper";
-import { ConsentGate } from "@/components/consent/consent-gate";
 import { isAdminEmail, canManagePublicTournaments } from "@/lib/admin";
-import { getOrSyncDbUser, syncClerkUserSafe } from "@/lib/sync-clerk-user";
+import { syncClerkUserSafe } from "@/lib/sync-clerk-user";
 
 /** Tot ce e sub `(app)` cere login — implicit noindex. `/matches` suprascrie. */
 export const metadata: Metadata = {
@@ -30,18 +29,10 @@ async function SyncedSidebar() {
   );
 }
 
-async function ConsentCheck() {
-  // Temporar dezactivat până rezolvăm eroarea
-  return null;
-}
-
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <AuthTasksRedirect />
-      <Suspense fallback={null}>
-        <ConsentCheck />
-      </Suspense>
       <div className="flex flex-col md:flex-row h-screen overflow-hidden" style={{ backgroundColor: "#0A0B1E" }}>
         <Suspense fallback={<Sidebar isAdmin={false} canManagePublic={false} />}>
           <SyncedSidebar />
