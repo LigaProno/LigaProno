@@ -23,10 +23,12 @@ export function TurneeSectionTitle({
   title,
   badge,
   count,
+  extra,
 }: {
   title: string;
   badge?: string;
   count?: number;
+  extra?: ReactNode;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2.5 mb-4">
@@ -42,6 +44,7 @@ export function TurneeSectionTitle({
           {count}
         </span>
       ) : null}
+      {extra}
     </div>
   );
 }

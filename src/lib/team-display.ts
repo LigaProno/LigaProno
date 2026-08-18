@@ -1,4 +1,4 @@
-import type { FootballDataTeam } from "@/lib/football-data";
+import type { FootballDataTeam } from "@/lib/football-data-types";
 
 const CITY_SUFFIX_RE =
   /\s+(București|Bucuresti|Bucharest|Bukarest|Cluj-Napoca|Cluj|Timișoara|Timisoara|Iași|Iasi|Constanța|Constanta)$/i;

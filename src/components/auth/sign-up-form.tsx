@@ -3,6 +3,7 @@
 import { useAuth, useClerk, useSignUp } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { saveRememberMe } from "@/app/actions/cookie-consent";
 import {
   AuthAlert,
   AuthCard,
@@ -95,6 +96,7 @@ export function SignUpForm() {
     }
 
     if (signUp.status === "complete") {
+      await saveRememberMe(true);
       await finalizeAuth(signUp, router, afterSignUp);
       return;
     }
@@ -130,6 +132,7 @@ export function SignUpForm() {
     }
 
     if (signUp.status === "complete") {
+      await saveRememberMe(true);
       await finalizeAuth(signUp, router, afterSignUp);
       return;
     }
@@ -145,6 +148,8 @@ export function SignUpForm() {
       goToApp("/dashboard");
       return;
     }
+
+    await saveRememberMe(true);
 
     const { error } = await signUp.sso({
       strategy: "oauth_google",

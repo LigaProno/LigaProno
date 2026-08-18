@@ -8,6 +8,8 @@ const isPublicRoute = createRouteMatcher([
   "/sso-callback",
   "/matches",
   "/confidentialitate",
+  "/termeni-si-conditii",
+  "/regulament",
   // Vercel Cron auth via Bearer CRON_SECRET in the route handlers.
   "/api/cron(.*)",
 ]);

@@ -1,4 +1,4 @@
-import type { FootballDataMatch } from "@/lib/football-data";
+import type { FootballDataMatch } from "@/lib/football-data-types";
 import {
   isMatchCancelled,
   isMatchEffectivelyPostponed,

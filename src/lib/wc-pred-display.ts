@@ -1,8 +1,12 @@
-import type { FootballDataMatch, FootballDataTeam } from "@/lib/football-data";
+import type { FootballDataMatch, FootballDataTeam } from "@/lib/football-data-types";
 import type { MatchPredictionInput } from "@/lib/wc-scoring";
 import { getMatchScoreAfter90 } from "@/lib/match-score";
 import { formatTeamDisplayName } from "@/lib/team-display";
-import { isMatchSettled, matchUpcomingSortTime } from "@/lib/match-status";
+import {
+  isMatchEffectivelyPostponed,
+  isMatchSettled,
+  matchUpcomingSortTime,
+} from "@/lib/match-status";
 
 function isKnockoutStageLocal(stage: string | undefined): boolean {
   return !!stage && stage !== "GROUP_STAGE" && stage !== "REGULAR_SEASON";
@@ -210,7 +214,12 @@ export function lastFinishedAndNextThree(matches: FootballDataMatch[]): {
   const lastFinished = finished[finished.length - 1] ?? null;
 
   const upcoming = matches
-    .filter((m) => !isMatchSettled(m) && m.status !== "CANCELLED")
+    .filter(
+      (m) =>
+        !isMatchSettled(m) &&
+        m.status !== "CANCELLED" &&
+        !isMatchEffectivelyPostponed(m),
+    )
     .sort((a, b) => matchUpcomingSortTime(a) - matchUpcomingSortTime(b))
     .slice(0, 3);
 
@@ -233,32 +242,177 @@ export function recentAndUpcomingMatches(
     .slice(-prev);
 
   const upcoming = matches
-    .filter((m) => !isMatchSettled(m) && m.status !== "CANCELLED")
+    .filter(
+      (m) =>
+        !isMatchSettled(m) &&
+        m.status !== "CANCELLED" &&
+        !isMatchEffectivelyPostponed(m),
+    )
     .sort((a, b) => matchUpcomingSortTime(a) - matchUpcomingSortTime(b))
     .slice(0, next);
 
   return [...finished, ...upcoming];
 }
 
-/** Etapa curentă: prima etapă cu meciuri nedecise; altfel ultima etapă. */
-export function resolveCurrentMatchday(matches: FootballDataMatch[]): number {
+/** Kickoff folosit la gruparea vizuală a etapelor. */
+function kickoffMs(m: FootballDataMatch): number | null {
+  const t = Date.parse(m.utcDate);
+  return Number.isFinite(t) ? t : null;
+}
+
+/** Meci încă de jucat, cu dată reală (nu amânare fără program nou). */
+export function isPlayableUnfinishedMatch(
+  m: FootballDataMatch,
+  nowMs = Date.now(),
+): boolean {
+  if (isMatchSettled(m) || m.status === "CANCELLED") return false;
+  if (isMatchEffectivelyPostponed(m, nowMs)) return false;
+  return true;
+}
+
+const MATCHDAY_CLUSTER_FROM_MEDIAN_MS = 60 * 60 * 60 * 1000;
+const MATCHDAY_CLUSTER_PAD_MS = 36 * 60 * 60 * 1000;
+
+function officialMatchdayMap(
+  matches: FootballDataMatch[],
+): Map<number, FootballDataMatch[]> {
   const byMatchday = new Map<number, FootballDataMatch[]>();
   for (const m of matches) {
     const md = m.matchday ?? 0;
-    if (md > 0) {
-      if (!byMatchday.has(md)) byMatchday.set(md, []);
-      byMatchday.get(md)!.push(m);
+    if (md <= 0) continue;
+    if (!byMatchday.has(md)) byMatchday.set(md, []);
+    byMatchday.get(md)!.push(m);
+  }
+  return byMatchday;
+}
+
+/** Intervalul de kickoff al nucleului etapei (fără amânări / reprogramări izolate). */
+function coreKickoffRange(
+  mdMatches: FootballDataMatch[],
+  nowMs = Date.now(),
+): { min: number; max: number } | null {
+  const times: number[] = [];
+  for (const m of mdMatches) {
+    if (m.status === "CANCELLED") continue;
+    if (isMatchEffectivelyPostponed(m, nowMs)) continue;
+    const t = kickoffMs(m);
+    if (t != null) times.push(t);
+  }
+  if (times.length === 0) return null;
+  times.sort((a, b) => a - b);
+  const median = times[Math.floor(times.length / 2)]!;
+  const clustered = times.filter(
+    (t) => Math.abs(t - median) <= MATCHDAY_CLUSTER_FROM_MEDIAN_MS,
+  );
+  const use = clustered.length > 0 ? clustered : times;
+  return { min: use[0]!, max: use[use.length - 1]! };
+}
+
+function nearestMatchdayForKickoff(
+  t: number,
+  ranges: Map<number, { min: number; max: number }>,
+  fallback: number,
+): number {
+  let containing: number | null = null;
+  let containingDist = Number.POSITIVE_INFINITY;
+  for (const [md, r] of ranges) {
+    if (t >= r.min - MATCHDAY_CLUSTER_PAD_MS && t <= r.max + MATCHDAY_CLUSTER_PAD_MS) {
+      const mid = (r.min + r.max) / 2;
+      const d = Math.abs(t - mid);
+      if (d < containingDist) {
+        containingDist = d;
+        containing = md;
+      }
     }
   }
-  const sorted = [...byMatchday.keys()].sort((a, b) => a - b);
-  for (const md of sorted) {
-    const mdMatches = byMatchday.get(md)!;
-    // Etapa e „deschisă" dacă mai are meciuri de jucat (inclusiv amânate).
-    if (mdMatches.some((m) => !isMatchSettled(m) && m.status !== "CANCELLED")) {
-      return md;
+  if (containing != null) return containing;
+
+  let best = fallback;
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (const [md, r] of ranges) {
+    const dist = t < r.min ? r.min - t : t > r.max ? t - r.max : 0;
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = md;
     }
   }
-  return sorted[sorted.length - 1] ?? 1;
+  return best;
+}
+
+export type DisplayMatchdayBlock = {
+  matchday: number;
+  matches: FootballDataMatch[];
+};
+
+/**
+ * Grupează meciurile pe etapa în care se joacă efectiv.
+ * Amânările reprogramate (dată nouă, departe de runda originală) sunt mutate
+ * cronologic în etapa din jurul noii date.
+ */
+export function groupMatchesByDisplayMatchday(
+  matches: FootballDataMatch[],
+  nowMs = Date.now(),
+): DisplayMatchdayBlock[] {
+  const official = officialMatchdayMap(matches);
+  const ranges = new Map<number, { min: number; max: number }>();
+  for (const [md, list] of official) {
+    const range = coreKickoffRange(list, nowMs);
+    if (range) ranges.set(md, range);
+  }
+
+  const buckets = new Map<number, FootballDataMatch[]>();
+  function add(md: number, m: FootballDataMatch) {
+    if (!buckets.has(md)) buckets.set(md, []);
+    buckets.get(md)!.push(m);
+  }
+
+  for (const [officialMd, list] of official) {
+    const range = ranges.get(officialMd) ?? null;
+    for (const m of list) {
+      if (isMatchSettled(m) || m.status === "CANCELLED") {
+        add(officialMd, m);
+        continue;
+      }
+      if (isMatchEffectivelyPostponed(m, nowMs)) {
+        add(officialMd, m);
+        continue;
+      }
+      const t = kickoffMs(m);
+      if (t == null) {
+        add(officialMd, m);
+        continue;
+      }
+      const inOwnCluster =
+        range != null &&
+        t >= range.min - MATCHDAY_CLUSTER_PAD_MS &&
+        t <= range.max + MATCHDAY_CLUSTER_PAD_MS;
+      if (inOwnCluster || ranges.size === 0) {
+        add(officialMd, m);
+        continue;
+      }
+      add(nearestMatchdayForKickoff(t, ranges, officialMd), m);
+    }
+  }
+
+  return [...buckets.keys()]
+    .sort((a, b) => a - b)
+    .map((matchday) => ({
+      matchday,
+      matches: [...(buckets.get(matchday) ?? [])].sort(
+        (a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate) || a.id - b.id,
+      ),
+    }));
+}
+
+/** Etapa curentă: prima etapă cu meciuri de jucat (amânările nu țin etapa deschisă). */
+export function resolveCurrentMatchday(matches: FootballDataMatch[]): number {
+  const blocks = groupMatchesByDisplayMatchday(matches);
+  for (const block of blocks) {
+    if (block.matches.some((m) => isPlayableUnfinishedMatch(m))) {
+      return block.matchday;
+    }
+  }
+  return blocks[blocks.length - 1]?.matchday ?? 1;
 }
 
 export function matchesForMatchday(

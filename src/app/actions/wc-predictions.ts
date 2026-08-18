@@ -15,6 +15,7 @@ import {
   loadTournamentMatches,
   resolveTournamentCompetitionKeys,
 } from "@/lib/tournament-matches";
+import { isFtOutcomeConsistentWithExactScore } from "@/lib/prediction-consistency";
 
 function validOutcome(v: unknown): v is "HOME" | "AWAY" | "DRAW" | "" {
   return v === "HOME" || v === "AWAY" || v === "DRAW" || v === "";
@@ -140,6 +141,15 @@ export async function copyPredictionsToTournaments(
       const src = sourceByMatch.get(m.id);
       if (!src || !hasAnyMatchPrediction(src)) continue;
       if (isMatchKickoffPassed(m)) continue;
+      if (
+        !isFtOutcomeConsistentWithExactScore(
+          src.ftOutcome,
+          src.predHomeGoals,
+          src.predAwayGoals,
+        )
+      ) {
+        continue;
+      }
 
       await prisma.wcMatchPrediction.upsert({
         where: {
@@ -242,6 +252,10 @@ export async function saveWcMatchPrediction(
   }
   if (predAwayGoals !== null && (Number.isNaN(predAwayGoals) || predAwayGoals < 0)) {
     predAwayGoals = null;
+  }
+
+  if (!isFtOutcomeConsistentWithExactScore(ft, predHomeGoals, predAwayGoals)) {
+    throw new I18nError("errors.scoreFtMismatch");
   }
 
   await prisma.wcMatchPrediction.upsert({

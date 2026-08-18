@@ -1,4 +1,4 @@
-import type { FootballDataMatch } from "@/lib/football-data";
+import type { FootballDataMatch } from "@/lib/football-data-types";
 import { TEAM_NAME_ALIASES } from "@/lib/odds-providers/oddsportal/competition-map";
 import type { OpScheduleFixture } from "@/lib/odds-providers/oddsportal/client";
 

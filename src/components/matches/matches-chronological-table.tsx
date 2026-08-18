@@ -1,21 +1,21 @@
-ï»¿"use client";
+"use client";
 
 import Image from "next/image";
 import { useLocale } from "@/components/i18n/locale-provider";
+import type { FootballDataMatch } from "@/lib/football-data-types";
 import {
   matchGroupToGroupKey,
   stageDisplayName,
-  type FootballDataMatch,
-} from "@/lib/football-data";
+} from "@/lib/football-data-helpers";
 import { formatMatchKickoff } from "@/lib/match-datetime";
 import { matchResultHtFt, teamShort } from "@/lib/wc-pred-display";
 
 function matchPhaseLabel(m: FootballDataMatch): string {
   if (m.stage === "GROUP_STAGE") {
-    return matchGroupToGroupKey(m.group) ?? "â€”";
+    return matchGroupToGroupKey(m.group) ?? "—";
   }
   if (m.stage) return stageDisplayName(m.stage);
-  return "â€”";
+  return "—";
 }
 
 function isLiveStatus(status?: string): boolean {
@@ -89,7 +89,7 @@ export function MatchesChronologicalTable({
                     : null}
                     <span className="font-medium text-white tabular-nums">
                       {home}
-                      <span className="mx-1.5" style={{ color: "rgba(255,255,255,0.35)" }}>â€“</span>
+                      <span className="mx-1.5" style={{ color: "rgba(255,255,255,0.35)" }}>–</span>
                       {away}
                     </span>
                     {m.awayTeam.crest ?
@@ -98,10 +98,10 @@ export function MatchesChronologicalTable({
                   </div>
                 </td>
                 <td className="py-3 px-2 align-top text-center tabular-nums font-semibold text-emerald-200/95">
-                  {ht ?? (mode === "upcoming" ? "â€”" : "â€”")}
+                  {ht ?? (mode === "upcoming" ? "—" : "—")}
                 </td>
                 <td className="py-3 px-2 align-top text-center tabular-nums font-semibold" style={{ color: ft ? "#60A5FA" : "rgba(255,255,255,0.35)" }}>
-                  {ft ?? "â€”"}
+                  {ft ?? "—"}
                 </td>
                 <td className="py-3 px-2 align-top hidden sm:table-cell text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>
                   {matchPhaseLabel(m)}

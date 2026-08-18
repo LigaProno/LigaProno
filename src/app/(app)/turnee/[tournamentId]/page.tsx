@@ -4,10 +4,8 @@ import { notFound, redirect } from "next/navigation";
 import PartyWcDashboard, {
   type LeaderboardRow,
 } from "@/components/party/party-wc-dashboard";
-import {
-  venueLabel,
-  type FootballDataMatch,
-} from "@/lib/football-data";
+import { venueLabel } from "@/lib/football-data-helpers";
+import type { FootballDataMatch } from "@/lib/football-data-types";
 import { loadTournamentOddsSnapshot } from "@/lib/competition-odds";
 import { canManualRefreshOddsToday } from "@/lib/odds-refresh-limit";
 import { prisma } from "@/lib/prisma";
@@ -31,16 +29,17 @@ import { createTranslator } from "@/lib/i18n";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
 import { loadWinBadgesByUser } from "@/lib/tournament-wins";
 import { canMonitorTournaments } from "@/lib/admin";
-import { loadTournamentLiveFixtures } from "@/lib/live-fixtures";
+import { liveFixturesFromMatches } from "@/lib/live-fixtures";
+import { loadTournamentMatches } from "@/lib/tournament-matches";
 import {
-  loadTournamentMatches,
   primaryTournamentCompetition,
   resolveTournamentCompetitionKeys,
   isMixedTournament,
-} from "@/lib/tournament-matches";
+} from "@/lib/tournament-competition";
 import { PrizePreferencePanel } from "@/components/turnee/prize-preference-panel";
 import { PrizePreferencePrompt } from "@/components/turnee/prize-preference-prompt";
 import { PrizeAllocationView } from "@/components/turnee/prize-allocation-view";
+import { PublicTournamentPrizeNotice } from "@/components/turnee/public-tournament-prize-notice";
 import { AdminActivityPanel } from "@/components/turnee/admin-activity-panel";
 
 function displayName(first?: string | null, last?: string | null): string {
@@ -98,7 +97,6 @@ export default async function PartyTournamentPage({
       loadTournamentOddsSnapshot(competitionKeys)
     : Promise.resolve(null),
     loadWinBadgesByUser(memberIds),
-    loadTournamentLiveFixtures(tournament),
     prisma.tournamentMember.findMany({
       where: { userId: user.id, NOT: { tournamentId } },
       select: {
@@ -117,9 +115,10 @@ export default async function PartyTournamentPage({
   const [
     competitionOddsSnapshot,
     winsByUser,
-    liveFixtures,
     otherMemberships,
   ] = await sideDataPromise;
+
+  const liveFixtures = liveFixturesFromMatches(matches, tournament);
 
   const canManualRefreshOddsTodayFlag = canManualRefreshOddsToday(
     competitionOddsSnapshot?.lastManualRefreshAt,
@@ -502,6 +501,7 @@ export default async function PartyTournamentPage({
             <span className="text-base" aria-hidden>🎁</span>
             <h2 className="text-base font-bold text-white">{t("party.prizePref.title")}</h2>
           </div>
+          {tournament.isPublic ? <PublicTournamentPrizeNotice /> : null}
           <PrizePreferencePanel
             tournamentId={tournament.id}
             pool={tournament.prizePool}

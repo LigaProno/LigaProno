@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { refreshOddsForCompetition } from "@/lib/refresh-competition-odds";
 import { prisma } from "@/lib/prisma";
-import { resolveTournamentCompetitionKeys } from "@/lib/tournament-matches";
+import { resolveTournamentCompetitionKeys } from "@/lib/tournament-competition";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;

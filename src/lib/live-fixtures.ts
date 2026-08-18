@@ -1,26 +1,24 @@
+import "server-only";
+
 import {
+  competitionMayHaveLiveNow,
   fetchCompetitionLiveMatches,
-  type FootballDataMatch,
 } from "@/lib/football-data";
+import type { FootballDataMatch } from "@/lib/football-data-types";
 import { parseStoredCompetition } from "@/lib/competition";
+import {
+  isMatchStaleForScoreFallback,
+  loadMatchesWithScoreOverrides,
+} from "@/lib/competition-match-scores";
 import { formatTeamDisplayName } from "@/lib/team-display";
 import { filterMatchesForTournament } from "@/lib/wc-pred-display";
 import {
   resolveTournamentCompetitionKeys,
   type TournamentCompetitionFields,
-} from "@/lib/tournament-matches";
+} from "@/lib/tournament-competition";
+import type { LiveFixture } from "@/lib/live-fixture-types";
 
-export type LiveFixture = {
-  matchId: number;
-  home: string;
-  away: string;
-  homeCrest: string | null;
-  awayCrest: string | null;
-  homeScore: number;
-  awayScore: number;
-  /** IN_PLAY = live, PAUSED = pauză. */
-  status: "IN_PLAY" | "PAUSED";
-};
+export type { LiveFixture } from "@/lib/live-fixture-types";
 
 function toFixture(m: FootballDataMatch): LiveFixture {
   const ft = m.score?.fullTime;
@@ -36,9 +34,20 @@ function toFixture(m: FootballDataMatch): LiveFixture {
   };
 }
 
+export function liveFixturesFromMatches(
+  matches: FootballDataMatch[],
+  tournament: TournamentCompetitionFields,
+): LiveFixture[] {
+  const inWindow = filterMatchesForTournament(matches, tournament);
+  return inWindow
+    .filter((m) => m.status === "IN_PLAY" || m.status === "PAUSED")
+    .filter((m) => !isMatchStaleForScoreFallback(m))
+    .map(toFixture);
+}
+
 /**
  * Meciurile în desfășurare din fereastra turneului, gata de afișat.
- * Gol dacă turneul n-are competiție, dacă API-ul pică sau dacă nu e nimic live.
+ * Nu lovește Football-Data dacă snapshot-ul de sezon arată că nu e fereastră live.
  */
 export async function loadTournamentLiveFixtures(
   tournament: TournamentCompetitionFields,
@@ -51,18 +60,16 @@ export async function loadTournamentLiveFixtures(
       const parsed = parseStoredCompetition(key);
       if (!parsed) return [] as FootballDataMatch[];
       try {
-        return await fetchCompetitionLiveMatches(parsed.code, parsed.season);
+        const live = await fetchCompetitionLiveMatches(parsed.code, parsed.season);
+        if (live.length === 0) return [] as FootballDataMatch[];
+        return await loadMatchesWithScoreOverrides(key, live, { cacheOnly: true });
       } catch {
-        return [];
+        return [] as FootballDataMatch[];
       }
     }),
   );
 
-  const live = liveBatches.flat();
-  if (live.length === 0) return [];
-
-  const inWindow = filterMatchesForTournament(live, tournament);
-  return inWindow
-    .filter((m) => m.status === "IN_PLAY" || m.status === "PAUSED")
-    .map(toFixture);
+  return liveFixturesFromMatches(liveBatches.flat(), tournament);
 }
+
+export { competitionMayHaveLiveNow };

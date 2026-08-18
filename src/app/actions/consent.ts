@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireDbUser } from "@/lib/sync-clerk-user";
 
 export type ConsentStatus = {
+  authenticated: boolean;
   termsAccepted: boolean;
   marketingConsent: boolean | null;
 };
@@ -12,12 +13,18 @@ export type ConsentStatus = {
 export async function getConsentStatus(): Promise<ConsentStatus> {
   try {
     const user = await requireDbUser();
+    const row = user as {
+      termsAccepted?: boolean | null;
+      marketingConsent?: boolean | null;
+    };
     return {
-      termsAccepted: (user as { termsAccepted?: boolean }).termsAccepted ?? false,
-      marketingConsent: (user as { marketingConsent?: boolean | null }).marketingConsent ?? null,
+      authenticated: true,
+      termsAccepted: row.termsAccepted === true,
+      marketingConsent: row.marketingConsent ?? null,
     };
   } catch {
     return {
+      authenticated: false,
       termsAccepted: false,
       marketingConsent: null,
     };
@@ -26,7 +33,7 @@ export async function getConsentStatus(): Promise<ConsentStatus> {
 
 export async function saveConsent(data: {
   termsAccepted: boolean;
-  marketingConsent: boolean;
+  marketingConsent?: boolean;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const user = await requireDbUser();
@@ -42,12 +49,17 @@ export async function saveConsent(data: {
       data: {
         termsAccepted: true,
         termsAcceptedAt: now,
-        marketingConsent: data.marketingConsent,
-        marketingConsentAt: now,
+        ...(data.marketingConsent !== undefined
+          ? {
+              marketingConsent: data.marketingConsent,
+              marketingConsentAt: now,
+            }
+          : {}),
       },
     });
 
     revalidatePath("/");
+    revalidatePath("/profil");
     return { ok: true };
   } catch (e) {
     console.error("[consent] Error saving consent:", e);
@@ -69,6 +81,7 @@ export async function updateMarketingConsent(
       },
     });
 
+    revalidatePath("/");
     revalidatePath("/profil");
     return { ok: true };
   } catch (e) {

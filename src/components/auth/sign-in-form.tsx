@@ -3,8 +3,15 @@
 import { useAuth, useClerk, useSignIn } from "@clerk/nextjs";
 import type { SignInSecondFactor } from "@clerk/shared/types";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { saveRememberMe } from "@/app/actions/cookie-consent";
+import {
+  clearRememberedEmail,
+  markEphemeralSession,
+  persistRememberedEmail,
+  readRememberedEmail,
+} from "@/components/auth/remember-me-guard";
 import {
   AuthAlert,
   AuthCard,
@@ -116,10 +123,26 @@ export function SignInForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [code, setCode] = useState("");
   const [mfaMode, setMfaMode] = useState<MfaMode | null>(null);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [globalError, setGlobalError] = useState<string>();
+
+  useEffect(() => {
+    const saved = readRememberedEmail();
+    if (saved) setEmail(saved);
+  }, []);
+
+  const applySessionPreference = async () => {
+    await saveRememberMe(rememberMe);
+    if (rememberMe) {
+      if (email.trim()) persistRememberedEmail(email);
+    } else {
+      markEphemeralSession();
+      clearRememberedEmail();
+    }
+  };
 
   const loading = fetchStatus === "fetching";
   const hookError = getHookGlobalError(errors);
@@ -205,6 +228,7 @@ export function SignInForm() {
     }
 
     if (signIn.status === "complete") {
+      await applySessionPreference();
       await finalizeAuth(signIn, router);
       return;
     }
@@ -272,6 +296,7 @@ export function SignInForm() {
     }
 
     if (signIn.status === "complete") {
+      await applySessionPreference();
       await finalizeAuth(signIn, router);
       return;
     }
@@ -296,6 +321,8 @@ export function SignInForm() {
       goToApp();
       return;
     }
+
+    await applySessionPreference();
 
     const { error } = await signIn.sso({
       strategy: "oauth_google",
@@ -353,6 +380,19 @@ export function SignInForm() {
       title="Autentificare"
       footer={<AuthFooterLink text="Nu ai cont?" linkText="Creează unul" href="/sign-up" />}
     >
+      <label className="mb-4 flex cursor-pointer items-start gap-2.5">
+        <input
+          type="checkbox"
+          checked={rememberMe}
+          onChange={(e) => setRememberMe(e.target.checked)}
+          className="mt-0.5 h-4 w-4 cursor-pointer rounded border-2 border-white/20 bg-white/5 checked:border-[#D4AF37] checked:bg-[#D4AF37]"
+        />
+        <span>
+          <span className="block text-sm text-white/80">{t("auth.rememberMe")}</span>
+          <span className="mt-0.5 block text-xs text-white/40">{t("auth.rememberMeHint")}</span>
+        </span>
+      </label>
+
       <AuthOAuthButton onClick={handleGoogle} loading={oauthLoading} label="Continuă cu Google" />
 
       <AuthDivider />

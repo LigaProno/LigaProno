@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { joinPublicTournament } from "@/app/actions/tournament";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { PrizePreferencePanel } from "@/components/turnee/prize-preference-panel";
+import { PublicTournamentPrizeNotice } from "@/components/turnee/public-tournament-prize-notice";
 import { ModalOverlay } from "@/components/ui/modal-overlay";
 
 export default function JoinPublicTournamentButton({
@@ -71,6 +72,7 @@ export default function JoinPublicTournamentButton({
               <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
                 {t("party.prizePref.joinHint")}
               </p>
+              <PublicTournamentPrizeNotice />
             </div>
 
             <PrizePreferencePanel

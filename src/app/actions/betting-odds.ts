@@ -5,7 +5,7 @@ import { refreshOddsForCompetition } from "@/lib/refresh-competition-odds";
 import { requireDbUser } from "@/lib/sync-clerk-user";
 import { canManualRefreshOddsToday } from "@/lib/odds-refresh-limit";
 import { I18nError } from "@/lib/i18n/errors";
-import { resolveTournamentCompetitionKeys } from "@/lib/tournament-matches";
+import { resolveTournamentCompetitionKeys } from "@/lib/tournament-competition";
 import { loadTournamentOddsSnapshot } from "@/lib/competition-odds";
 import { canMonitorTournaments } from "@/lib/admin";
 

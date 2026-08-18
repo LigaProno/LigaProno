@@ -3,9 +3,9 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useLocale } from "@/components/i18n/locale-provider";
-import type { LiveFixture } from "@/lib/live-fixtures";
+import type { LiveFixture } from "@/lib/live-fixture-types";
 
-const POLL_MS = 60_000;
+const POLL_MS = 90_000;
 
 export function LiveFixtureBanner({
   tournamentId,
@@ -16,6 +16,10 @@ export function LiveFixtureBanner({
 }) {
   const { t } = useLocale();
   const [fixtures, setFixtures] = useState<LiveFixture[]>(initial);
+
+  useEffect(() => {
+    setFixtures(initial);
+  }, [initial]);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,12 +37,13 @@ export function LiveFixtureBanner({
       }
     }
 
+    if (initial.length > 0) void poll();
     const id = window.setInterval(poll, POLL_MS);
     return () => {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [tournamentId]);
+  }, [tournamentId, initial.length]);
 
   if (fixtures.length === 0) return null;
 

@@ -46,6 +46,22 @@ export const en: Messages = {
   "auth.resetPassword.forgotLink": "Forgot password?",
   "auth.resetPassword.backToSignInPrefix": "Back to",
   "auth.resetPassword.backToSignIn": "sign in",
+  "auth.rememberMe": "Remember me",
+  "auth.rememberMeHint": "Stay signed in on this device.",
+  "consent.welcomeTitle": "Welcome to Liga Prono!",
+  "consent.welcomeBody":
+    "To continue, please accept the terms and tell us if you want news by email.",
+  "consent.termsRequired": "You must accept the terms and conditions.",
+  "consent.marketingTitle": "Email updates",
+  "consent.marketingBody":
+    "Do you want news, promotions and updates about Liga Prono? You can change this anytime in your profile.",
+  "consent.marketingLabel":
+    "I want to receive news, promotions and information about Liga Prono by email. I can unsubscribe anytime.",
+  "consent.marketingYes": "Yes, send me updates",
+  "consent.marketingNo": "No, thanks",
+  "consent.continue": "Continue",
+  "consent.saving": "Saving...",
+  "consent.profileHint": "You can change your email preferences anytime from profile settings.",
   "errors.tournamentNotFound": "Tournament not found",
   "errors.invalidInviteCode": "Invalid invite code",
   "errors.inviteCodeTaken": "That invite code is already taken",
@@ -61,6 +77,8 @@ export const en: Messages = {
   "errors.oddsOncePerDay": "You can manually refresh odds only once per day",
   "errors.onlyCreatorCompetition":
     "Only the tournament creator can change the competition",
+  "errors.scoreFtMismatch":
+    "The exact score must match the full-time result (1 / X / 2).",
   "tournament.page.title": "Tournaments",
   "tournament.page.myTournaments": "My tournaments",
   "tournament.page.subtitle": "Create or join a tournament with friends",
@@ -95,7 +113,10 @@ export const en: Messages = {
   "tournament.page.finishedBadge": "Finished",
   "tournament.page.publicNoneOngoing": "No public tournaments running right now.",
   "tournament.page.publicNoneFinished": "No public tournaments finished yet.",
-  "tournament.page.prizeEligibilityPrefix": "You are only eligible for prizes if you follow us, before the fixture starts, on",
+  "tournament.page.prizeEligibilityPrefix":
+    "You are only eligible for prizes if you follow on Instagram, before the matchday starts,",
+  "tournament.page.prizeEligibilityAndPartners": "and the partners",
+  "tournament.page.prizeEligibilityRules": "Contest rules",
   "tournament.create.title": "Create tournament",
   "tournament.create.subtitle": "Start a new party and invite friends",
   "tournament.create.nameLabel": "Tournament name",
@@ -149,6 +170,8 @@ export const en: Messages = {
   "party.savePrediction": "Save prediction",
   "party.savingPrediction": "Saving…",
   "party.exactScore": "Exact score",
+  "party.scoreFtMismatch":
+    "The exact score must match who you pick to win at full time. E.g. full-time 2 → the away team must have more goals.",
   "potentialPoints.oddsUnavailable":
     "Odds unavailable (×1). Refresh odds for real multipliers.",
   "potentialPoints.championOddsUnavailable":
@@ -165,6 +188,10 @@ export const en: Messages = {
   "party.tab.prizes": "Prizes leaderboard",
   "party.tab.fixtures": "Fixture standings",
   "party.fixtures.matchdayShort": "Matchday",
+  "party.match.rescheduledFrom": "Rescheduled · matchday {matchday}",
+  "party.match.dateTbd": "Date to be confirmed",
+  "party.match.cancelled": "Called off",
+  "party.match.romaniaTime": "Romania time",
   "party.prizes.hint":
     "Separate contest on matchday {matchday} — only points from this matchday count, everyone starts at 0. The main leaderboard is unaffected.",
   "party.fixtures.hint":
@@ -526,6 +553,25 @@ export const en: Messages = {
   "footer.legal": "Legal",
   "footer.contact": "Contact",
   "footer.privacy": "Privacy policy",
+  "footer.terms": "Terms and conditions",
+  "footer.rules": "Contest rules",
+  "footer.cookies": "Cookie settings",
+  "cookies.title": "Cookies on Liga Prono",
+  "cookies.body":
+    "We use necessary cookies to keep you signed in (including Remember me), remember your language, and make the platform work. You need to agree to these on your first visit.",
+  "cookies.necessaryTitle": "Strictly necessary",
+  "cookies.necessaryBody":
+    "Clerk authentication, persistent session, and language preference. Without them you cannot stay logged in and the platform cannot work correctly.",
+  "cookies.advertisingTitle": "Advertising (optional)",
+  "cookies.advertisingBody":
+    "Cookies from advertising partners, only if we show ads. You can refuse them without losing access to the platform.",
+  "cookies.required": "Required",
+  "cookies.legalPrefix": "Details in the",
+  "cookies.legalAnd": "and",
+  "cookies.acceptAll": "Accept all",
+  "cookies.acceptNecessary": "Necessary only",
+  "cookies.save": "Save preferences",
+  "cookies.close": "Close",
   "footer.getStarted": "Get started",
   "footer.signIn": "Sign in",
   "footer.madeForFans": "Built for football fans",

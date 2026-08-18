@@ -1,4 +1,4 @@
-import type { FootballDataMatch } from "@/lib/football-data";
+import type { FootballDataMatch } from "@/lib/football-data-types";
 
 /**
  * Competiția e considerată „începută" dacă există cel puțin un meci cu status de desfășurare/rezultat

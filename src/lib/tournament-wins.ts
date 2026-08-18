@@ -1,4 +1,4 @@
-import type { FootballDataMatch } from "@/lib/football-data";
+import type { FootballDataMatch } from "@/lib/football-data-types";
 import { prisma } from "@/lib/prisma";
 import { filterMatchesForTournament } from "@/lib/wc-pred-display";
 import { isMatchSettled, isMatchVoidForTournament } from "@/lib/match-status";

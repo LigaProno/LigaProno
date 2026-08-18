@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { FootballDataMatch } from "@/lib/football-data";
+import type { FootballDataMatch } from "@/lib/football-data-types";
 import {
   parseStoredCompetition,
   COMPETITION_PICKER_OPTIONS,
@@ -18,6 +18,7 @@ import {
 import { useLocale } from "@/components/i18n/locale-provider";
 import { formatCaughtError } from "@/lib/i18n/errors";
 import { getMatchPredictionLockReason } from "@/lib/knockout-predictions";
+import { isFtOutcomeConsistentWithExactScore } from "@/lib/prediction-consistency";
 import { isMatchSettled } from "@/lib/match-status";
 import {
   PartyMatchPredictionCard,
@@ -37,11 +38,11 @@ import { buildLeaderboardView, canCollapseLeaderboard } from "@/lib/leaderboard-
 import { getLeaderboardRowStyle, getPodiumStyle } from "@/lib/leaderboard-podium";
 import { MatchPredDisplayInline } from "@/components/party/match-pred-display-inline";
 import { PointsScoringLegend } from "@/components/party/potential-points";
-import { fixtureTlaPair, getMatchPredDisplay, type MatchPredDisplay } from "@/lib/wc-pred-display";
+import { fixtureTlaPair, getMatchPredDisplay, groupMatchesByDisplayMatchday, isPlayableUnfinishedMatch, type MatchPredDisplay } from "@/lib/wc-pred-display";
 import { ShareButton } from "@/components/ui/share-button";
 import { buildMyMatchdayShareText } from "@/lib/share-predictions";
 import { LiveFixtureBanner } from "@/components/party/live-fixture-banner";
-import type { LiveFixture } from "@/lib/live-fixtures";
+import type { LiveFixture } from "@/lib/live-fixture-types";
 import { CopyPredictionsModal, type CopyTargetTournament } from "@/components/party/copy-predictions-modal";
 import { FixtureStatsCard, type FixtureStats } from "@/components/party/fixture-stats-card";
 
@@ -197,25 +198,16 @@ export default function PartyWcDashboard({
       }));
     }
 
-    const byMatchday = new Map<number, FootballDataMatch[]>();
-    for (const m of matches) {
-      const md = m.matchday ?? 0;
-      if (md > 0) {
-        if (!byMatchday.has(md)) byMatchday.set(md, []);
-        byMatchday.get(md)!.push(m);
-      }
-    }
-    const sorted = [...byMatchday.keys()].sort((a, b) => a - b);
-    return sorted.map((md) => ({
-      id: String(md),
-      label: `Etapa ${md}`,
-      matches: sortMatches(byMatchday.get(md) ?? []),
+    return groupMatchesByDisplayMatchday(matches).map((block) => ({
+      id: String(block.matchday),
+      label: `Etapa ${block.matchday}`,
+      matches: block.matches,
     }));
   }, [matches, isMixed, competitions]);
 
   const firstUnfinishedBlockId = useMemo(() => {
     for (const block of predictionBlocks) {
-      if (block.matches.some((m) => !isMatchSettled(m) && m.status !== "CANCELLED")) {
+      if (block.matches.some((m) => isPlayableUnfinishedMatch(m))) {
         return block.id;
       }
     }
@@ -241,6 +233,7 @@ export default function PartyWcDashboard({
   }
 
   function renderMatchCard(m: FootballDataMatch) {
+    const displayMatchday = isMixed ? null : Number(selectedBlockId);
     return (
       <PartyMatchPredictionCard
         key={m.id}
@@ -251,6 +244,7 @@ export default function PartyWcDashboard({
         competition={competition}
         hideOddsUnavailable={isPublic}
         predictionLockedReason={lockReasonForMatch(m)}
+        displayMatchday={Number.isFinite(displayMatchday) ? displayMatchday : null}
         registerMatchDraft={registerMatchDraft}
         unregisterMatchDraft={unregisterMatchDraft}
         onSaved={() => {
@@ -274,12 +268,28 @@ export default function PartyWcDashboard({
         const toSave = selectedBlockMatches.filter(
           (m) => !isMatchSettled(m) && lockReasonForMatch(m) == null,
         );
+        let skippedConflict = false;
         for (const m of toSave) {
           const getPayload = matchDraftGettersRef.current.get(m.id);
           if (!getPayload) continue;
-          await saveWcMatchPrediction(tournamentId, m.id, getPayload());
+          const payload = getPayload();
+          if (
+            !isFtOutcomeConsistentWithExactScore(
+              payload.ftOutcome,
+              payload.predHomeGoals,
+              payload.predAwayGoals,
+            )
+          ) {
+            skippedConflict = true;
+            continue;
+          }
+          await saveWcMatchPrediction(tournamentId, m.id, payload);
         }
-        setMsg(t("party.group.saveAllSuccess"));
+        if (skippedConflict) {
+          setErr(t("errors.scoreFtMismatch"));
+        } else {
+          setMsg(t("party.group.saveAllSuccess"));
+        }
         router.refresh();
       } catch (e) {
         setErr(formatCaughtError(e, t));
@@ -295,7 +305,17 @@ export default function PartyWcDashboard({
     for (const m of toSave) {
       const getPayload = matchDraftGettersRef.current.get(m.id);
       if (!getPayload) continue;
-      await saveWcMatchPrediction(tournamentId, m.id, getPayload());
+      const payload = getPayload();
+      if (
+        !isFtOutcomeConsistentWithExactScore(
+          payload.ftOutcome,
+          payload.predHomeGoals,
+          payload.predAwayGoals,
+        )
+      ) {
+        continue;
+      }
+      await saveWcMatchPrediction(tournamentId, m.id, payload);
     }
   }
 
@@ -317,6 +337,14 @@ export default function PartyWcDashboard({
             : t("party.privateTournament")}
           </p>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">{tournamentName}</h1>
+          {isPublic ?
+            <Link
+              href="/regulament"
+              className="inline-block mt-1.5 text-xs font-medium text-white/45 underline decoration-white/20 underline-offset-2 transition-colors hover:text-white"
+            >
+              {t("tournament.page.prizeEligibilityRules")}
+            </Link>
+          : null}
           {!isPublic ?
             <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>
               {t("party.inviteCode")}:{" "}
@@ -681,16 +709,15 @@ export default function PartyWcDashboard({
               <PointsScoringLegend />
               <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
                 {predictionBlocks.map(({ id, label, matches: blockMatches }) => {
-                  const allDone = blockMatches.every(
-                    (m) => isMatchSettled(m) || m.status === "CANCELLED",
-                  );
+                  const hasPlayable = blockMatches.some((m) => isPlayableUnfinishedMatch(m));
                   const anyStarted = blockMatches.some(
                     (m) =>
                       isMatchSettled(m) ||
                       m.status === "IN_PLAY" ||
                       m.status === "PAUSED",
                   );
-                  const isCurrent = !allDone && anyStarted;
+                  const isCurrent =
+                    hasPlayable && (anyStarted || id === firstUnfinishedBlockId);
                   const isSelected = id === selectedBlockId;
                   return (
                     <button

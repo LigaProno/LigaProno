@@ -1,4 +1,4 @@
-import type { GroupStanding, StandingTableRow } from "@/lib/football-data";
+import type { GroupStanding, StandingTableRow } from "@/lib/football-data-types";
 
 const WC_BEST_THIRD_PLACES_COUNT = 8;
 

@@ -11,11 +11,9 @@ import {
   type BettingOddsPayload,
   type TournamentOddsMaps,
 } from "@/lib/betting-odds";
-import {
-  fetchCompetitionMatches,
-  venueLabel,
-  type FootballDataMatch,
-} from "@/lib/football-data";
+import { fetchCompetitionMatches } from "@/lib/football-data";
+import { venueLabel } from "@/lib/football-data-helpers";
+import type { FootballDataMatch } from "@/lib/football-data-types";
 import { prisma } from "@/lib/prisma";
 import { awardTournamentWinIfComplete, loadWinBadgesByUser } from "@/lib/tournament-wins";
 import { loadStreakBadgesByUser } from "@/lib/streak-badges";
@@ -38,7 +36,7 @@ import {
 import {
   primaryTournamentCompetition,
   resolveTournamentCompetitionKeys,
-} from "@/lib/tournament-matches";
+} from "@/lib/tournament-competition";
 
 export type GlobalLeaderboardLastMatch = {
   matchId: number;

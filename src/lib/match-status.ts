@@ -1,4 +1,4 @@
-import type { FootballDataMatch } from "@/lib/football-data";
+import type { FootballDataMatch } from "@/lib/football-data-types";
 
 /** Meci jucat / decis oficial — contează la scoring & închiderea turneului. */
 export function isMatchSettled(match: Pick<FootballDataMatch, "status">): boolean {

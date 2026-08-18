@@ -347,22 +347,29 @@ export async function fetchEventMeta(
 ): Promise<OpEventMeta | null> {
   const eventPageUrl = options?.eventPageUrl?.trim();
   if (eventPageUrl) {
-    const withEventId = appendEventIdQuery(eventPageUrl, matchId);
-    const html = await fetchOddsPortalHtml(withEventId, config.tournamentPageUrl, {
+    try {
+      const withEventId = appendEventIdQuery(eventPageUrl, matchId);
+      const html = await fetchOddsPortalHtml(withEventId, config.tournamentPageUrl, {
+        fresh: true,
+      });
+      const meta = parseEventMetaFromHtml(html);
+      if (meta && meta.matchId === matchId) return meta;
+    } catch {
+      // H2H fără header SSR — încercăm short URL.
+    }
+  }
+
+  try {
+    const url = buildShortMatchPageUrl(config, matchId);
+    const html = await fetchOddsPortalHtml(url, config.tournamentPageUrl, {
       fresh: true,
     });
     const meta = parseEventMetaFromHtml(html);
     if (meta && meta.matchId === matchId) return meta;
+    return meta?.matchId === matchId ? meta : null;
+  } catch {
+    return null;
   }
-
-  const url = buildShortMatchPageUrl(config, matchId);
-  const html = await fetchOddsPortalHtml(url, config.tournamentPageUrl, {
-    fresh: true,
-  });
-  const meta = parseEventMetaFromHtml(html);
-  if (meta && meta.matchId === matchId) return meta;
-  // Short URL pe meciuri terminate poate redirecționa la următorul H2H.
-  return meta?.matchId === matchId ? meta : null;
 }
 
 function appendEventIdQuery(url: string, eventId: string): string {

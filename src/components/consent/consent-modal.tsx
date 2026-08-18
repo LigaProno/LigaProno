@@ -2,42 +2,68 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { saveConsent } from "@/app/actions/consent";
+import { saveConsent, updateMarketingConsent } from "@/app/actions/consent";
 import { useLocale } from "@/components/i18n/locale-provider";
 
 type Props = {
-  onComplete: () => void;
+  needsTerms: boolean;
+  needsMarketing: boolean;
 };
 
-export function ConsentModal({ onComplete }: Props) {
+export function ConsentModal({ needsTerms, needsMarketing }: Props) {
   const { t, locale } = useLocale();
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [done, setDone] = useState(false);
 
-  const ro = locale === "ro";
+  const marketingOnly = needsMarketing && !needsTerms;
 
-  const handleSubmit = () => {
-    if (!termsAccepted) {
-      setError(ro ? "Trebuie să accepți termenii și condițiile." : "You must accept the terms and conditions.");
+  if (done) return null;
+
+  const finish = () => setDone(true);
+
+  const handleCombinedSubmit = () => {
+    if (needsTerms && !termsAccepted) {
+      setError(t("consent.termsRequired"));
       return;
     }
 
     setError(null);
     startTransition(async () => {
-      const result = await saveConsent({ termsAccepted, marketingConsent });
+      const result = await saveConsent({
+        termsAccepted: true,
+        ...(needsMarketing ? { marketingConsent } : {}),
+      });
       if (result.ok) {
-        onComplete();
+        finish();
       } else {
         setError(result.error);
       }
     });
   };
 
+  const handleMarketingChoice = (consent: boolean) => {
+    setError(null);
+    startTransition(async () => {
+      const result = await updateMarketingConsent(consent);
+      if (result.ok) {
+        finish();
+      } else {
+        setError(result.error);
+      }
+    });
+  };
+
+  const ro = locale === "ro";
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="consent-title"
         className="relative w-full max-w-md rounded-2xl border p-6 shadow-2xl"
         style={{
           backgroundColor: "#12132B",
@@ -46,32 +72,30 @@ export function ConsentModal({ onComplete }: Props) {
       >
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
-            <h2 className="text-xl font-bold text-white">
-              {ro ? "Bine ai venit pe Liga Prono!" : "Welcome to Liga Prono!"}
+            <h2 id="consent-title" className="text-xl font-bold text-white">
+              {marketingOnly ? t("consent.marketingTitle") : t("consent.welcomeTitle")}
             </h2>
-            <p className="text-sm text-white/60">
-              {ro
-                ? "Pentru a continua, te rugăm să accepți termenii și condițiile."
-                : "To continue, please accept the terms and conditions."}
+            <p className="text-sm text-white/60 leading-relaxed">
+              {marketingOnly ? t("consent.marketingBody") : t("consent.welcomeBody")}
             </p>
           </div>
 
-          <div className="flex flex-col gap-4">
-            <label className="flex items-start gap-3 cursor-pointer group">
+          {needsTerms ? (
+            <label className="flex cursor-pointer items-start gap-3">
               <input
                 type="checkbox"
                 checked={termsAccepted}
                 onChange={(e) => setTermsAccepted(e.target.checked)}
-                className="mt-0.5 w-5 h-5 rounded border-2 border-white/20 bg-white/5 checked:bg-blue-500 checked:border-blue-500 cursor-pointer transition-colors"
+                className="mt-0.5 h-5 w-5 cursor-pointer rounded border-2 border-white/20 bg-white/5 checked:border-[#D4AF37] checked:bg-[#D4AF37]"
               />
-              <span className="text-sm text-white/80 leading-relaxed">
+              <span className="text-sm leading-relaxed text-white/80">
                 {ro ? (
                   <>
                     Am citit și accept{" "}
                     <Link
                       href="/termeni-si-conditii"
                       target="_blank"
-                      className="text-[#67E8F9] hover:underline font-medium"
+                      className="font-medium text-[#67E8F9] hover:underline"
                     >
                       Termenii și condițiile
                     </Link>{" "}
@@ -79,7 +103,7 @@ export function ConsentModal({ onComplete }: Props) {
                     <Link
                       href="/confidentialitate"
                       target="_blank"
-                      className="text-[#67E8F9] hover:underline font-medium"
+                      className="font-medium text-[#67E8F9] hover:underline"
                     >
                       Politica de confidențialitate
                     </Link>
@@ -91,7 +115,7 @@ export function ConsentModal({ onComplete }: Props) {
                     <Link
                       href="/termeni-si-conditii"
                       target="_blank"
-                      className="text-[#67E8F9] hover:underline font-medium"
+                      className="font-medium text-[#67E8F9] hover:underline"
                     >
                       Terms and Conditions
                     </Link>{" "}
@@ -99,7 +123,7 @@ export function ConsentModal({ onComplete }: Props) {
                     <Link
                       href="/confidentialitate"
                       target="_blank"
-                      className="text-[#67E8F9] hover:underline font-medium"
+                      className="font-medium text-[#67E8F9] hover:underline"
                     >
                       Privacy Policy
                     </Link>
@@ -108,47 +132,62 @@ export function ConsentModal({ onComplete }: Props) {
                 )}
               </span>
             </label>
+          ) : null}
 
-            <label className="flex items-start gap-3 cursor-pointer group">
+          {needsMarketing && !marketingOnly ? (
+            <label className="flex cursor-pointer items-start gap-3">
               <input
                 type="checkbox"
                 checked={marketingConsent}
                 onChange={(e) => setMarketingConsent(e.target.checked)}
-                className="mt-0.5 w-5 h-5 rounded border-2 border-white/20 bg-white/5 checked:bg-blue-500 checked:border-blue-500 cursor-pointer transition-colors"
+                className="mt-0.5 h-5 w-5 cursor-pointer rounded border-2 border-white/20 bg-white/5 checked:border-[#D4AF37] checked:bg-[#D4AF37]"
               />
-              <span className="text-sm text-white/80 leading-relaxed">
-                {ro
-                  ? "Doresc să primesc noutăți, promoții și informații despre Liga Prono prin email. Mă pot dezabona oricând."
-                  : "I want to receive news, promotions and information about Liga Prono by email. I can unsubscribe anytime."}
+              <span className="text-sm leading-relaxed text-white/80">
+                {t("consent.marketingLabel")}
               </span>
             </label>
-          </div>
+          ) : null}
 
-          {error && (
-            <p className="text-sm text-red-400 bg-red-400/10 px-3 py-2 rounded-lg">
-              {error}
-            </p>
+          {error ? (
+            <p className="rounded-lg bg-red-400/10 px-3 py-2 text-sm text-red-400">{error}</p>
+          ) : null}
+
+          {marketingOnly ? (
+            <div className="flex flex-col gap-2 sm:flex-row-reverse">
+              <button
+                type="button"
+                onClick={() => handleMarketingChoice(true)}
+                disabled={isPending}
+                className="w-full rounded-xl py-3 text-sm font-bold transition-opacity disabled:cursor-not-allowed disabled:opacity-50 sm:flex-1"
+                style={{ backgroundColor: "#D4AF37", color: "#0A0B1E" }}
+              >
+                {isPending ? t("consent.saving") : t("consent.marketingYes")}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMarketingChoice(false)}
+                disabled={isPending}
+                className="w-full rounded-xl border border-white/15 bg-white/5 py-3 text-sm font-semibold text-white/85 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-1"
+              >
+                {t("consent.marketingNo")}
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleCombinedSubmit}
+              disabled={isPending || (needsTerms && !termsAccepted)}
+              className="w-full rounded-xl py-3 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-50"
+              style={{
+                backgroundColor: !needsTerms || termsAccepted ? "#D4AF37" : "rgba(255,255,255,0.1)",
+                color: !needsTerms || termsAccepted ? "#0A0B1E" : "rgba(255,255,255,0.4)",
+              }}
+            >
+              {isPending ? t("consent.saving") : t("consent.continue")}
+            </button>
           )}
 
-          <button
-            onClick={handleSubmit}
-            disabled={isPending || !termsAccepted}
-            className="w-full py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              backgroundColor: termsAccepted ? "#3B82F6" : "rgba(255,255,255,0.1)",
-              color: termsAccepted ? "#0A0B1E" : "rgba(255,255,255,0.4)",
-            }}
-          >
-            {isPending
-              ? (ro ? "Se salvează..." : "Saving...")
-              : (ro ? "Continuă" : "Continue")}
-          </button>
-
-          <p className="text-xs text-white/40 text-center">
-            {ro
-              ? "Poți modifica preferințele de email oricând din setările profilului."
-              : "You can change your email preferences anytime from profile settings."}
-          </p>
+          <p className="text-center text-xs text-white/40">{t("consent.profileHint")}</p>
         </div>
       </div>
     </div>

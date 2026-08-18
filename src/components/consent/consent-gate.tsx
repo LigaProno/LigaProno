@@ -1,16 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import { ConsentModal } from "./consent-modal";
 
 type Props = {
-  needsConsent: boolean;
+  needsTerms: boolean;
+  needsMarketing: boolean;
 };
 
-export function ConsentGate({ needsConsent }: Props) {
-  const [showModal, setShowModal] = useState(needsConsent);
+export function ConsentGate({ needsTerms, needsMarketing }: Props) {
+  if (!needsTerms && !needsMarketing) return null;
 
-  if (!showModal) return null;
-
-  return <ConsentModal onComplete={() => setShowModal(false)} />;
+  return <ConsentModal needsTerms={needsTerms} needsMarketing={needsMarketing} />;
 }

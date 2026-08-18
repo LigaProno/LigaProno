@@ -101,6 +101,15 @@ model CompetitionMatchScoreOverrides {
   updatedAt   DateTime @updatedAt
 }
 
+// Snapshot liste de meciuri / live / clasamente Football-Data — evită 429.
+model FootballDataSnapshot {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  cacheKey  String   @unique
+  payload   Json
+  fetchedAt DateTime
+  updatedAt DateTime @updatedAt
+}
+
 // Snapshot cote partajat de toate party-urile aceleiași competiții (ex. WC_2026).
 model CompetitionBettingOdds {
   id                    String   @id @default(auto()) @map("_id") @db.ObjectId

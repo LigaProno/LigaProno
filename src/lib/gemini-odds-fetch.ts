@@ -1,4 +1,4 @@
-import type { FootballDataMatch } from "@/lib/football-data";
+import type { FootballDataMatch } from "@/lib/football-data-types";
 import {
   type BettingOddsPayload,
   BETTING_ODDS_SCHEMA_VERSION,
@@ -318,7 +318,7 @@ export async function fetchMatchOddsViaGemini(
       apiKey,
       model,
       matchBatchPrompt(chunk, competitionLabel),
-      { googleSearch },
+      { googleSearch, timeoutMs: options?.timeoutMs ?? 180_000 },
     );
     acc = mergePayload(acc, coercePayload(raw));
   }

@@ -3,15 +3,17 @@ import {
   BETTING_ODDS_SCHEMA_VERSION,
   type BettingOddsPayload,
 } from "@/lib/betting-odds";
+import { matchesNeedingOddsFill } from "@/lib/odds-horizon";
 import type { OddsFetchContext, OddsFetchResult, OddsProvider } from "@/lib/odds-providers/types";
 
 export class GeminiOddsProvider implements OddsProvider {
   readonly name = "gemini";
 
   async fetchOdds(ctx: OddsFetchContext): Promise<OddsFetchResult> {
+    const targets = matchesNeedingOddsFill(ctx.matches, null);
     const { payload: rawPayload, model } = await fetchBettingOddsViaGemini(
       ctx.competitionLabel,
-      ctx.matches,
+      targets.length > 0 ? targets : ctx.matches,
       ctx.teams,
     );
     const payload: BettingOddsPayload = {

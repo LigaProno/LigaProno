@@ -1,4 +1,4 @@
-import type { FootballDataMatch, FootballDataScore } from "@/lib/football-data";
+import type { FootballDataMatch, FootballDataScore } from "@/lib/football-data-types";
 
 type ScorePair = { home: number; away: number };
 

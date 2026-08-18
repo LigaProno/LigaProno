@@ -6,7 +6,7 @@ import {
   type TournamentOddsMaps,
 } from "@/lib/betting-odds";
 import { getMatchScoreAfter90 } from "@/lib/match-score";
-import type { FootballDataMatch } from "@/lib/football-data";
+import type { FootballDataMatch } from "@/lib/football-data-types";
 
 export type MatchOutcome = Odds1x2Outcome;
 

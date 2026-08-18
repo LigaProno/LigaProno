@@ -1,4 +1,4 @@
-import type { FootballDataMatch } from "@/lib/football-data";
+import type { FootballDataMatch } from "@/lib/football-data-types";
 import { parseStoredCompetition } from "@/lib/competition";
 import { prisma } from "@/lib/prisma";
 import {

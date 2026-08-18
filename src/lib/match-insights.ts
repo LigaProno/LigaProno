@@ -1,4 +1,4 @@
-import type { FootballDataMatch } from "@/lib/football-data";
+import type { FootballDataMatch } from "@/lib/football-data-types";
 import { formatTeamDisplayName } from "@/lib/team-display";
 import { getMatchScoreAfter90 } from "@/lib/match-score";
 

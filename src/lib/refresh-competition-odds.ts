@@ -4,7 +4,6 @@ import { collectTeamsFromMatches, fetchCompetitionMatches } from "@/lib/football
 import {
   fillEstimatedQualifyOdds,
   fillEstimatedToAdvanceOdds,
-  hasCompleteMatchOdds,
   mergeBettingPayloads,
   parseBettingOddsPayload,
   sanitizeBettingPayload,
@@ -21,6 +20,7 @@ import {
 import { geminiOddsProvider } from "@/lib/odds-providers/gemini-provider";
 import { supplementOddsWithGemini } from "@/lib/odds-supplement";
 import { isGeminiApiKeyConfigured } from "@/lib/gemini-odds-fetch";
+import { matchesNeedingOddsFill } from "@/lib/odds-horizon";
 import { prisma } from "@/lib/prisma";
 
 export type RefreshCompetitionOddsResult =
@@ -71,21 +71,13 @@ export async function refreshOddsForCompetition(
 
     const competitionLabel = `${parsed.code} ${parsed.season}`;
     /**
-     * Meciuri care necesită refresh explicit (în afara celor upcoming standard):
-     * - FINISHED fără row sau cu cote incomplete (re-fetch pentru correct score)
-     * - Upcoming fără row deloc (meciuri noi adăugate recent)
+     * Meciuri care necesită refresh: upcoming din ~3 săptămâni fără cote complete
+     * + terminate recente fără tabel de scor corect.
      */
-    const matchIdsNeedingOddsRefresh = matches
-      .filter((m) => {
-        if (m.status === "CANCELLED") return false;
-        const row = existingPayload?.matches[String(m.id)];
-        if (m.status === "FINISHED") {
-          return !row || !hasCompleteMatchOdds(row);
-        }
-        // Upcoming fără niciun row — le adăugăm explicit
-        return !row;
-      })
-      .map((m) => m.id);
+    const matchIdsNeedingOddsRefresh = matchesNeedingOddsFill(
+      matches,
+      existingPayload,
+    ).map((m) => m.id);
 
     const upcomingCount = matches.filter(
       (m) => m.status !== "FINISHED" && m.status !== "CANCELLED",
@@ -191,7 +183,12 @@ export async function refreshOddsForCompetition(
     revalidatePath("/turnee/clasament");
 
     const tournamentIds = await prisma.tournament.findMany({
-      where: { competition: competitionKey },
+      where: {
+        OR: [
+          { competition: competitionKey },
+          { competitions: { has: competitionKey } },
+        ],
+      },
       select: { id: true },
     });
     for (const t of tournamentIds) {

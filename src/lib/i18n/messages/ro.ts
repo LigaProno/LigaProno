@@ -46,6 +46,22 @@ export const ro: Messages = {
   "auth.resetPassword.forgotLink": "Ai uitat parola?",
   "auth.resetPassword.backToSignInPrefix": "Înapoi la",
   "auth.resetPassword.backToSignIn": "autentificare",
+  "auth.rememberMe": "Ține-mă minte",
+  "auth.rememberMeHint": "Rămâi autentificat pe acest dispozitiv.",
+  "consent.welcomeTitle": "Bine ai venit pe Liga Prono!",
+  "consent.welcomeBody":
+    "Pentru a continua, acceptă termenii și spune-ne dacă vrei noutăți pe email.",
+  "consent.termsRequired": "Trebuie să accepți termenii și condițiile.",
+  "consent.marketingTitle": "Noutăți pe email",
+  "consent.marketingBody":
+    "Vrei să primești noutăți, promoții și informații despre Liga Prono? Poți schimba oricând alegerea din profil.",
+  "consent.marketingLabel":
+    "Doresc să primesc noutăți, promoții și informații despre Liga Prono prin email. Mă pot dezabona oricând.",
+  "consent.marketingYes": "Da, vreau noutăți",
+  "consent.marketingNo": "Nu, mulțumesc",
+  "consent.continue": "Continuă",
+  "consent.saving": "Se salvează...",
+  "consent.profileHint": "Poți modifica preferințele de email oricând din setările profilului.",
   "errors.tournamentNotFound": "Turneu inexistent",
   "errors.invalidInviteCode": "Cod de invitație invalid",
   "errors.inviteCodeTaken": "Codul de invitație este deja folosit",
@@ -61,6 +77,8 @@ export const ro: Messages = {
   "errors.oddsOncePerDay": "Poți actualiza cotele manual o singură dată pe zi",
   "errors.onlyCreatorCompetition":
     "Doar creatorul turneului poate schimba competiția",
+  "errors.scoreFtMismatch":
+    "Scorul exact trebuie să corespundă cu rezultatul final (1 / X / 2).",
   "tournament.page.title": "Turnee",
   "tournament.page.myTournaments": "Turneele mele",
   "tournament.page.subtitle": "Creează sau alătură-te unui turneu cu prietenii",
@@ -95,7 +113,10 @@ export const ro: Messages = {
   "tournament.page.finishedBadge": "Încheiat",
   "tournament.page.publicNoneOngoing": "Niciun turneu public în desfășurare acum.",
   "tournament.page.publicNoneFinished": "Niciun turneu public încheiat încă.",
-  "tournament.page.prizeEligibilityPrefix": "Ești eligibil pentru premii doar dacă ne urmărești, înainte de startul etapei, pe",
+  "tournament.page.prizeEligibilityPrefix":
+    "Ești eligibil pentru premii doar dacă urmărești pe Instagram, înainte de startul etapei,",
+  "tournament.page.prizeEligibilityAndPartners": "și partenerii",
+  "tournament.page.prizeEligibilityRules": "Regulament concursuri",
   "tournament.create.title": "Creează turneu",
   "tournament.create.subtitle": "Pornește un party nou și invită prietenii",
   "tournament.create.nameLabel": "Nume turneu",
@@ -150,6 +171,8 @@ export const ro: Messages = {
   "party.savePrediction": "Salvează pronosticul",
   "party.savingPrediction": "Se salvează…",
   "party.exactScore": "Scor exact",
+  "party.scoreFtMismatch":
+    "Scorul exact trebuie să coincidă cu cine zici că câștigă la final. Ex.: final 2 → oaspeții trebuie să aibă mai multe goluri.",
   "potentialPoints.oddsUnavailable":
     "Cote indisponibile (×1). Actualizează cotele pentru multiplicatori reali.",
   "potentialPoints.championOddsUnavailable":
@@ -166,6 +189,10 @@ export const ro: Messages = {
   "party.tab.prizes": "Clasament premii",
   "party.tab.fixtures": "Clasament etapa",
   "party.fixtures.matchdayShort": "Etapa",
+  "party.match.rescheduledFrom": "Reprogramat · etapa {matchday}",
+  "party.match.dateTbd": "Dată de confirmat",
+  "party.match.cancelled": "Nu se mai joacă",
+  "party.match.romaniaTime": "ora României",
   "party.prizes.hint":
     "Concurs separat pe etapa {matchday} — punctele se numără doar din meciurile acestei etape, toți pornesc de la 0. Clasamentul general rămâne neschimbat.",
   "party.fixtures.hint":
@@ -528,6 +555,25 @@ export const ro: Messages = {
   "footer.legal": "Legal",
   "footer.contact": "Contact",
   "footer.privacy": "Politica de confidențialitate",
+  "footer.terms": "Termeni și condiții",
+  "footer.rules": "Regulament concursuri",
+  "footer.cookies": "Setări cookie-uri",
+  "cookies.title": "Cookie-uri pe Liga Prono",
+  "cookies.body":
+    "Folosim cookie-uri necesare ca să te ținem autentificat (inclusiv „Ține-mă minte”), să reținem limba și să facem platforma să funcționeze. La prima vizită trebuie să fii de acord cu acestea.",
+  "cookies.necessaryTitle": "Strict necesare",
+  "cookies.necessaryBody":
+    "Autentificare Clerk, sesiune persistentă și preferința de limbă. Fără ele nu poți rămâne logat și platforma nu funcționează corect.",
+  "cookies.advertisingTitle": "Publicitate (opțional)",
+  "cookies.advertisingBody":
+    "Cookie-uri ale partenerilor de publicitate, doar dacă afișăm reclame. Le poți refuza fără să pierzi accesul la platformă.",
+  "cookies.required": "Obligatorii",
+  "cookies.legalPrefix": "Detalii în",
+  "cookies.legalAnd": "și",
+  "cookies.acceptAll": "Accept toate",
+  "cookies.acceptNecessary": "Doar necesare",
+  "cookies.save": "Salvează preferințele",
+  "cookies.close": "Închide",
   "footer.getStarted": "Începe acum",
   "footer.signIn": "Autentificare",
   "footer.madeForFans": "Făcut pentru fanii de fotbal",

@@ -7,7 +7,7 @@ import { useSearchParams } from "next/navigation";
 import type {
   FootballDataMatch,
   GroupStanding,
-} from "@/lib/football-data";
+} from "@/lib/football-data-types";
 import { FootballDataMatchCard } from "@/components/world-cup/football-data-match-card";
 import { MatchesChronologicalTable } from "@/components/matches/matches-chronological-table";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";

@@ -32,5 +32,12 @@ export async function GET(req: NextRequest) {
   }
 
   const fixtures = await loadTournamentLiveFixtures(tournament);
-  return NextResponse.json({ fixtures });
+  return NextResponse.json(
+    { fixtures },
+    {
+      headers: {
+        "Cache-Control": "private, max-age=20",
+      },
+    },
+  );
 }

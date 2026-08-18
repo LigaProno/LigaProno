@@ -1,6 +1,6 @@
 "use client";
 
-import type { FootballDataMatch } from "@/lib/football-data";
+import type { FootballDataMatch } from "@/lib/football-data-types";
 import { formatTeamDisplayName } from "@/lib/team-display";
 import { formatMatchKickoff } from "@/lib/match-datetime";
 import { getMatchScoreAfter90 } from "@/lib/match-score";

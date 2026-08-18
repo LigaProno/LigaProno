@@ -27,8 +27,9 @@ import {
   mapFixturesToFootballDataMatches,
   matchOutrightTeamName,
 } from "@/lib/odds-providers/team-matcher";
+import { matchesInOddsHorizon } from "@/lib/odds-horizon";
 import type { OddsFetchContext, OddsFetchResult, OddsProvider } from "@/lib/odds-providers/types";
-import type { FootballDataMatch } from "@/lib/football-data";
+import type { FootballDataMatch } from "@/lib/football-data-types";
 
 function getConcurrency(): number {
   const raw = process.env.ODDSPORTAL_CONCURRENCY?.trim();
@@ -36,15 +37,11 @@ function getConcurrency(): number {
   return Number.isFinite(n) && n >= 1 ? Math.min(n, 12) : 6;
 }
 
-function filterUpcomingMatches(ctx: OddsFetchContext): FootballDataMatch[] {
-  return ctx.matches.filter((m) => m.status !== "FINISHED" && m.status !== "CANCELLED");
-}
-
-/** Upcoming + meciuri marcate explicit pentru refresh (ex. terminate fără scor corect). */
+/** Fereastra upcoming + meciuri marcate explicit (terminate fără CS). */
 function resolveTargetMatches(ctx: OddsFetchContext): FootballDataMatch[] {
   const byId = new Map(ctx.matches.map((m) => [m.id, m]));
   const out = new Map<number, FootballDataMatch>();
-  for (const m of filterUpcomingMatches(ctx)) out.set(m.id, m);
+  for (const m of matchesInOddsHorizon(ctx.matches)) out.set(m.id, m);
   for (const id of ctx.matchIdsNeedingOddsRefresh ?? []) {
     const m = byId.get(id);
     if (m && m.status !== "CANCELLED") out.set(m.id, m);
@@ -66,7 +63,13 @@ export class OddsPortalProvider implements OddsProvider {
     const targetMatches = resolveTargetMatches(ctx);
     // Overview + results — ca să putem re-lua CS și pe meciuri terminate.
     const fixtures = await fetchTournamentFixturesForScoreFallback(config);
-    const fdToOp = mapFixturesToFootballDataMatches(fixtures, targetMatches);
+    // Football-Data pune adesea toată etapa Superliga la aceeași oră placeholder
+    // (ex. sâmbătă 17:00 UTC), iar OddsPortal are kick-off-urile reale vineri–luni.
+    // Fereastra default de 18h pierde majoritatea meciurilor; 14 zile = aceeași
+    // toleranță ca la venue-uri.
+    const fdToOp = mapFixturesToFootballDataMatches(fixtures, targetMatches, {
+      maxDiffHours: 14 * 24,
+    });
 
     console.info(
       `[odds] ${ctx.competitionLabel}: ${targetMatches.length} meciuri țintă, ` +
@@ -142,7 +145,9 @@ export class OddsPortalProvider implements OddsProvider {
     }
 
     if (Object.keys(matches).length === 0 && errors.length > 0) {
-      throw new Error(`OddsPortal: niciun meci actualizat. ${errors.slice(0, 3).join(" | ")}`);
+      console.warn(
+        `[odds] OddsPortal fără meciuri actualizate: ${errors.slice(0, 5).join(" | ")}`,
+      );
     }
 
     const koMatchIds = ctx.matches

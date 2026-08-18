@@ -1,14 +1,46 @@
 /**
  * Football-Data.org API v4
  * @see https://www.football-data.org/documentation/quickstart
- * Endpoint exemplu: GET /v4/competitions/WC/matches?season=2026
+ * Snapshot first — pagina nu așteaptă API-ul.
  */
+
+import "server-only";
 
 import { cache } from "react";
 import {
   formatStoredCompetition,
   type FootballDataCompetitionPickerOption,
 } from "@/lib/competition";
+import {
+  coalesceInflight,
+  fetchFootballDataJson,
+} from "@/lib/football-data-rate-limit";
+import {
+  isSnapshotFresh,
+  readFdSnapshot,
+  readFdSnapshotSync,
+  writeFdSnapshot,
+} from "@/lib/football-data-snapshot";
+import {
+  matchGroupToGroupKey,
+  stageDisplayName,
+  venueLabel,
+} from "@/lib/football-data-helpers";
+import type {
+  FootballDataMatch,
+  FootballDataTeam,
+  GroupStanding,
+  StandingTableRow,
+} from "@/lib/football-data-types";
+
+export { matchGroupToGroupKey, stageDisplayName, venueLabel };
+export type {
+  FootballDataMatch,
+  FootballDataScore,
+  FootballDataTeam,
+  GroupStanding,
+  StandingTableRow,
+} from "@/lib/football-data-types";
 
 const BASE_URL = "https://api.football-data.org/v4";
 
@@ -16,42 +48,6 @@ export type { FootballDataCompetitionPickerOption } from "@/lib/competition";
 
 /** Group-stage matches without a recognised `group` field. */
 export const UNASSIGNED_GROUP_KEY = "Unassigned";
-
-export type FootballDataTeam = {
-  id?: number;
-  name?: string;
-  shortName?: string;
-  tla?: string;
-  crest?: string;
-};
-
-/** Scor din API (meciuri terminate / în desfășurare). */
-export type FootballDataScore = {
-  winner?: string | null;
-  duration?: string | null;
-  fullTime?: { home?: number | null; away?: number | null };
-  halfTime?: { home?: number | null; away?: number | null };
-  /** Scor după 90 de minute — prezent la meciuri eliminatorii cu prelungiri / penalty-uri. */
-  regularTime?: { home?: number | null; away?: number | null };
-  extraTime?: { home?: number | null; away?: number | null };
-  penalties?: { home?: number | null; away?: number | null };
-};
-
-/** Formă minimală din răspunsul la `/competitions/{code}/matches`. */
-export type FootballDataMatch = {
-  id: number;
-  utcDate: string;
-  status?: string;
-  stage?: string;
-  group?: string | null;
-  matchday?: number | null;
-  /** Cheie stocată (ex. RL1_2026) — setată la load pe turnee multi-campionat. */
-  competitionKey?: string;
-  homeTeam: FootballDataTeam;
-  awayTeam: FootballDataTeam;
-  venue?: string | { name?: string; city?: string | null } | null;
-  score?: FootballDataScore | null;
-};
 
 type MatchesEnvelope = {
   matches?: FootballDataMatch[];
@@ -70,16 +66,6 @@ export function getFootballDataToken(): string {
   return token;
 }
 
-function venueLabel(m: FootballDataMatch): string | null {
-  const v = m.venue;
-  if (!v) return null;
-  if (typeof v === "string") return v.trim() || null;
-  const parts = [v.name, v.city].filter(Boolean);
-  return parts.length ? parts.join(" · ") : null;
-}
-
-export { venueLabel };
-
 async function fdFetch<T>(
   path: string,
   searchParams?: Record<string, string>,
@@ -93,35 +79,12 @@ async function fdFetch<T>(
   }
 
   const revalidateSeconds =
-    options?.revalidate ?? (process.env.WC_LIVE_MODE === "true" ? 300 : 900);
+    options?.revalidate ?? (process.env.WC_LIVE_MODE === "true" ? 180 : 900);
 
-  const res = await fetch(url.toString(), {
-    headers: {
-      "X-Auth-Token": getFootballDataToken(),
-      Accept: "application/json",
-    },
-    ...(options?.fresh ?
-      { cache: "no-store" as const }
-    : { next: { revalidate: revalidateSeconds } }),
+  return fetchFootballDataJson<T>(url.toString(), getFootballDataToken(), {
+    fresh: options?.fresh,
+    revalidate: revalidateSeconds,
   });
-
-  const text = await res.text();
-  let body: unknown;
-  try {
-    body = text ? JSON.parse(text) : {};
-  } catch {
-    throw new Error(`Football-Data: response was not JSON (HTTP ${res.status}).`);
-  }
-
-  if (!res.ok) {
-    const msg =
-      typeof body === "object" && body !== null && "message" in body
-        ? String((body as { message?: string }).message)
-        : text.slice(0, 200);
-    throw new Error(`Football-Data ${res.status}: ${msg}`);
-  }
-
-  return body as T;
 }
 
 /**
@@ -141,53 +104,47 @@ function applyKickoffOverrides(matches: FootballDataMatch[]): FootballDataMatch[
   });
 }
 
-/**
- * Meciuri pentru o competiție + sezon (paginare limit/offset).
- */
-export async function fetchCompetitionMatches(
-  competitionCode: string,
-  season: string,
-): Promise<FootballDataMatch[]> {
-  const code = competitionCode.trim().toUpperCase();
-  const path = `/competitions/${code}/matches`;
-  const collected: FootballDataMatch[] = [];
-  let offset = 0;
-  const limit = 100;
-
-  /* eslint-disable no-constant-condition */
-  while (true) {
-    const data = await fdFetch<MatchesEnvelope>(path, {
-      season: season.trim(),
-      limit: String(limit),
-      offset: String(offset),
-    });
-
-    const batch = data.matches ?? [];
-    collected.push(...batch);
-
-    const total = data.resultSet?.count;
-    if (batch.length < limit) break;
-    if (total !== undefined && collected.length >= total) break;
-    if (batch.length === 0) break;
-
-    offset += limit;
-  }
-
-  const adjusted = applyKickoffOverrides(collected);
-  adjusted.sort(
-    (a, b) =>
-      new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime(),
-  );
-
-  return adjusted;
+function matchesSnapshotKey(code: string, season: string): string {
+  return `matches:${code}:${season}`;
 }
 
-/** Meciuri fără cache HTTP — pentru actualizare bracket KO după grupe. */
-export async function fetchCompetitionMatchesFresh(
-  competitionCode: string,
+function liveSnapshotKey(code: string, season: string): string {
+  return `live:${code}:${season}`;
+}
+
+/** Meci care ar putea fi live acum — ca să nu cerem IN_PLAY degeaba. */
+export function matchMayBeLiveNow(
+  match: Pick<FootballDataMatch, "status" | "utcDate">,
+  nowMs = Date.now(),
+): boolean {
+  const st = match.status ?? "";
+  if (st === "FINISHED" || st === "AWARDED" || st === "CANCELLED") return false;
+  if (st === "IN_PLAY" || st === "PAUSED") return true;
+  const kick = Date.parse(match.utcDate);
+  if (!Number.isFinite(kick)) return false;
+  return nowMs >= kick - 20 * 60 * 1000 && nowMs <= kick + 3.5 * 60 * 60 * 1000;
+}
+
+export function competitionMayHaveLiveNow(
+  matches: Pick<FootballDataMatch, "status" | "utcDate">[],
+  nowMs = Date.now(),
+): boolean {
+  return matches.some((m) => matchMayBeLiveNow(m, nowMs));
+}
+
+function matchesCacheTtlMs(matches: FootballDataMatch[]): number {
+  if (matches.some((m) => m.status === "IN_PLAY" || m.status === "PAUSED")) {
+    return 75_000;
+  }
+  if (competitionMayHaveLiveNow(matches)) return 90_000;
+  return 12 * 60 * 1000;
+}
+
+async function fetchCompetitionMatchesFromApi(
+  code: string,
   season: string,
+  fresh: boolean,
 ): Promise<FootballDataMatch[]> {
-  const code = competitionCode.trim().toUpperCase();
   const path = `/competitions/${code}/matches`;
   const collected: FootballDataMatch[] = [];
   let offset = 0;
@@ -197,11 +154,11 @@ export async function fetchCompetitionMatchesFresh(
     const data = await fdFetch<MatchesEnvelope>(
       path,
       {
-        season: season.trim(),
+        season,
         limit: String(limit),
         offset: String(offset),
       },
-      { fresh: true },
+      fresh ? { fresh: true } : { revalidate: 900 },
     );
 
     const batch = data.matches ?? [];
@@ -220,26 +177,181 @@ export async function fetchCompetitionMatchesFresh(
     (a, b) =>
       new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime(),
   );
-
   return adjusted;
 }
 
+function hasMatchSnapshot(
+  snap: { payload: FootballDataMatch[]; fetchedAt: Date } | null,
+): snap is { payload: FootballDataMatch[]; fetchedAt: Date } {
+  return snap != null && Array.isArray(snap.payload) && snap.payload.length > 0;
+}
+
+function refreshMatchesInBackground(code: string, season: string, cacheKey: string): void {
+  void coalesceInflight(`fd-matches-bg:${cacheKey}`, async () => {
+    try {
+      const matches = await fetchCompetitionMatchesFromApi(code, season, false);
+      await writeFdSnapshot(cacheKey, matches);
+    } catch (e) {
+      console.warn(
+        `[football-data] refresh fundal eșuat pentru ${cacheKey}:`,
+        e instanceof Error ? e.message : e,
+      );
+    }
+  });
+}
+
+function serveMatchesSnapshot(
+  payload: FootballDataMatch[],
+  fetchedAt: Date,
+  code: string,
+  season: string,
+  cacheKey: string,
+): FootballDataMatch[] {
+  if (!isSnapshotFresh(fetchedAt, matchesCacheTtlMs(payload))) {
+    refreshMatchesInBackground(code, season, cacheKey);
+  }
+  return applyKickoffOverrides(payload);
+}
+
+async function loadCompetitionMatchesCached(
+  competitionCode: string,
+  seasonRaw: string,
+  fresh: boolean,
+): Promise<FootballDataMatch[]> {
+  const code = competitionCode.trim().toUpperCase();
+  const season = seasonRaw.trim();
+  const cacheKey = matchesSnapshotKey(code, season);
+
+  if (!fresh) {
+    const mem = readFdSnapshotSync<FootballDataMatch[]>(cacheKey);
+    if (hasMatchSnapshot(mem)) {
+      return serveMatchesSnapshot(mem.payload, mem.fetchedAt, code, season, cacheKey);
+    }
+  }
+
+  return coalesceInflight(`fd-matches:${cacheKey}:${fresh ? "fresh" : "ttl"}`, async () => {
+    const snap = await readFdSnapshot<FootballDataMatch[]>(cacheKey);
+    if (!fresh && hasMatchSnapshot(snap)) {
+      return serveMatchesSnapshot(snap.payload, snap.fetchedAt, code, season, cacheKey);
+    }
+
+    try {
+      const matches = await fetchCompetitionMatchesFromApi(code, season, fresh);
+      await writeFdSnapshot(cacheKey, matches);
+      return matches;
+    } catch (e) {
+      if (hasMatchSnapshot(snap)) {
+        console.warn(
+          `[football-data] folosim snapshot vechi pentru ${cacheKey}:`,
+          e instanceof Error ? e.message : e,
+        );
+        return applyKickoffOverrides(snap.payload);
+      }
+      throw e;
+    }
+  });
+}
+
 /**
- * Doar meciurile în desfășurare (IN_PLAY = live, PAUSED = pauză) ale competiției.
- * Cache scurt (60s) și partajat: Football-Data e lovit cel mult o dată/60s per
- * competiție, indiferent câți useri deschid pagina — sub limita de ~10 req/min.
+ * Meciuri pentru o competiție + sezon. Citește snapshot Mongo dacă e proaspăt;
+ * la 429/eroare întoarce ultimul snapshot, ca pagina să nu cadă.
+ */
+export const fetchCompetitionMatches = cache(
+  async (competitionCode: string, season: string): Promise<FootballDataMatch[]> =>
+    loadCompetitionMatchesCached(competitionCode, season, false),
+);
+
+/** Forțează refresh din API, dar tot scrie snapshot și cade pe stale dacă API-ul pică. */
+export async function fetchCompetitionMatchesFresh(
+  competitionCode: string,
+  season: string,
+): Promise<FootballDataMatch[]> {
+  return loadCompetitionMatchesCached(competitionCode, season, true);
+}
+
+/**
+ * Doar meciurile în desfășurare. Nu lovește API-ul pe calea request-ului dacă
+ * avem snapshot de sezon / live — refresh-ul e în fundal.
  */
 export async function fetchCompetitionLiveMatches(
   competitionCode: string,
   season: string,
 ): Promise<FootballDataMatch[]> {
   const code = competitionCode.trim().toUpperCase();
-  const data = await fdFetch<MatchesEnvelope>(
-    `/competitions/${code}/matches`,
-    { season: season.trim(), status: "IN_PLAY,PAUSED" },
-    { revalidate: 60 },
-  );
-  return data.matches ?? [];
+  const s = season.trim();
+  const liveKey = liveSnapshotKey(code, s);
+  const seasonKey = matchesSnapshotKey(code, s);
+
+  function liveFromSeason(matches: FootballDataMatch[]): FootballDataMatch[] {
+    return applyKickoffOverrides(matches).filter(
+      (m) => m.status === "IN_PLAY" || m.status === "PAUSED",
+    );
+  }
+
+  function refreshLiveInBackground(): void {
+    void coalesceInflight(`fd-live-bg:${liveKey}`, async () => {
+      try {
+        const data = await fdFetch<MatchesEnvelope>(
+          `/competitions/${code}/matches`,
+          { season: s, status: "IN_PLAY,PAUSED" },
+          { revalidate: 45 },
+        );
+        await writeFdSnapshot(liveKey, applyKickoffOverrides(data.matches ?? []));
+      } catch (e) {
+        console.warn(
+          `[football-data] live refresh ${liveKey}:`,
+          e instanceof Error ? e.message : e,
+        );
+      }
+    });
+  }
+
+  const seasonMem = readFdSnapshotSync<FootballDataMatch[]>(seasonKey);
+  if (seasonMem && Array.isArray(seasonMem.payload)) {
+    if (!competitionMayHaveLiveNow(seasonMem.payload)) return [];
+    const liveMem = readFdSnapshotSync<FootballDataMatch[]>(liveKey);
+    if (liveMem && Array.isArray(liveMem.payload)) {
+      if (!isSnapshotFresh(liveMem.fetchedAt, 45_000)) refreshLiveInBackground();
+      return applyKickoffOverrides(liveMem.payload);
+    }
+    refreshLiveInBackground();
+    return liveFromSeason(seasonMem.payload);
+  }
+
+  return coalesceInflight(`fd-live:${liveKey}`, async () => {
+    const seasonSnap = await readFdSnapshot<FootballDataMatch[]>(seasonKey);
+    if (seasonSnap && Array.isArray(seasonSnap.payload)) {
+      if (!competitionMayHaveLiveNow(seasonSnap.payload)) return [];
+      const liveSnap = await readFdSnapshot<FootballDataMatch[]>(liveKey);
+      if (liveSnap && Array.isArray(liveSnap.payload)) {
+        if (!isSnapshotFresh(liveSnap.fetchedAt, 45_000)) refreshLiveInBackground();
+        return applyKickoffOverrides(liveSnap.payload);
+      }
+      refreshLiveInBackground();
+      return liveFromSeason(seasonSnap.payload);
+    }
+
+    try {
+      const data = await fdFetch<MatchesEnvelope>(
+        `/competitions/${code}/matches`,
+        { season: s, status: "IN_PLAY,PAUSED" },
+        { revalidate: 45 },
+      );
+      const matches = applyKickoffOverrides(data.matches ?? []);
+      await writeFdSnapshot(liveKey, matches);
+      return matches;
+    } catch (e) {
+      const liveSnap = await readFdSnapshot<FootballDataMatch[]>(liveKey);
+      if (liveSnap && Array.isArray(liveSnap.payload)) {
+        console.warn(
+          `[football-data] live snapshot pentru ${liveKey}:`,
+          e instanceof Error ? e.message : e,
+        );
+        return applyKickoffOverrides(liveSnap.payload);
+      }
+      throw e;
+    }
+  });
 }
 
 
@@ -284,29 +396,16 @@ export const getFootballDataCompetitionPickerOptions = cache(
 );
 
 
-/** Clasamente pentru party: citește `/standings` și mapează blocuri TOTAL / GROUP_STAGE. */
-export async function fetchPartyStandings(
-  code: string,
-  season: string,
-  matches: FootballDataMatch[],
-): Promise<GroupStanding[]> {
-  const c = code.trim().toUpperCase();
-  const s = season.trim();
+type RawStandings = {
+  standings?: Array<{
+    stage?: string | null;
+    type?: string | null;
+    group?: string | null;
+    table?: StandingTableRow[];
+  }>;
+};
 
-  type RawStandings = {
-    standings?: Array<{
-      stage?: string | null;
-      type?: string | null;
-      group?: string | null;
-      table?: StandingTableRow[];
-    }>;
-  };
-
-  const data = await fdFetch<RawStandings>(
-    `/competitions/${c}/standings`,
-    { season: s },
-  );
-
+function mapStandingsPayload(data: RawStandings): GroupStanding[] {
   const result: GroupStanding[] = [];
   let ordinal = 0;
 
@@ -328,11 +427,7 @@ export async function fetchPartyStandings(
     }
 
     if (result.length === 0) {
-      result.push({
-        letter: "A",
-        groupKey: "League",
-        rows: block.table,
-      });
+      result.push({ letter: "A", groupKey: "League", rows: block.table });
       break;
     }
   }
@@ -340,28 +435,32 @@ export async function fetchPartyStandings(
   return result;
 }
 
-/** Mapare `stage` (enum API) → titlu afișat. */
-export function stageDisplayName(stage: string): string {
-  const map: Record<string, string> = {
-    REGULAR_SEASON: "Regular season",
-    PRELIMINARY_ROUND: "Preliminary round",
-    QUALIFICATION: "Qualification",
-    QUALIFICATION_ROUND_1: "Qualification R1",
-    QUALIFICATION_ROUND_2: "Qualification R2",
-    QUALIFICATION_ROUND_3: "Qualification R3",
-    PLAYOFF_ROUND_1: "Play-off R1",
-    PLAYOFF_ROUND_2: "Play-off R2",
-    PLAYOFFS: "Play-offs",
-    GROUP_STAGE: "Group stage",
-    LAST_64: "Round of 64",
-    LAST_32: "Round of 32",
-    LAST_16: "Round of 16",
-    QUARTER_FINALS: "Quarter-finals",
-    SEMI_FINALS: "Semi-finals",
-    THIRD_PLACE: "Third place",
-    FINAL: "Final",
-  };
-  return map[stage] ?? stage;
+/** Clasamente: snapshot întâi, API doar dacă lipsește cache-ul. */
+export async function fetchPartyStandings(
+  code: string,
+  season: string,
+  _matches: FootballDataMatch[],
+): Promise<GroupStanding[]> {
+  const c = code.trim().toUpperCase();
+  const s = season.trim();
+  const cacheKey = `standings:${c}:${s}`;
+
+  const mem = readFdSnapshotSync<GroupStanding[]>(cacheKey);
+  if (mem && Array.isArray(mem.payload) && mem.payload.length > 0) {
+    return mem.payload;
+  }
+
+  const snap = await readFdSnapshot<GroupStanding[]>(cacheKey);
+  if (snap && Array.isArray(snap.payload) && snap.payload.length > 0) {
+    return snap.payload;
+  }
+
+  const data = await fdFetch<RawStandings>(`/competitions/${c}/standings`, {
+    season: s,
+  });
+  const result = mapStandingsPayload(data);
+  await writeFdSnapshot(cacheKey, result);
+  return result;
 }
 
 const KNOCKOUT_STAGE_ORDER: string[] = [
@@ -386,45 +485,6 @@ export function sortKnockoutStageLabels(labels: string[]): string[] {
     if (ib !== undefined) return 1;
     return a.localeCompare(b);
   });
-}
-
-/** Grupă după `GROUP_STAGE` + `group`; altfel după fază (knockout). */
-/** Rând clasament (grupă). */
-export type StandingTableRow = {
-  position: number;
-  team: FootballDataTeam;
-  playedGames: number;
-  won: number;
-  draw: number;
-  lost: number;
-  points: number;
-  goalsFor: number;
-  goalsAgainst: number;
-  goalDifference: number;
-};
-
-export type GroupStanding = {
-  /** Literă grupă A–L */
-  letter: string;
-  /** ex. „Group A” */
-  groupKey: string;
-  rows: StandingTableRow[];
-};
-
-
-/**
- * Normalizează `group` din meciuri: `GROUP_A`, uneori doar `A`.
- */
-export function matchGroupToGroupKey(
-  groupRaw: string | null | undefined,
-): string | null {
-  if (!groupRaw?.trim()) return null;
-  const gu = groupRaw.trim().toUpperCase();
-  let m = gu.match(/^GROUP_([A-Z])$/);
-  if (m) return `Group ${m[1]}`;
-  m = gu.match(/^([A-Z])$/);
-  if (m) return `Group ${m[1]}`;
-  return null;
 }
 
 /** Din meciuri GROUP_STAGE: teamId → „Group X” (4 echipe per grupă în CM). */
@@ -556,10 +616,47 @@ export async function fetchCompetitionTeams(
   season: string,
 ): Promise<FootballDataTeam[]> {
   const code = competitionCode.trim().toUpperCase();
-  const data = await fdFetch<TeamsEnvelope>(`/competitions/${code}/teams`, {
-    season: season.trim(),
-  });
+  const s = season.trim();
+  const cacheKey = `teams:${code}:${s}`;
 
+  return coalesceInflight(`fd-${cacheKey}`, async () => {
+    const mem = readFdSnapshotSync<FootballDataTeam[]>(cacheKey);
+    if (mem && Array.isArray(mem.payload) && mem.payload.length > 0) {
+      return mem.payload;
+    }
+
+    const snap = await readFdSnapshot<FootballDataTeam[]>(cacheKey);
+    if (snap && Array.isArray(snap.payload) && snap.payload.length > 0) {
+      if (!isSnapshotFresh(snap.fetchedAt, 24 * 60 * 60 * 1000)) {
+        void coalesceInflight(`fd-bg:${cacheKey}`, async () => {
+          try {
+            const teams = await fetchTeamsFromApi(code, s);
+            await writeFdSnapshot(cacheKey, teams);
+          } catch (e) {
+            console.warn(
+              `[football-data] teams refresh ${cacheKey}:`,
+              e instanceof Error ? e.message : e,
+            );
+          }
+        });
+      }
+      return snap.payload;
+    }
+
+    try {
+      const teams = await fetchTeamsFromApi(code, s);
+      await writeFdSnapshot(cacheKey, teams);
+      return teams;
+    } catch (e) {
+      throw e;
+    }
+  });
+}
+
+async function fetchTeamsFromApi(code: string, s: string): Promise<FootballDataTeam[]> {
+  const data = await fdFetch<TeamsEnvelope>(`/competitions/${code}/teams`, {
+    season: s,
+  });
   return (data.teams ?? [])
     .filter((t): t is FootballDataTeam & { id: number; name: string } =>
       t.id != null && Boolean(t.name?.trim()),

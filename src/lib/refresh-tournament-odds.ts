@@ -1,6 +1,6 @@
 import { refreshOddsForCompetition } from "@/lib/refresh-competition-odds";
 import { prisma } from "@/lib/prisma";
-import { resolveTournamentCompetitionKeys } from "@/lib/tournament-matches";
+import { resolveTournamentCompetitionKeys } from "@/lib/tournament-competition";
 
 export type RefreshOddsResult =
   | {

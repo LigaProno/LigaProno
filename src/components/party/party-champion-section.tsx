@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
-import type { FootballDataTeam } from "@/lib/football-data";
+import type { FootballDataTeam } from "@/lib/football-data-types";
 import { WC_BORDER, WC_CYAN } from "@/components/world-cup/wc-theme";
 
 export function PartyChampionSection({
@@ -26,7 +26,7 @@ export function PartyChampionSection({
       <div>
         <h3 className="text-lg font-bold text-white mb-1">Campion mondial</h3>
         <p className="text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>
-          Alege echipa pe care o vezi ridicând trofeul. Punctaj maxim la finală.
+          Alege echipa pe care o vezi ridic�nd trofeul. Punctaj maxim la finala.
         </p>
       </div>
 
@@ -85,7 +85,7 @@ export function PartyChampionSection({
 
       {championId && !disabled ?
         <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-          Apasă „Salvează” pentru a confirma alegerea.
+          Apasa �Salveaza� pentru a confirma alegerea.
         </p>
       : null}
     </div>

@@ -8,8 +8,8 @@ import { pageTitle } from "@/lib/site-metadata";
 export const metadata = pageTitle("Termeni și condiții");
 
 const CONTACT_EMAIL = "support.ligaprono@gmail.com";
-const LAST_UPDATED = "15 august 2026";
-const LAST_UPDATED_EN = "15 August 2026";
+const LAST_UPDATED = "18 august 2026";
+const LAST_UPDATED_EN = "18 August 2026";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -113,7 +113,17 @@ export default async function TermsAndConditionsPage() {
                 pentru premii este condiționată de:
               </p>
               <ul className="list-disc pl-5 flex flex-col gap-1.5">
-                <li>Respectarea regulamentului turneului.</li>
+                <li>
+                  Respectarea{" "}
+                  <Link href="/regulament" className="font-medium text-[#67E8F9] hover:underline">
+                    regulamentului concursurilor
+                  </Link>
+                  .
+                </li>
+                <li>
+                  Urmărirea pe Instagram, înainte de startul etapei, a contului Liga Prono și a
+                  partenerilor (în prezent Kitman).
+                </li>
                 <li>Furnizarea unor date de contact valide pentru livrare.</li>
                 <li>Absența oricărei încălcări a acestor termeni.</li>
               </ul>
@@ -233,7 +243,17 @@ export default async function TermsAndConditionsPage() {
                 prizes is conditional on:
               </p>
               <ul className="list-disc pl-5 flex flex-col gap-1.5">
-                <li>Compliance with tournament rules.</li>
+                <li>
+                  Compliance with the{" "}
+                  <Link href="/regulament" className="font-medium text-[#67E8F9] hover:underline">
+                    contest rules
+                  </Link>
+                  .
+                </li>
+                <li>
+                  Following Liga Prono and partners (currently Kitman) on Instagram before the
+                  matchday starts.
+                </li>
                 <li>Providing valid contact details for delivery.</li>
                 <li>No violation of these terms.</li>
               </ul>

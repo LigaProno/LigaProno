@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import type { FootballDataMatch } from "@/lib/football-data";
-import { venueLabel } from "@/lib/football-data";
+import type { FootballDataMatch } from "@/lib/football-data-types";
+import { venueLabel } from "@/lib/football-data-helpers";
 import { formatMatchKickoff } from "@/lib/match-datetime";
 import type { MatchOddsRow } from "@/lib/betting-odds";
 import { saveWcMatchPrediction } from "@/app/actions/wc-predictions";
@@ -16,7 +16,7 @@ import { computeMatchPoints } from "@/lib/wc-scoring";
 import { PotentialPoints } from "@/components/party/potential-points";
 import { MatchInsightsModal } from "@/components/party/match-insights-modal";
 import { formatTeamDisplayName } from "@/lib/team-display";
-import { isMatchSettled, matchStatusBadge } from "@/lib/match-status";
+import { isFtOutcomeConsistentWithExactScore } from "@/lib/prediction-consistency";
 import {
   WC_BORDER,
   WC_CARD_GRADIENT,
@@ -138,6 +138,7 @@ export function PartyMatchPredictionCard({
   predictionLockedReason = null,
   competition = null,
   hideOddsUnavailable = false,
+  displayMatchday = null,
   onSaved,
   onError,
   registerMatchDraft,
@@ -150,6 +151,7 @@ export function PartyMatchPredictionCard({
   predictionLockedReason?: PredictionLockedReason | null;
   competition?: string | null;
   hideOddsUnavailable?: boolean;
+  displayMatchday?: number | null;
   onSaved: () => void;
   onError: (msg: string) => void;
   registerMatchDraft?: (
@@ -170,6 +172,13 @@ export function PartyMatchPredictionCard({
   const finished = isMatchSettled(m);
   const statusBadge = matchStatusBadge(m);
   const formLocked = finished || predictionLockedReason != null;
+  const officialMatchday = m.matchday ?? 0;
+  const rescheduledFrom =
+    displayMatchday != null &&
+    officialMatchday > 0 &&
+    officialMatchday !== displayMatchday
+      ? officialMatchday
+      : null;
 
   useEffect(() => {
     setP(initial);
@@ -211,10 +220,21 @@ export function PartyMatchPredictionCard({
   const al = m.awayTeam.crest;
   const ft90 = getMatchScoreAfter90(m);
   const ht = m.score?.halfTime;
+  const homeGoalsNum = p.predHomeGoals === "" ? null : Number(p.predHomeGoals);
+  const awayGoalsNum = p.predAwayGoals === "" ? null : Number(p.predAwayGoals);
+  const scoreConflictsFt = !isFtOutcomeConsistentWithExactScore(
+    p.ftOutcome || null,
+    homeGoalsNum,
+    awayGoalsNum,
+  );
 
   void locale;
 
   function handleSave() {
+    if (scoreConflictsFt) {
+      onError(t("errors.scoreFtMismatch"));
+      return;
+    }
     startTransition(async () => {
       try {
         await saveWcMatchPrediction(tournamentId, m.id, toSaveInput(p));
@@ -306,11 +326,19 @@ export function PartyMatchPredictionCard({
                   style={{ color: WC_LIME }}
                 >
                   {statusBadge?.tone === "postponed"
-                    ? "Dată de confirmat"
+                    ? t("party.match.dateTbd")
                     : statusBadge?.tone === "cancelled"
-                      ? "Nu se mai joacă"
-                      : `${when} · ora României`}
+                      ? t("party.match.cancelled")
+                      : `${when} · ${t("party.match.romaniaTime")}`}
                 </span>
+                {rescheduledFrom != null ? (
+                  <span
+                    className="text-[10px] mt-1 font-semibold"
+                    style={{ color: "#FBBF24" }}
+                  >
+                    {t("party.match.rescheduledFrom", { matchday: rescheduledFrom })}
+                  </span>
+                ) : null}
               </>
             )}
           </div>
@@ -397,7 +425,11 @@ export function PartyMatchPredictionCard({
                       maxLength={1}
                       placeholder="X"
                       className="w-12 h-12 text-lg text-center rounded-xl border outline-none font-bold"
-                      style={{ backgroundColor: WC_NAVY, borderColor: WC_BORDER, color: "#fff" }}
+                      style={{
+                        backgroundColor: WC_NAVY,
+                        borderColor: scoreConflictsFt ? "#FBBF24" : WC_BORDER,
+                        color: "#fff",
+                      }}
                     />
                   </div>
                   <span className="text-xl font-bold mt-5" style={{ color: WC_MUTED }}>–</span>
@@ -416,16 +448,25 @@ export function PartyMatchPredictionCard({
                       maxLength={1}
                       placeholder="X"
                       className="w-12 h-12 text-lg text-center rounded-xl border outline-none font-bold"
-                      style={{ backgroundColor: WC_NAVY, borderColor: WC_BORDER, color: "#fff" }}
+                      style={{
+                        backgroundColor: WC_NAVY,
+                        borderColor: scoreConflictsFt ? "#FBBF24" : WC_BORDER,
+                        color: "#fff",
+                      }}
                     />
                   </div>
                 </div>
+                {scoreConflictsFt ? (
+                  <p className="text-xs leading-relaxed text-amber-200/90 max-w-sm">
+                    {t("party.scoreFtMismatch")}
+                  </p>
+                ) : null}
               </div>
 
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={pending}
+                disabled={pending || scoreConflictsFt}
                 className="w-full sm:w-auto shrink-0 px-8 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50 cursor-pointer hover:opacity-90 active:scale-[0.98]"
                 style={{ backgroundColor: WC_LIME, color: WC_NAVY }}
               >

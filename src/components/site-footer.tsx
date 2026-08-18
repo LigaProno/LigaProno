@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { useCookieConsent } from "@/components/consent/cookie-consent-provider";
 import { INSTAGRAM_URL } from "@/lib/social-links";
 
 const SUPPORT_EMAIL = "support.ligaprono@gmail.com";
@@ -16,6 +17,7 @@ type SiteFooterProps = {
 
 export function SiteFooter({ variant = "public" }: SiteFooterProps) {
   const { t } = useLocale();
+  const { openSettings } = useCookieConsent();
   const year = new Date().getFullYear();
 
   const explore =
@@ -30,10 +32,6 @@ export function SiteFooter({ variant = "public" }: SiteFooterProps) {
         { href: "/sign-up", label: t("footer.getStarted") },
         { href: "/sign-in", label: t("footer.signIn") },
       ];
-
-  const legal = [
-    { href: "/confidentialitate", label: t("footer.privacy") },
-  ];
 
   return (
     <footer
@@ -86,11 +84,16 @@ export function SiteFooter({ variant = "public" }: SiteFooterProps) {
           </FooterCol>
 
           <FooterCol title={t("footer.legal")}>
-            {legal.map((item) => (
-              <FooterLink key={item.href} href={item.href}>
-                {item.label}
-              </FooterLink>
-            ))}
+            <FooterLink href="/termeni-si-conditii">{t("footer.terms")}</FooterLink>
+            <FooterLink href="/regulament">{t("footer.rules")}</FooterLink>
+            <FooterLink href="/confidentialitate">{t("footer.privacy")}</FooterLink>
+            <button
+              type="button"
+              onClick={openSettings}
+              className="w-fit text-left text-sm text-white/55 transition-colors hover:text-white"
+            >
+              {t("footer.cookies")}
+            </button>
           </FooterCol>
 
           <FooterCol title={t("footer.contact")}>

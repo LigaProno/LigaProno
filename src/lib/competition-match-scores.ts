@@ -1,4 +1,4 @@
-import type { FootballDataMatch } from "@/lib/football-data";
+import type { FootballDataMatch } from "@/lib/football-data-types";
 import { parseStoredCompetition } from "@/lib/competition";
 import { mapWithConcurrency } from "@/lib/odds-providers/concurrency";
 import {
@@ -8,6 +8,7 @@ import {
 import { getOddsPortalCompetition } from "@/lib/odds-providers/oddsportal/competition-map";
 import { mapFixturesToFootballDataMatches } from "@/lib/odds-providers/team-matcher";
 import { prisma } from "@/lib/prisma";
+import { resolveTournamentCompetitionKeys } from "@/lib/tournament-competition";
 
 export const SCORE_OVERRIDE_SOURCE = "oddsportal";
 
@@ -94,14 +95,12 @@ export function isMatchStaleForScoreFallback(
   m: FootballDataMatch,
   nowMs = Date.now(),
 ): boolean {
-  if (
-    m.status === "FINISHED" ||
-    m.status === "AWARDED" ||
-    m.status === "CANCELLED" ||
-    m.status === "POSTPONED"
-  ) {
+  if (m.status === "CANCELLED" || m.status === "POSTPONED") {
     return false;
   }
+  if (fdHasOfficialFinishedScore(m)) return false;
+  // FD zice FINISHED dar HT/FT e incomplet (ex. 1-1 fără pauză) — luăm scorul de pe OddsPortal.
+  if (m.status === "FINISHED" || m.status === "AWARDED") return true;
   const kickoff = Date.parse(m.utcDate);
   if (!Number.isFinite(kickoff)) return false;
   if (nowMs < kickoff + getStaleAfterMs()) return false;
@@ -310,15 +309,10 @@ export async function refreshStaleScoresFromOddsPortal(): Promise<{
   errors: string[];
 }> {
   const tournaments = await prisma.tournament.findMany({
-    where: { competition: { not: null } },
-    select: { competition: true },
+    select: { competition: true, competitions: true },
   });
   const competitions = [
-    ...new Set(
-      tournaments
-        .map((t) => t.competition)
-        .filter((c): c is string => typeof c === "string" && c.length > 0),
-    ),
+    ...new Set(tournaments.flatMap((t) => resolveTournamentCompetitionKeys(t))),
   ];
 
   let scraped = 0;
@@ -330,8 +324,8 @@ export async function refreshStaleScoresFromOddsPortal(): Promise<{
     if (!getOddsPortalCompetition(parsed.code, parsed.season)) continue;
 
     try {
-      const { fetchCompetitionMatchesFresh } = await import("@/lib/football-data");
-      const matches = await fetchCompetitionMatchesFresh(
+      const { fetchCompetitionMatches } = await import("@/lib/football-data");
+      const matches = await fetchCompetitionMatches(
         parsed.code,
         parsed.season,
       );

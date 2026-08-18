@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
-import { tournamentCompetitionLabel } from "@/lib/tournament-matches";
+import Link from "next/link";
+import { tournamentCompetitionLabel } from "@/lib/tournament-competition";
 import { COMPETITION_PICKER_OPTIONS } from "@/lib/competition";
 import { createTranslator } from "@/lib/i18n";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
@@ -128,6 +129,14 @@ export default async function TurneePage() {
                 title={t("tournament.page.publicTitle")}
                 badge={t("tournament.page.publicBadge")}
                 count={visiblePublicTournaments.length}
+                extra={
+                  <Link
+                    href="/regulament"
+                    className="text-xs font-medium text-white/45 underline decoration-white/20 underline-offset-2 transition-colors hover:text-white"
+                  >
+                    {t("tournament.page.prizeEligibilityRules")}
+                  </Link>
+                }
               />
               <TurneePublicTabs
                 ongoingCount={ongoingPublic.length}

@@ -1,8 +1,8 @@
-import type { FootballDataMatch } from "@/lib/football-data";
+import type { FootballDataMatch } from "@/lib/football-data-types";
 import {
   countTeamsWithQualifyOdds,
   fillEstimatedQualifyOdds,
-  hasUsableMatchOdds,
+  hasCompleteMatchOdds,
   mergeBettingPayloads,
   sanitizeBettingPayload,
   type BettingOddsPayload,
@@ -13,6 +13,7 @@ import {
   isGeminiApiKeyConfigured,
 } from "@/lib/gemini-odds-fetch";
 import type { OddsFetchContext } from "@/lib/odds-providers/types";
+import { matchesNeedingOddsFill } from "@/lib/odds-horizon";
 import { matchesForMatchday, resolveCurrentMatchday } from "@/lib/wc-pred-display";
 
 function upcomingMatches(matches: FootballDataMatch[]): FootballDataMatch[] {
@@ -56,10 +57,10 @@ function matchesMissingOdds(
   payload: BettingOddsPayload,
   matches: FootballDataMatch[],
 ): FootballDataMatch[] {
-  return matches.filter((m) => !hasUsableMatchOdds(payload.matches[String(m.id)]));
+  return matches.filter((m) => !hasCompleteMatchOdds(payload.matches[String(m.id)]));
 }
 
-/** Completează cotele lipsă pentru meciurile viitoare cu echipe cunoscute (max. 2 treceri). */
+/** Completează cotele lipsă pe fereastra de ~3 săptămâni (nu tot sezonul). */
 async function fillMissingUpcomingMatchOdds(
   payload: BettingOddsPayload,
   ctx: OddsFetchContext,
@@ -67,7 +68,7 @@ async function fillMissingUpcomingMatchOdds(
 ): Promise<{ payload: BettingOddsPayload; filledCount: number }> {
   let merged = payload;
   let filledCount = 0;
-  const target = currentFixtureMatches(ctx.matches);
+  const target = matchesNeedingOddsFill(ctx.matches, merged);
 
   for (let pass = 0; pass < 2; pass++) {
     const missing = matchesMissingOdds(merged, target);
@@ -76,7 +77,7 @@ async function fillMissingUpcomingMatchOdds(
     const { payload: matchPayload } = await fetchMatchOddsViaGemini(
       competitionLabel,
       missing,
-      { googleSearch: false, timeoutMs: 180_000 },
+      { timeoutMs: 180_000 },
     );
     const beforeMissing = missing.length;
     merged = mergeBettingPayloads(

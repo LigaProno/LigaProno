@@ -5,9 +5,8 @@ import {
   partitionFootballDataMatches,
   sortKnockoutStageLabels,
   UNASSIGNED_GROUP_KEY,
-  type FootballDataMatch,
-  type GroupStanding,
 } from "@/lib/football-data";
+import type { FootballDataMatch, GroupStanding } from "@/lib/football-data-types";
 import { findCompetitionPickerOption } from "@/lib/competition";
 import { Cm2026FootballDataClient } from "./cm2026-client";
 import { LocaleProvider } from "@/components/i18n/locale-provider";

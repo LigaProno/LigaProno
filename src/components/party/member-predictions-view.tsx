@@ -1,8 +1,8 @@
-ï»¿"use client";
+"use client";
 
 import Link from "next/link";
 import { useLocale } from "@/components/i18n/locale-provider";
-import type { FootballDataMatch } from "@/lib/football-data";
+import type { FootballDataMatch } from "@/lib/football-data-types";
 import { formatMatchKickoff } from "@/lib/match-datetime";
 import {
   formatPredFt1x2Part,
@@ -148,7 +148,7 @@ export default function MemberPredictionsView({
                 const { ht: resHt, ft: resFt } = matchResultHtFt(m);
                 const hits = computeMatchPredictionHits(pred, m);
                 const when = formatMatchKickoff(m.utcDate, dateLocale);
-                const fx = `${teamShort(m.homeTeam)}â€“${teamShort(m.awayTeam)}`;
+                const fx = `${teamShort(m.homeTeam)}–${teamShort(m.awayTeam)}`;
                 return (
                   <tr key={m.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                     <td className="py-3 px-3 sm:px-4 align-top tabular-nums whitespace-nowrap" style={{ color: "rgba(255,255,255,0.55)" }}>
@@ -174,16 +174,16 @@ export default function MemberPredictionsView({
                       {formatPredScorePart(pred)}
                     </td>
                     <td className="py-3 px-2 align-top text-center tabular-nums font-semibold text-emerald-200/95">
-                      {resHt ?? "â€”"}
+                      {resHt ?? "—"}
                     </td>
                     <td className="py-3 px-2 align-top text-center tabular-nums font-semibold text-emerald-200/95">
-                      {resFt ?? "â€”"}
+                      {resFt ?? "—"}
                     </td>
                     <td
                       className="py-3 px-3 sm:px-4 align-top text-right tabular-nums font-bold"
                       style={{ color: points > 0 ? "#60A5FA" : "rgba(255,255,255,0.3)" }}
                     >
-                      {points > 0 ? points : "â€”"}
+                      {points > 0 ? points : "—"}
                     </td>
                   </tr>
                 );

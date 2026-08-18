@@ -4,7 +4,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { canManagePublicTournaments, isAdminEmail } from "@/lib/admin";
 import { COMPETITION_PICKER_OPTIONS } from "@/lib/competition";
-import { tournamentCompetitionLabel } from "@/lib/tournament-matches";
+import { tournamentCompetitionLabel } from "@/lib/tournament-competition";
 import CreatePublicTournamentForm from "../admin/CreatePublicTournamentForm";
 import CreateMixedPublicTournamentForm from "../admin/CreateMixedPublicTournamentForm";
 import DeletePublicTournamentButton from "./DeletePublicTournamentButton";

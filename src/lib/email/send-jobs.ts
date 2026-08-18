@@ -1,10 +1,8 @@
 import { parseStoredCompetition } from "@/lib/competition";
 import { payloadToOddsMaps } from "@/lib/betting-odds";
 import { loadCompetitionOddsSnapshot } from "@/lib/competition-odds";
-import {
-  fetchCompetitionMatches,
-  type FootballDataMatch,
-} from "@/lib/football-data";
+import { fetchCompetitionMatches } from "@/lib/football-data";
+import type { FootballDataMatch } from "@/lib/football-data-types";
 import { canSendTestEmail, isEmailTestMode, sendEmail } from "@/lib/email/mailer";
 import { renderDailyDigestEmail } from "@/lib/email/templates/daily-digest";
 import { renderPredictionReminderEmail } from "@/lib/email/templates/prediction-reminder";
