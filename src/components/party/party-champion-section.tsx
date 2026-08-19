@@ -26,7 +26,7 @@ export function PartyChampionSection({
       <div>
         <h3 className="text-lg font-bold text-white mb-1">Campion mondial</h3>
         <p className="text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>
-          Alege echipa pe care o vezi ridic‚nd trofeul. Punctaj maxim la finala.
+          Alege echipa pe care o vezi ridic√¢nd trofeul. Punctaj maxim la finala.
         </p>
       </div>
 
@@ -85,7 +85,7 @@ export function PartyChampionSection({
 
       {championId && !disabled ?
         <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-          Apasa ÑSalveazaî pentru a confirma alegerea.
+          Apasa ‚ÄûSalveaza‚Äù pentru a confirma alegerea.
         </p>
       : null}
     </div>

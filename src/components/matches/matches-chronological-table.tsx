@@ -12,10 +12,10 @@ import { matchResultHtFt, teamShort } from "@/lib/wc-pred-display";
 
 function matchPhaseLabel(m: FootballDataMatch): string {
   if (m.stage === "GROUP_STAGE") {
-    return matchGroupToGroupKey(m.group) ?? "—";
+    return matchGroupToGroupKey(m.group) ?? "â€”";
   }
   if (m.stage) return stageDisplayName(m.stage);
-  return "—";
+  return "â€”";
 }
 
 function isLiveStatus(status?: string): boolean {
@@ -89,7 +89,7 @@ export function MatchesChronologicalTable({
                     : null}
                     <span className="font-medium text-white tabular-nums">
                       {home}
-                      <span className="mx-1.5" style={{ color: "rgba(255,255,255,0.35)" }}>–</span>
+                      <span className="mx-1.5" style={{ color: "rgba(255,255,255,0.35)" }}>â€“</span>
                       {away}
                     </span>
                     {m.awayTeam.crest ?
@@ -98,10 +98,10 @@ export function MatchesChronologicalTable({
                   </div>
                 </td>
                 <td className="py-3 px-2 align-top text-center tabular-nums font-semibold text-emerald-200/95">
-                  {ht ?? (mode === "upcoming" ? "—" : "—")}
+                  {ht ?? (mode === "upcoming" ? "â€”" : "â€”")}
                 </td>
                 <td className="py-3 px-2 align-top text-center tabular-nums font-semibold" style={{ color: ft ? "#60A5FA" : "rgba(255,255,255,0.35)" }}>
-                  {ft ?? "—"}
+                  {ft ?? "â€”"}
                 </td>
                 <td className="py-3 px-2 align-top hidden sm:table-cell text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>
                   {matchPhaseLabel(m)}

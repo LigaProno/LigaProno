@@ -12,6 +12,7 @@ import { formatCaughtError } from "@/lib/i18n/errors";
 import type { PredictionLockedReason } from "@/lib/knockout-predictions";
 import { getPredictionLockMessage } from "@/lib/knockout-predictions";
 import { getMatchScoreAfter90 } from "@/lib/match-score";
+import { isMatchSettled, matchStatusBadge } from "@/lib/match-status";
 import { computeMatchPoints } from "@/lib/wc-scoring";
 import { PotentialPoints } from "@/components/party/potential-points";
 import { MatchInsightsModal } from "@/components/party/match-insights-modal";

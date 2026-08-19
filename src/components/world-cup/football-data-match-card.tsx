@@ -15,8 +15,8 @@ export function FootballDataMatchCard({ m }: { m: FootballDataMatch }) {
   const { t, dateLocale, locale } = useLocale();
   const venue = venueLabel(m);
   const when = formatMatchKickoff(m.utcDate, dateLocale);
-  const home = m.homeTeam.name ?? m.homeTeam.shortName ?? "—";
-  const away = m.awayTeam.name ?? m.awayTeam.shortName ?? "—";
+  const home = m.homeTeam.name ?? m.homeTeam.shortName ?? "â€”";
+  const away = m.awayTeam.name ?? m.awayTeam.shortName ?? "â€”";
   const hl = m.homeTeam.crest;
   const al = m.awayTeam.crest;
   const { ht, ft } = matchResultHtFt(m);
@@ -83,7 +83,7 @@ export function FootballDataMatchCard({ m }: { m: FootballDataMatch }) {
                   </span>
                 : null}
                 <span className="text-xl sm:text-2xl font-black tabular-nums text-white tracking-wide">
-                  {ftDisplay ?? "—"}
+                  {ftDisplay ?? "â€”"}
                 </span>
                 {ht ?
                   <span className="text-[11px] mt-1 tabular-nums" style={{ color: "rgba(255,255,255,0.45)" }}>
@@ -133,7 +133,7 @@ export function FootballDataMatchCard({ m }: { m: FootballDataMatch }) {
         {hasScore ?
           <p className="text-center text-[10px] mt-3 tabular-nums" style={{ color: "rgba(255,255,255,0.38)" }}>
             {when} {t("matches.romaniaTimeSuffix")}
-            {venue ? ` · ${venue}` : ""}
+            {venue ? ` Â· ${venue}` : ""}
           </p>
         : null}
       </div>
