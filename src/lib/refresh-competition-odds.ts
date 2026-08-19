@@ -21,6 +21,7 @@ import { geminiOddsProvider } from "@/lib/odds-providers/gemini-provider";
 import { supplementOddsWithGemini } from "@/lib/odds-supplement";
 import { isGeminiApiKeyConfigured } from "@/lib/gemini-odds-fetch";
 import { matchesNeedingOddsFill } from "@/lib/odds-horizon";
+import { fillEstimatedMatchMarketsInPayload } from "@/lib/odds-providers/estimate-from-1x2";
 import { prisma } from "@/lib/prisma";
 
 export type RefreshCompetitionOddsResult =
@@ -135,7 +136,7 @@ export async function refreshOddsForCompetition(
       try {
         const supplement = await supplementOddsWithGemini(payload, ctx);
         if (supplement.supplementedTeams || supplement.supplementedMatchCount > 0) {
-          payload = supplement.payload;
+          payload = sanitizeBettingPayload(supplement.payload);
           oddsSource =
             oddsSource.includes("gemini-supplement") ?
               oddsSource
@@ -157,6 +158,7 @@ export async function refreshOddsForCompetition(
       payload = mergeBettingPayloads(payload, existingPayload);
     }
 
+    payload = fillEstimatedMatchMarketsInPayload(payload);
     payload = fillEstimatedQualifyOdds(payload);
     const koMatchIds = matches
       .filter((m) => isKnockoutStage(m.stage))

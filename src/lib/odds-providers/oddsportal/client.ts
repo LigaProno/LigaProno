@@ -18,6 +18,7 @@ import {
   buildTournamentResultsUrl,
 } from "@/lib/odds-providers/oddsportal/competition-map";
 import { delay } from "@/lib/odds-providers/concurrency";
+import { parseNextEventFixturesFromHtml } from "@/lib/odds-providers/oddsportal/parse-listing";
 
 export type OpEventMeta = {
   matchId: string;
@@ -79,6 +80,8 @@ export type OpScheduleFixture = {
   country: string | null;
   /** URL H2H OddsPortal (ex. /football/h2h/.../#id) — util pentru meciuri terminate. */
   eventPageUrl?: string | null;
+  /** 1X2 full-time extras din listing (fără pagina de meci). */
+  ft1x2?: { HOME: number; DRAW: number; AWAY: number } | null;
 };
 
 function decodeHtmlEntities(value: string): string {
@@ -152,6 +155,13 @@ export function parseTournamentFixturesFromHtml(html: string): OpScheduleFixture
 
   // Fallback / complement: evenimente din JSON HTML-encodat (results page / liste React).
   for (const fx of parseEncodedScheduleFixturesFromHtml(html)) {
+    if (seen.has(fx.matchId)) continue;
+    seen.add(fx.matchId);
+    fixtures.push(fx);
+  }
+
+  // Pagina Next.js: home-name vine înainte de encodeEventId.
+  for (const fx of parseNextEventFixturesFromHtml(html)) {
     if (seen.has(fx.matchId)) continue;
     seen.add(fx.matchId);
     fixtures.push(fx);
@@ -450,9 +460,19 @@ export async function fetchOutrightWinnerFeed(
 
 export async function fetchTournamentFixtures(
   config: OddsPortalCompetitionConfig,
+  options?: { fresh?: boolean },
 ): Promise<OpScheduleFixture[]> {
-  const html = await fetchOddsPortalHtml(config.tournamentPageUrl);
+  const html = await fetchOddsPortalHtml(config.tournamentPageUrl, undefined, {
+    fresh: options?.fresh ?? false,
+  });
   return parseTournamentFixturesFromHtml(html);
+}
+
+/** HTML listing (fresh) — cote 1X2 + fixture-uri, fără pagina de meci. */
+export async function fetchTournamentListingHtml(
+  config: OddsPortalCompetitionConfig,
+): Promise<string> {
+  return fetchOddsPortalHtml(config.tournamentPageUrl, undefined, { fresh: true });
 }
 
 /** Fixture-uri de pe pagina de rezultate (meciuri terminate, pot lipsi de pe overview). */

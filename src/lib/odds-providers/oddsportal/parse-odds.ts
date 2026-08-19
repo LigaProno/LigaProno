@@ -20,6 +20,41 @@ function median(nums: number[]): number | null {
   return arr.length % 2 ? arr[mid]! : (arr[mid - 1]! + arr[mid]!) / 2;
 }
 
+function collectBookOddValues(bookOdds: unknown, outcomeIndex?: string): number[] {
+  const vals: number[] = [];
+  const push = (raw: unknown) => {
+    if (typeof raw === "number" && Number.isFinite(raw) && raw >= 1.04) vals.push(raw);
+    else if (typeof raw === "string") {
+      const n = Number(raw);
+      if (Number.isFinite(n) && n >= 1.04) vals.push(n);
+    }
+  };
+
+  if (typeof bookOdds === "number" || typeof bookOdds === "string") {
+    push(bookOdds);
+    return vals;
+  }
+  if (Array.isArray(bookOdds)) {
+    if (outcomeIndex != null) {
+      const idx = Number(outcomeIndex);
+      if (Number.isInteger(idx)) push(bookOdds[idx]);
+    } else {
+      for (const x of bookOdds) push(x);
+    }
+    return vals;
+  }
+  if (!bookOdds || typeof bookOdds !== "object") return vals;
+
+  const o = bookOdds as Record<string, unknown>;
+  if (typeof o.avg === "number") push(o.avg);
+  else if (o.avg && typeof o.avg === "object") {
+    const avg = o.avg as Record<string, unknown>;
+    push(outcomeIndex != null ? avg[outcomeIndex] : avg["0"]);
+  }
+  push(outcomeIndex != null ? o[outcomeIndex] : o["0"]);
+  return vals;
+}
+
 function collectOutcomeOdds(
   back: Record<string, OddsBackEntry>,
   prefix: string,
@@ -30,15 +65,20 @@ function collectOutcomeOdds(
     if (!marketKey.startsWith(prefix)) continue;
     const oddsMap = entry?.odds ?? {};
     for (const bookOdds of Object.values(oddsMap)) {
-      const raw = bookOdds?.[outcomeIndex];
-      if (typeof raw === "number" && Number.isFinite(raw)) vals.push(raw);
-      else if (typeof raw === "string") {
-        const n = Number(raw);
-        if (Number.isFinite(n)) vals.push(n);
-      }
+      vals.push(...collectBookOddValues(bookOdds, outcomeIndex));
     }
   }
   return vals;
+}
+
+function parseScoreLabel(label: string | null | undefined): string | null {
+  if (!label) return null;
+  const m = label.trim().match(/^(\d)\s*[-:]\s*(\d)$/);
+  if (!m) return null;
+  const home = Number(m[1]);
+  const away = Number(m[2]);
+  if (home > 4 || away > 4) return null;
+  return `${home}-${away}`;
 }
 
 export function parse1x2FromFeed(
@@ -59,25 +99,25 @@ export function parseCorrectScoreFromFeed(data: unknown): Record<string, number>
   const out: Record<string, number> = {};
 
   for (const [marketKey, entry] of Object.entries(back)) {
-    if (!marketKey.startsWith("E-8-2-0-0-")) continue;
-    const suffix = marketKey.split("-").pop() ?? "";
-    if (suffix.length !== 2 || !/^\d\d$/.test(suffix)) continue;
-    const home = Number(suffix[0]);
-    const away = Number(suffix[1]);
-    if (home > 4 || away > 4) continue;
+    let key: string | null = null;
+    if (marketKey.startsWith("E-8-2-0-0-")) {
+      const suffix = marketKey.split("-").pop() ?? "";
+      if (suffix.length === 2 && /^\d\d$/.test(suffix)) {
+        const home = Number(suffix[0]);
+        const away = Number(suffix[1]);
+        if (home <= 4 && away <= 4) key = `${home}-${away}`;
+      }
+    }
+    if (!key) key = parseScoreLabel(entry?.mixedParameterName ?? null);
+    if (!key) continue;
 
     const oddsMap = entry?.odds ?? {};
     const vals: number[] = [];
     for (const bookOdds of Object.values(oddsMap)) {
-      const raw = bookOdds?.["0"];
-      if (typeof raw === "number" && Number.isFinite(raw)) vals.push(raw);
-      else if (typeof raw === "string") {
-        const n = Number(raw);
-        if (Number.isFinite(n)) vals.push(n);
-      }
+      vals.push(...collectBookOddValues(bookOdds));
     }
     const m = median(vals);
-    if (m != null) out[`${home}-${away}`] = m;
+    if (m != null) out[key] = m;
   }
 
   return out;
@@ -109,12 +149,7 @@ export function parseHtFtFromFeed(data: unknown): Record<string, number> {
     const oddsMap = entry?.odds ?? {};
     const vals: number[] = [];
     for (const bookOdds of Object.values(oddsMap)) {
-      const raw = bookOdds?.["0"];
-      if (typeof raw === "number" && Number.isFinite(raw)) vals.push(raw);
-      else if (typeof raw === "string") {
-        const n = Number(raw);
-        if (Number.isFinite(n)) vals.push(n);
-      }
+      vals.push(...collectBookOddValues(bookOdds));
     }
     const m = median(vals);
     if (m != null) out[key] = m;

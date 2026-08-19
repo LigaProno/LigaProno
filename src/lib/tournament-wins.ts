@@ -35,10 +35,46 @@ export type AwardTournamentWinResult = {
   justClosed: boolean;
 };
 
+async function tryAwardPublicWinner(tournament: {
+  id: string;
+  name: string;
+  isPublic: boolean;
+}): Promise<boolean> {
+  if (!tournament.isPublic) return false;
+
+  const existing = await prisma.tournamentWin.findUnique({
+    where: { tournamentId: tournament.id },
+  });
+  if (existing) return false;
+
+  const top = await prisma.tournamentMember.findFirst({
+    where: { tournamentId: tournament.id },
+    orderBy: [{ cachedTotal: "desc" }, { joinedAt: "asc" }],
+  });
+  if (!top) return false;
+
+  try {
+    await prisma.tournamentWin.create({
+      data: {
+        userId: top.userId,
+        tournamentId: tournament.id,
+        tournamentName: tournament.name,
+        finalTotal: top.cachedTotal,
+      },
+    });
+    return true;
+  } catch {
+    // Cursă pe unique(tournamentId) — alt worker a acordat deja.
+    return false;
+  }
+}
+
 /**
  * Marchează turneul închis când toate meciurile din fereastră s-au terminat.
- * Pentru turnee publice acordă și badge-ul de câștigător.
- * Idempotent: `@@unique([tournamentId])` + `closedAt` fac re-rularea cronului sigură.
+ * Pentru turnee publice acordă badge-ul de câștigător.
+ *
+ * Dacă turneul e deja închis dar badge-ul lipsește (scor 0 la închidere, eroare
+ * cron), îl acordă retroactiv — fără a retrimite emailul de clasament final.
  */
 export async function awardTournamentWinIfComplete(
   tournament: {
@@ -52,35 +88,16 @@ export async function awardTournamentWinIfComplete(
   },
   matches: FootballDataMatch[],
 ): Promise<AwardTournamentWinResult> {
-  if (tournament.closedAt) return { awarded: false, justClosed: false };
+  if (tournament.closedAt) {
+    const awarded = await tryAwardPublicWinner(tournament);
+    return { awarded, justClosed: false };
+  }
+
   if (!isTournamentComplete(matches, tournament)) {
     return { awarded: false, justClosed: false };
   }
 
-  // Scorurile au fost tocmai recalculate de refreshAllScores, deci cache-ul e proaspăt.
-  const top = await prisma.tournamentMember.findFirst({
-    where: { tournamentId: tournament.id },
-    orderBy: [{ cachedTotal: "desc" }, { joinedAt: "asc" }],
-  });
-
-  let awarded = false;
-
-  // Badge doar pe turnee publice cu scor > 0.
-  if (tournament.isPublic && top && top.cachedTotal > 0) {
-    try {
-      await prisma.tournamentWin.create({
-        data: {
-          userId: top.userId,
-          tournamentId: tournament.id,
-          tournamentName: tournament.name,
-          finalTotal: top.cachedTotal,
-        },
-      });
-      awarded = true;
-    } catch {
-      // Deja acordat (unique pe tournamentId) — doar ne asigurăm că e marcat închis.
-    }
-  }
+  const awarded = await tryAwardPublicWinner(tournament);
 
   await prisma.tournament.update({
     where: { id: tournament.id },

@@ -6,6 +6,7 @@ import {
   type TournamentOddsMaps,
 } from "@/lib/betting-odds";
 import { getMatchScoreAfter90 } from "@/lib/match-score";
+import { isMatchSettled } from "@/lib/match-status";
 import type { FootballDataMatch } from "@/lib/football-data-types";
 
 export type MatchOutcome = Odds1x2Outcome;
@@ -203,7 +204,7 @@ export function computeMatchPoints(
   matchOdds?: MatchOddsRow | null,
 ): MatchPointsBreakdown {
   const empty = { halfTime: 0, fullTime: 0, correctScore: 0, total: 0 };
-  if (match.status !== "FINISHED") return empty;
+  if (!isMatchSettled(match)) return empty;
 
   const ft90 = getMatchScoreAfter90(match);
 
@@ -261,7 +262,7 @@ export function computeUserWcTotals(
     correctScorePoints += b.correctScore;
     matchPoints += b.total;
     // Doar meciurile încheiate contează — un 1-1 „live” nu e scor ghicit încă.
-    if (m.status === "FINISHED" && computeMatchPredictionHits(pred, m).scoreCorrect) {
+    if (isMatchSettled(m) && computeMatchPredictionHits(pred, m).scoreCorrect) {
       correctScoreCount++;
     }
   }

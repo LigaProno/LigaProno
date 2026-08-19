@@ -184,17 +184,53 @@ function allOutcomesAreOne(row: Record<Odds1x2Outcome, number>): boolean {
   return row.HOME === 1 && row.DRAW === 1 && row.AWAY === 1;
 }
 
-/** True dacă există un tabel util de scor corect (≥3 linii). */
-export function hasCorrectScoreOdds(row: MatchOddsRow | null | undefined): boolean {
-  if (!row) return false;
-  return Object.keys(row.correctScore).length >= 3;
+function medianOdd(vals: number[]): number {
+  const arr = vals.filter((n) => Number.isFinite(n) && n >= 1).sort((a, b) => a - b);
+  if (!arr.length) return 0;
+  const mid = Math.floor(arr.length / 2);
+  return arr.length % 2 ? arr[mid]! : (arr[mid - 1]! + arr[mid]!) / 2;
 }
 
-/** True dacă rândul pare să vină dintr-o sursă reală (nu doar fallback ×1). */
+/**
+ * True dacă 1X2 arată a cote reale, nu placeholder Gemini/OddsPortal (toate ~1.01).
+ * Un favorit 1.12 / 8 / 15 e valid; 1.01 / 1.01 / 1.01 nu e.
+ */
+export function isPlausible1x2(
+  row: Record<Odds1x2Outcome, number> | null | undefined,
+): boolean {
+  if (!row || allOutcomesAreOne(row)) return false;
+  const vals = [row.HOME, row.DRAW, row.AWAY];
+  if (vals.some((v) => !Number.isFinite(v) || v < 1.04)) return false;
+  if (vals.every((v) => v <= 1.2)) return false;
+  const implied = vals.reduce((s, v) => s + 1 / v, 0);
+  if (implied < 0.85 || implied > 1.65) return false;
+  return true;
+}
+
+/**
+ * True dacă tabelul de scor corect e o piață reală (sau Poisson), nu 25×1.01.
+ * Medianul unei piețe CS e aproape mereu > 6 (liniile 3-3, 4-2 etc. sunt lungi).
+ */
+export function isPlausibleCorrectScore(table: Record<string, number> | null | undefined): boolean {
+  if (!table) return false;
+  const vals = Object.values(table).filter((n) => Number.isFinite(n) && n >= 1);
+  if (vals.length < 3) return false;
+  if (vals.every((v) => v <= 1.25)) return false;
+  const med = medianOdd(vals);
+  return med >= 4;
+}
+
+/** True dacă există un tabel util de scor corect (≥3 linii plauzibile). */
+export function hasCorrectScoreOdds(row: MatchOddsRow | null | undefined): boolean {
+  if (!row) return false;
+  return isPlausibleCorrectScore(row.correctScore);
+}
+
+/** True dacă rândul pare să vină dintr-o sursă reală (nu doar fallback ×1 / 1.01). */
 export function hasUsableMatchOdds(row: MatchOddsRow | null | undefined): boolean {
   if (!row) return false;
-  if (!allOutcomesAreOne(row.ft1x2)) return true;
-  if (!allOutcomesAreOne(row.ht1x2)) return true;
+  if (isPlausible1x2(row.ft1x2)) return true;
+  if (isPlausible1x2(row.ht1x2)) return true;
   return hasCorrectScoreOdds(row);
 }
 
@@ -230,7 +266,21 @@ function pickRicherCorrectScore(
   a: Record<string, number>,
   b: Record<string, number>,
 ): Record<string, number> {
+  const aOk = isPlausibleCorrectScore(a);
+  const bOk = isPlausibleCorrectScore(b);
+  if (aOk && !bOk) return a;
+  if (bOk && !aOk) return b;
+  if (!aOk && !bOk) return {};
   return Object.keys(a).length >= Object.keys(b).length ? a : b;
+}
+
+function pickPlausible1x2(
+  preferred: Record<Odds1x2Outcome, number>,
+  fallback: Record<Odds1x2Outcome, number>,
+): Record<Odds1x2Outcome, number> {
+  if (isPlausible1x2(preferred)) return preferred;
+  if (isPlausible1x2(fallback)) return fallback;
+  return preferred;
 }
 
 /** Combină două rânduri de meci: păstrează CS-ul mai bogat și 1X2-ul util. */
@@ -241,15 +291,13 @@ export function mergeMatchOddsRowPreferRicher(
   if (!preferred) return fallback;
   if (!fallback) return preferred;
 
-  const preferFt = !allOutcomesAreOne(preferred.ft1x2);
-  const preferHt = !allOutcomesAreOne(preferred.ht1x2);
   const preferHtFt =
-    (preferred.htFt && Object.keys(preferred.htFt).length > 0) ||
-    !(fallback.htFt && Object.keys(fallback.htFt).length > 0);
+    (preferred.htFt && Object.keys(preferred.htFt).length >= 6) ||
+    !(fallback.htFt && Object.keys(fallback.htFt).length >= 6);
 
   return {
-    ft1x2: preferFt ? preferred.ft1x2 : fallback.ft1x2,
-    ht1x2: preferHt ? preferred.ht1x2 : fallback.ht1x2,
+    ft1x2: pickPlausible1x2(preferred.ft1x2, fallback.ft1x2),
+    ht1x2: pickPlausible1x2(preferred.ht1x2, fallback.ht1x2),
     htFt: preferHtFt ? preferred.htFt : fallback.htFt,
     correctScore: pickRicherCorrectScore(preferred.correctScore, fallback.correctScore),
     toAdvance: preferred.toAdvance ?? fallback.toAdvance,
@@ -299,7 +347,14 @@ export function sanitizeBettingPayload(input: BettingOddsPayload): BettingOddsPa
   const matches: Record<string, MatchOddsRow> = {};
   for (const [k, v] of Object.entries(input.matches)) {
     const n = normalizeMatchOddsRow(v);
-    if (n) matches[k] = n;
+    if (!n) continue;
+    matches[k] = {
+      ...n,
+      ft1x2: isPlausible1x2(n.ft1x2) ? n.ft1x2 : { HOME: 1, DRAW: 1, AWAY: 1 },
+      ht1x2: isPlausible1x2(n.ht1x2) ? n.ht1x2 : { HOME: 1, DRAW: 1, AWAY: 1 },
+      correctScore: isPlausibleCorrectScore(n.correctScore) ? n.correctScore : {},
+      htFt: n.htFt && Object.keys(n.htFt).length >= 6 ? n.htFt : undefined,
+    };
   }
   const teams: Record<string, TeamOddsRow> = {};
   for (const [k, v] of Object.entries(input.teams)) {
