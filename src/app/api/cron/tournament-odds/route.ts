@@ -28,6 +28,15 @@ export async function GET(req: NextRequest) {
     ...new Set(tournaments.flatMap((t) => resolveTournamentCompetitionKeys(t))),
   ];
 
+  const existingOdds = await prisma.competitionBettingOdds.findMany({
+    where: { competition: { in: competitions } },
+    select: { competition: true, fetchedAt: true },
+  });
+  const fetchedAtByKey = new Map(
+    existingOdds.map((row) => [row.competition, row.fetchedAt.getTime()]),
+  );
+  competitions.sort((a, b) => (fetchedAtByKey.get(a) ?? 0) - (fetchedAtByKey.get(b) ?? 0));
+
   const results: {
     competition: string;
     ok: boolean;

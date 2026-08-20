@@ -140,4 +140,29 @@ describe("team matching PSG / Inter", () => {
     assert.equal(map.get(101)?.matchId, "psg1");
     assert.equal(map.get(202)?.matchId, "int1");
   });
+
+  it("maps Rennes from Football-Data long name without relying on shortName", () => {
+    const fixtures = [
+      {
+        matchId: "psg1",
+        home: "PSG",
+        away: "Rennes",
+        startDateIso: "2026-08-23T18:45:00.000Z",
+        stadium: null,
+        city: null,
+        country: null,
+      },
+    ];
+    const fd = [
+      {
+        id: 101,
+        utcDate: "2026-08-23T18:45:00Z",
+        status: "TIMED",
+        homeTeam: { id: 1, name: "Paris Saint-Germain FC", shortName: "PSG" },
+        awayTeam: { id: 2, name: "Stade Rennais FC 1901", shortName: "Stade Rennais" },
+      },
+    ] as FootballDataMatch[];
+    const map = mapFixturesToFootballDataMatches(fixtures, fd, { maxDiffHours: 24 });
+    assert.equal(map.get(101)?.matchId, "psg1");
+  });
 });

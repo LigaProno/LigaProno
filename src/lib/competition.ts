@@ -1,3 +1,10 @@
+/** Competiții cu fază de grupe — Gemini e util pentru cotele de calificare. */
+const GROUP_STAGE_COMPETITION_CODES = new Set(["WC", "EC", "CL", "WCQ"]);
+
+export function competitionHasGroupStage(code: string): boolean {
+  return GROUP_STAGE_COMPETITION_CODES.has(code.trim().toUpperCase());
+}
+
 /** Hardcoded picker option — avoids an API call on the tournaments page. */
 export const COMPETITION_PICKER_OPTIONS: FootballDataCompetitionPickerOption[] = [
   { storageKey: "PL_2026", code: "PL", season: "2026", label: "Premier League (2026–27)", maxMatchday: 38 },

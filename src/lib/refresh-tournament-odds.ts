@@ -35,16 +35,22 @@ export async function refreshOddsForTournament(
   let teamCount = 0;
   let oddsSource = "";
   let usedFallback = false;
+  const errors: string[] = [];
 
   for (const key of keys) {
     const result = await refreshOddsForCompetition(key);
     if (!result.ok) {
-      return { ok: false, tournamentId, error: result.error };
+      errors.push(`${key}: ${result.error}`);
+      continue;
     }
     matchCount += result.matchCount;
     teamCount += result.teamCount;
     oddsSource = result.oddsSource;
     usedFallback = usedFallback || result.usedFallback;
+  }
+
+  if (errors.length > 0 && matchCount === 0) {
+    return { ok: false, tournamentId, error: errors.join("; ") };
   }
 
   return {

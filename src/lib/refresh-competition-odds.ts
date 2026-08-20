@@ -1,5 +1,8 @@
 import { revalidatePath } from "next/cache";
-import { parseStoredCompetition } from "@/lib/competition";
+import {
+  competitionHasGroupStage,
+  parseStoredCompetition,
+} from "@/lib/competition";
 import { collectTeamsFromMatches, fetchCompetitionMatches } from "@/lib/football-data";
 import {
   fillEstimatedQualifyOdds,
@@ -132,28 +135,6 @@ export async function refreshOddsForCompetition(
 
     let payload: BettingOddsPayload = sanitizeBettingPayload(rawPayload);
 
-    if (isGeminiApiKeyConfigured() && isOddsSupplementGeminiEnabled()) {
-      try {
-        const supplement = await supplementOddsWithGemini(payload, ctx);
-        if (supplement.supplementedTeams || supplement.supplementedMatchCount > 0) {
-          payload = sanitizeBettingPayload(supplement.payload);
-          oddsSource =
-            oddsSource.includes("gemini-supplement") ?
-              oddsSource
-            : `${oddsSource}+gemini-supplement`;
-          console.info(
-            `[odds] Completare Gemini: calificări=${supplement.supplementedTeams}, meciuri=${supplement.supplementedMatchCount}`,
-          );
-        }
-      } catch (supplementErr) {
-        const msg =
-          supplementErr instanceof Error ? supplementErr.message : String(supplementErr);
-        console.warn(
-          `[odds] Completare Gemini eșuată (${msg}); se păstrează cotele existente.`,
-        );
-      }
-    }
-
     if (existingPayload) {
       payload = mergeBettingPayloads(payload, existingPayload);
     }
@@ -165,21 +146,80 @@ export async function refreshOddsForCompetition(
       .map((m) => m.id);
     payload = fillEstimatedToAdvanceOdds(payload, koMatchIds);
 
-    await prisma.competitionBettingOdds.upsert({
-      where: { competition: competitionKey },
-      create: {
+    const usableMatchCount = Object.keys(payload.matches).length;
+    if (usableMatchCount === 0) {
+      if (existingPayload && existingOddsCount > 0) {
+        console.warn(
+          `[odds] ${competitionKey}: listing fără cote noi; păstrăm ${existingOddsCount} cote existente.`,
+        );
+        return {
+          ok: true,
+          competition: competitionKey,
+          matchCount: existingOddsCount,
+          teamCount: Object.keys(existingPayload.teams).length,
+          oddsSource: existingRow?.oddsSource ?? oddsSource,
+          usedFallback,
+        };
+      }
+      return {
+        ok: false,
         competition: competitionKey,
-        payload: payload as object,
-        oddsSource,
-        geminiModel: oddsSource.startsWith("gemini") ? oddsSource : null,
-      },
-      update: {
-        payload: payload as object,
-        oddsSource,
-        geminiModel: oddsSource.startsWith("gemini") ? oddsSource : null,
-        fetchedAt: new Date(),
-      },
-    });
+        error: "OddsPortal nu a returnat cote mapabile pentru această competiție.",
+      };
+    }
+
+    const persist = async (source: string) => {
+      await prisma.competitionBettingOdds.upsert({
+        where: { competition: competitionKey },
+        create: {
+          competition: competitionKey,
+          payload: payload as object,
+          oddsSource: source,
+          geminiModel: source.startsWith("gemini") ? source : null,
+        },
+        update: {
+          payload: payload as object,
+          oddsSource: source,
+          geminiModel: source.startsWith("gemini") ? source : null,
+          fetchedAt: new Date(),
+        },
+      });
+    };
+
+    // Salvăm listing-ul OddsPortal înainte de Gemini — altfel un timeout
+    // pe calificări/meciuri nemapate lasă competiția fără niciun rând.
+    await persist(oddsSource);
+
+    const shouldGeminiSupplement =
+      isGeminiApiKeyConfigured() &&
+      isOddsSupplementGeminiEnabled() &&
+      competitionHasGroupStage(parsed.code);
+
+    if (shouldGeminiSupplement) {
+      try {
+        const supplement = await supplementOddsWithGemini(payload, ctx);
+        if (supplement.supplementedTeams || supplement.supplementedMatchCount > 0) {
+          payload = sanitizeBettingPayload(supplement.payload);
+          payload = fillEstimatedMatchMarketsInPayload(payload);
+          payload = fillEstimatedQualifyOdds(payload);
+          payload = fillEstimatedToAdvanceOdds(payload, koMatchIds);
+          oddsSource =
+            oddsSource.includes("gemini-supplement") ?
+              oddsSource
+            : `${oddsSource}+gemini-supplement`;
+          await persist(oddsSource);
+          console.info(
+            `[odds] Completare Gemini: calificări=${supplement.supplementedTeams}, meciuri=${supplement.supplementedMatchCount}`,
+          );
+        }
+      } catch (supplementErr) {
+        const msg =
+          supplementErr instanceof Error ? supplementErr.message : String(supplementErr);
+        console.warn(
+          `[odds] Completare Gemini eșuată (${msg}); se păstrează cotele OddsPortal.`,
+        );
+      }
+    }
 
     revalidatePath("/turnee");
     revalidatePath("/turnee/clasament");

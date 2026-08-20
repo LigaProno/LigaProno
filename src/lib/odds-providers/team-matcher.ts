@@ -8,29 +8,6 @@ function stripDiacritics(s: string): string {
   return s.normalize("NFD").replace(/\p{M}/gu, "");
 }
 
-export function normalizeTeamName(name: string): string {
-  let s = stripDiacritics(name.trim().toLowerCase());
-  s = s.replace(/&/g, " and ");
-  s = s.replace(/[^a-z0-9\s]/g, " ");
-  s = s.replace(/\s+/g, " ").trim();
-  s = TEAM_NAME_ALIASES[s] ?? s;
-  // Alias values may still contain punctuation (e.g. "d.r. congo" from Football-Data).
-  s = s.replace(/[^a-z0-9\s]/g, " ");
-  s = s.replace(/\s+/g, " ").trim();
-  return s;
-}
-
-function parseIsoMs(iso: string | null | undefined): number | null {
-  if (!iso) return null;
-  const ms = Date.parse(iso);
-  return Number.isFinite(ms) ? ms : null;
-}
-
-function parseFdMatchMs(m: FootballDataMatch): number | null {
-  const ms = Date.parse(m.utcDate);
-  return Number.isFinite(ms) ? ms : null;
-}
-
 const TEAM_NAME_STOPWORDS = new Set([
   "fc",
   "cf",
@@ -52,6 +29,43 @@ const TEAM_NAME_STOPWORDS = new Set([
   "de",
   "la",
 ]);
+
+function resolveTeamAlias(raw: string): string {
+  if (TEAM_NAME_ALIASES[raw]) return TEAM_NAME_ALIASES[raw];
+  const noYear = raw.replace(/\b(18|19|20)\d{2}\b/g, "").replace(/\s+/g, " ").trim();
+  if (noYear !== raw && TEAM_NAME_ALIASES[noYear]) return TEAM_NAME_ALIASES[noYear];
+  const stripped = noYear
+    .split(" ")
+    .filter((w) => w && !TEAM_NAME_STOPWORDS.has(w))
+    .join(" ");
+  if (stripped && stripped !== raw && TEAM_NAME_ALIASES[stripped]) {
+    return TEAM_NAME_ALIASES[stripped];
+  }
+  return raw;
+}
+
+export function normalizeTeamName(name: string): string {
+  let s = stripDiacritics(name.trim().toLowerCase());
+  s = s.replace(/&/g, " and ");
+  s = s.replace(/[^a-z0-9\s]/g, " ");
+  s = s.replace(/\s+/g, " ").trim();
+  s = resolveTeamAlias(s);
+  // Alias values may still contain punctuation (e.g. "d.r. congo" from Football-Data).
+  s = s.replace(/[^a-z0-9\s]/g, " ");
+  s = s.replace(/\s+/g, " ").trim();
+  return s;
+}
+
+function parseIsoMs(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function parseFdMatchMs(m: FootballDataMatch): number | null {
+  const ms = Date.parse(m.utcDate);
+  return Number.isFinite(ms) ? ms : null;
+}
 
 /** Tokeni geografici ambigui — nu sunt suficienți singuri pentru match. */
 const WEAK_GEO_TOKENS = new Set([

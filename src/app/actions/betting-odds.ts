@@ -44,27 +44,39 @@ export async function refreshTournamentBettingOdds(
   let teamCount = 0;
   let oddsSource = "";
   let usedFallback = false;
+  const succeeded: string[] = [];
+  const errors: string[] = [];
 
   for (const key of keys) {
     const result = await refreshOddsForCompetition(key);
     if (!result.ok) {
-      throw new Error(result.error);
+      errors.push(`${key}: ${result.error}`);
+      continue;
     }
+    succeeded.push(key);
     matchCount += result.matchCount;
     teamCount += result.teamCount;
     oddsSource = result.oddsSource;
     usedFallback = usedFallback || result.usedFallback;
   }
 
-  const now = new Date();
-  await Promise.all(
-    keys.map((competition) =>
-      prisma.competitionBettingOdds.updateMany({
-        where: { competition },
-        data: { lastManualRefreshAt: now },
-      }),
-    ),
-  );
+  if (succeeded.length === 0) {
+    throw new Error(errors.join("; ") || "Nu s-au putut actualiza cotele.");
+  }
+
+  // Limităm refresh-ul manual doar dacă toate competițiile au reușit —
+  // altfel se poate reîncerca pentru ligile care au picat (ex. Serie A).
+  if (errors.length === 0) {
+    const now = new Date();
+    await Promise.all(
+      succeeded.map((competition) =>
+        prisma.competitionBettingOdds.updateMany({
+          where: { competition },
+          data: { lastManualRefreshAt: now },
+        }),
+      ),
+    );
+  }
 
   return {
     ok: true,

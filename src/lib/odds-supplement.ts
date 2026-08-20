@@ -15,6 +15,7 @@ import {
 import type { OddsFetchContext } from "@/lib/odds-providers/types";
 import { matchesNeedingOddsFill } from "@/lib/odds-horizon";
 import { matchesForMatchday, resolveCurrentMatchday } from "@/lib/wc-pred-display";
+import { competitionHasGroupStage } from "@/lib/competition";
 
 function upcomingMatches(matches: FootballDataMatch[]): FootballDataMatch[] {
   return matches.filter((m) => m.status !== "FINISHED" && m.status !== "CANCELLED");
@@ -114,7 +115,10 @@ export async function supplementOddsWithGemini(
   let supplementedTeams = false;
   let supplementedMatchCount = 0;
 
-  if (teamsMissingQualifyOdds(merged, ctx.teams)) {
+  if (
+    competitionHasGroupStage(ctx.code) &&
+    teamsMissingQualifyOdds(merged, ctx.teams)
+  ) {
     const { payload: teamPayload } = await fetchTeamOddsViaGemini(
       ctx.competitionLabel,
       ctx.teams,
@@ -130,6 +134,10 @@ export async function supplementOddsWithGemini(
   if (teamsMissingQualifyOdds(merged, ctx.teams)) {
     merged = fillEstimatedQualifyOdds(merged);
     supplementedTeams = true;
+  }
+
+  if (!competitionHasGroupStage(ctx.code)) {
+    return { payload: merged, supplementedTeams, supplementedMatchCount };
   }
 
   const { payload: withMatches, filledCount } = await fillMissingUpcomingMatchOdds(
