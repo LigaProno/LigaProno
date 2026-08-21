@@ -10,8 +10,8 @@ export const metadata = pageTitle("Politica de confidențialitate");
 // Adresa de contact pentru solicitări privind datele.
 const CONTACT_EMAIL = "support.ligaprono@gmail.com";
 // Data ultimei actualizări a politicii.
-const LAST_UPDATED = "30 iulie 2026";
-const LAST_UPDATED_EN = "30 July 2026";
+const LAST_UPDATED = "21 august 2026";
+const LAST_UPDATED_EN = "21 August 2026";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -96,10 +96,10 @@ export default async function PrivacyPolicyPage() {
                   engleză) pentru a-ți afișa interfața corect.
                 </li>
                 <li>
-                  <strong>Publicitate</strong>: dacă afișăm reclame, partenerii de publicitate (vezi
-                  secțiunea 5) pot seta cookie-uri pentru a difuza anunțuri relevante și a măsura
-                  performanța acestora. Aceste cookie-uri se activează doar cu consimțământul tău,
-                  solicitat printr-un banner la prima vizită.
+                  <strong>Publicitate</strong>: partenerii de publicitate (vezi secțiunea 5), inclusiv
+                  Meta Pixel, pot seta cookie-uri pentru a măsura campaniile (Facebook/Instagram) și,
+                  dacă este cazul, a difuza anunțuri relevante. Aceste cookie-uri se activează doar cu
+                  consimțământul tău, solicitat printr-un banner la prima vizită.
                 </li>
               </ul>
               <p>
@@ -134,8 +134,17 @@ export default async function PrivacyPolicyPage() {
                 <li><strong>Vercel</strong> – găzduirea platformei;</li>
                 <li><strong>MongoDB Atlas</strong> – stocarea datelor;</li>
                 <li><strong>Football-Data.org</strong> – date despre meciuri și competiții;</li>
-                <li><strong>Google</strong> – servicii de infrastructură și, dacă activăm publicitatea, <strong>Google AdSense</strong>.</li>
+                <li><strong>Google</strong> – servicii de infrastructură și, dacă activăm publicitatea, <strong>Google AdSense</strong>;</li>
+                <li><strong>Meta (Facebook/Instagram)</strong> – Meta Pixel pentru măsurarea campaniilor publicitare, doar cu consimțământul tău.</li>
               </ul>
+              <p>
+                <strong>Meta Pixel:</strong> dacă accepți cookie-urile de publicitate, încărcăm Meta
+                Pixel (ID 1030648513142502) ca să înțelegem ce pagini sunt vizitate după ce cineva dă
+                click pe anunțurile noastre de pe Facebook sau Instagram. Meta poate asocia aceste
+                evenimente cu un profil de utilizator, conform{" "}
+                <a href="https://www.facebook.com/privacy/policy/" target="_blank" rel="noopener noreferrer" className="text-[#67E8F9] hover:underline">politicii de confidențialitate Meta</a>.
+                Poți retrage consimțământul oricând din setările de cookie-uri.
+              </p>
               <p>
                 <strong>Publicitate Google:</strong> furnizorii terți, inclusiv Google, folosesc
                 cookie-uri pentru a difuza anunțuri pe baza vizitelor tale anterioare pe acest site sau
@@ -231,9 +240,10 @@ export default async function PrivacyPolicyPage() {
                   (Romanian or English) to display the interface correctly.
                 </li>
                 <li>
-                  <strong>Advertising</strong>: if we show ads, our advertising partners (see section 5)
-                  may set cookies to serve relevant ads and measure their performance. These cookies are
-                  only activated with your consent, requested via a banner on your first visit.
+                  <strong>Advertising</strong>: advertising partners (see section 5), including Meta
+                  Pixel, may set cookies to measure campaigns (Facebook/Instagram) and, where
+                  applicable, serve relevant ads. These cookies are only activated with your consent,
+                  requested via a banner on your first visit.
                 </li>
               </ul>
               <p>
@@ -267,8 +277,16 @@ export default async function PrivacyPolicyPage() {
                 <li><strong>Vercel</strong> – platform hosting;</li>
                 <li><strong>MongoDB Atlas</strong> – data storage;</li>
                 <li><strong>Football-Data.org</strong> – match and competition data;</li>
-                <li><strong>Google</strong> – infrastructure services and, if we enable ads, <strong>Google AdSense</strong>.</li>
+                <li><strong>Google</strong> – infrastructure services and, if we enable ads, <strong>Google AdSense</strong>;</li>
+                <li><strong>Meta (Facebook/Instagram)</strong> – Meta Pixel to measure advertising campaigns, only with your consent.</li>
               </ul>
+              <p>
+                <strong>Meta Pixel:</strong> if you accept advertising cookies, we load Meta Pixel (ID
+                1030648513142502) to understand which pages are visited after someone clicks our ads on
+                Facebook or Instagram. Meta may associate these events with a user profile, per the{" "}
+                <a href="https://www.facebook.com/privacy/policy/" target="_blank" rel="noopener noreferrer" className="text-[#67E8F9] hover:underline">Meta Privacy Policy</a>.
+                You can withdraw consent anytime from the cookie settings.
+              </p>
               <p>
                 <strong>Google advertising:</strong> third-party vendors, including Google, use cookies
                 to serve ads based on your prior visits to this or other websites. Google's use of

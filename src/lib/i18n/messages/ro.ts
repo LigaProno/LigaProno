@@ -566,7 +566,7 @@ export const ro: Messages = {
     "Autentificare Clerk, sesiune persistentă și preferința de limbă. Fără ele nu poți rămâne logat și platforma nu funcționează corect.",
   "cookies.advertisingTitle": "Publicitate (opțional)",
   "cookies.advertisingBody":
-    "Cookie-uri ale partenerilor de publicitate, doar dacă afișăm reclame. Le poți refuza fără să pierzi accesul la platformă.",
+    "Meta Pixel (Facebook/Instagram) pentru măsurarea campaniilor publicitare. Le poți refuza fără să pierzi accesul la platformă.",
   "cookies.required": "Obligatorii",
   "cookies.legalPrefix": "Detalii în",
   "cookies.legalAnd": "și",

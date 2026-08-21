@@ -11,6 +11,7 @@ import {
 import { saveCookieConsent } from "@/app/actions/cookie-consent";
 import type { CookieConsent } from "@/lib/cookie-consent";
 import { CookieConsentBanner } from "./cookie-consent-banner";
+import { MetaPixel } from "./meta-pixel";
 
 type CookieConsentContextValue = {
   consent: CookieConsent | null;
@@ -47,6 +48,7 @@ export function CookieConsentProvider({
   return (
     <CookieConsentContext.Provider value={value}>
       {children}
+      <MetaPixel enabled={consent?.advertising === true} />
       <CookieConsentBanner
         open={settingsOpen}
         hasExistingConsent={consent != null}

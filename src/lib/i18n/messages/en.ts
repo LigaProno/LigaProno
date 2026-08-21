@@ -564,7 +564,7 @@ export const en: Messages = {
     "Clerk authentication, persistent session, and language preference. Without them you cannot stay logged in and the platform cannot work correctly.",
   "cookies.advertisingTitle": "Advertising (optional)",
   "cookies.advertisingBody":
-    "Cookies from advertising partners, only if we show ads. You can refuse them without losing access to the platform.",
+    "Meta Pixel (Facebook/Instagram) to measure advertising campaigns. You can refuse them without losing access to the platform.",
   "cookies.required": "Required",
   "cookies.legalPrefix": "Details in the",
   "cookies.legalAnd": "and",
