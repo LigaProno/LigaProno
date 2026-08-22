@@ -1,55 +1,45 @@
-import DashboardHome from "@/components/dashboard/dashboard-home";
-import { getTodayDashboardNews } from "@/lib/wc-dashboard-news";
-import {
-  parseDashboardNewsLeague,
-  type DashboardNewsLeagueId,
-} from "@/lib/dashboard-news-leagues";
+import DashboardHome, { type HomeTournament } from "@/components/dashboard/dashboard-home";
+import { COMPETITION_PICKER_OPTIONS } from "@/lib/competition";
+import { prisma } from "@/lib/prisma";
+import { getVisiblePublicTournaments } from "@/lib/public-tournaments";
+import { parsePrizes } from "@/lib/tournament-prizes";
 import { pageTitle } from "@/lib/site-metadata";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
 import { getOrSyncDbUser } from "@/lib/sync-clerk-user";
 
 export const metadata = pageTitle("Acasă");
 
-async function DashboardNewsBody({ league }: { league?: string }) {
-  const { items, fetchedAt, dateKey, leagueId } = await getTodayDashboardNews(league);
+function competitionLabel(competition: string | null): string | null {
+  if (!competition) return null;
   return (
-    <DashboardHome
-      news={items}
-      newsFetchedAt={fetchedAt}
-      newsDateKey={dateKey}
-      leagueId={leagueId}
-    />
+    COMPETITION_PICKER_OPTIONS.find((o) => o.storageKey === competition)?.label ?? competition
   );
 }
 
-function DashboardShellFallback({ leagueId }: { leagueId: DashboardNewsLeagueId }) {
-  return (
-    <DashboardHome
-      news={[]}
-      newsFetchedAt={null}
-      newsDateKey=""
-      leagueId={leagueId}
-    />
-  );
-}
-
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ league?: string }>;
-}) {
+export default async function DashboardPage() {
   const user = await getOrSyncDbUser();
   if (user && user.favoriteTeamId == null) {
     redirect("/profil?onboarding=1");
   }
 
-  const { league } = await searchParams;
-  const leagueId = parseDashboardNewsLeague(league);
+  const publicTournaments = await prisma.tournament.findMany({
+    where: { isPublic: true },
+    include: { _count: { select: { members: true } } },
+    orderBy: { createdAt: "asc" },
+  });
 
-  return (
-    <Suspense fallback={<DashboardShellFallback leagueId={leagueId} />}>
-      <DashboardNewsBody league={league} />
-    </Suspense>
+  // Doar turneele publice în desfășurare (nu cele încheiate).
+  const ongoing = getVisiblePublicTournaments(publicTournaments).filter(
+    (tt) => tt.closedAt == null,
   );
+
+  const tournaments: HomeTournament[] = ongoing.map((tt) => ({
+    id: tt.id,
+    name: tt.name,
+    memberCount: tt._count.members,
+    prizes: parsePrizes(tt.prizes),
+    competitionLabel: competitionLabel(tt.competition),
+  }));
+
+  return <DashboardHome tournaments={tournaments} />;
 }

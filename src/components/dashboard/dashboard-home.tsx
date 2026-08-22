@@ -2,195 +2,97 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo } from "react";
-import type { WcNewsItem } from "@/lib/wc-dashboard-news";
-import type { DashboardNewsLeagueId } from "@/lib/dashboard-news-leagues";
-import {
-  ALLOWED_NEWS_PUBLISHER_LABELS,
-  NEWS_FALLBACK_IMAGES,
-  resolveNewsImageUrl,
-} from "@/lib/gemini-wc-news";
-import NewsCardImage from "@/components/dashboard/news-card-image";
-import { DashboardNewsLeaguePicker } from "@/components/dashboard/dashboard-news-league-picker";
+import { formatPrizesDisplay, type TournamentPrize } from "@/lib/tournament-prizes";
 import { useLocale } from "@/components/i18n/locale-provider";
 import {
   WC_CYAN,
   WC_GOLD,
   WC_GREEN,
-  WC_LIME,
   WC_NAVY,
 } from "@/components/world-cup/wc-theme";
 
 const HERO_IMAGE = "/newhero.jpg";
 
-function formatNewsDate(
-  iso: string | undefined,
-  fallback: Date | null,
-  dateLocale: string,
-  todayLabel: string,
-): string {
-  if (iso) {
-    const d = new Date(iso);
-    if (!Number.isNaN(d.getTime())) {
-      return d.toLocaleDateString(dateLocale, {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      });
-    }
-  }
-  if (fallback) {
-    return fallback.toLocaleDateString(dateLocale, {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  }
-  return todayLabel;
-}
-
-function NewsCard({
-  item,
-  index,
-  fetchedAt,
-  featured = false,
-  dateLocale,
-  todayLabel,
-}: {
-  item: WcNewsItem;
-  index: number;
-  fetchedAt: Date | null;
-  featured?: boolean;
-  dateLocale: string;
-  todayLabel: string;
-}) {
-  const thumb = resolveNewsImageUrl(item, index);
-  const fallback = NEWS_FALLBACK_IMAGES[index % NEWS_FALLBACK_IMAGES.length];
-
-  return (
-    <a
-      href={item.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={`group block rounded-xl border overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-xl ${
-        featured ? "sm:col-span-2" : ""
-      }`}
-      style={{
-        borderColor: "rgba(255,255,255,0.08)",
-        backgroundColor: "rgba(255,255,255,0.06)",
-        boxShadow: "0 2px 12px rgba(0,0,0,0.35)",
-      }}
-    >
-      <div
-        className={
-          featured ?
-            "flex flex-col md:flex-row md:min-h-[220px]"
-          : "flex flex-col h-full"
-        }
-      >
-        <div
-          className={`relative shrink-0 overflow-hidden bg-slate-800/80 ${
-            featured ?
-              "w-full md:w-[42%] aspect-[16/10] md:aspect-auto md:min-h-[220px]"
-            : "w-full aspect-[16/10]"
-          }`}
-        >
-          <NewsCardImage
-            src={thumb}
-            fallback={fallback}
-            alt={item.title}
-            priority={featured}
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          />
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background:
-                "linear-gradient(to top, rgba(8,11,18,0.75) 0%, transparent 50%)",
-            }}
-          />
-          <span
-            className="absolute top-3 left-3 text-xs font-bold px-2.5 py-1 rounded-lg"
-            style={{
-              backgroundColor: "rgba(8,11,18,0.75)",
-              color: WC_CYAN,
-              backdropFilter: "blur(8px)",
-            }}
-          >
-            #{index + 1}
-          </span>
-        </div>
-
-        <div className={`flex flex-col justify-center p-5 sm:p-6 ${featured ? "md:flex-1" : "flex-1"}`}>
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span
-              className="text-xs font-semibold uppercase tracking-wide"
-              style={{ color: WC_LIME }}
-            >
-              {item.source}
-            </span>
-            <span className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>
-              · {formatNewsDate(item.publishedAt, fetchedAt, dateLocale, todayLabel)}
-            </span>
-          </div>
-          <h3
-            className={`font-bold leading-snug mb-2 group-hover:underline underline-offset-2 ${
-              featured ? "text-lg sm:text-xl" : "text-base"
-            }`}
-            style={{ color: "#F8FAFC" }}
-          >
-            {item.title}
-          </h3>
-          {item.summary ?
-            <p
-              className="text-sm leading-relaxed line-clamp-3"
-              style={{ color: "rgba(255,255,255,0.5)" }}
-            >
-              {item.summary}
-            </p>
-          : null}
-        </div>
-      </div>
-    </a>
-  );
-}
-
-type DashboardHomeProps = {
-  news: WcNewsItem[];
-  newsFetchedAt: Date | null;
-  newsDateKey: string;
-  leagueId: DashboardNewsLeagueId;
+export type HomeTournament = {
+  id: string;
+  name: string;
+  memberCount: number;
+  prizes: TournamentPrize[];
+  competitionLabel: string | null;
 };
 
-export default function DashboardHome({
-  news,
-  newsFetchedAt,
-  newsDateKey,
-  leagueId,
-}: DashboardHomeProps) {
-  const { t, dateLocale } = useLocale();
+type DashboardHomeProps = {
+  tournaments: HomeTournament[];
+};
 
-  const updatedLabel = newsFetchedAt
-    ? newsFetchedAt.toLocaleString(dateLocale, {
-        day: "numeric",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : null;
+function TournamentCard({ tt }: { tt: HomeTournament }) {
+  const { t } = useLocale();
+  const prizeText = formatPrizesDisplay(tt.prizes);
 
-  const newsSourcesLine = useMemo(
-    () =>
-      t("dashboard.news.sources", {
-        sources: ALLOWED_NEWS_PUBLISHER_LABELS.join(", "),
-      }),
-    [t],
+  return (
+    <Link
+      href={`/turnee/${tt.id}`}
+      className="group flex flex-col rounded-2xl border overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-xl"
+      style={{
+        borderColor: prizeText ? "rgba(197,160,89,0.3)" : "rgba(255,255,255,0.1)",
+        backgroundColor: "rgba(255,255,255,0.05)",
+        boxShadow: "0 2px 12px rgba(0,0,0,0.3)",
+      }}
+    >
+      {prizeText ? (
+        <div
+          className="px-4 py-2.5 border-b"
+          style={{
+            borderColor: "rgba(197,160,89,0.18)",
+            background: "linear-gradient(90deg, rgba(197,160,89,0.14) 0%, rgba(197,160,89,0.03) 100%)",
+          }}
+        >
+          <p className="text-xs leading-snug truncate" style={{ color: "rgba(255,255,255,0.8)" }}>
+            <span className="font-bold" style={{ color: WC_GOLD }}>🎁 {t("dashboard.tournaments.prizes")}</span>{" "}
+            {prizeText}
+          </p>
+        </div>
+      ) : null}
+
+      <div className="flex flex-col gap-3 p-5 flex-1">
+        <div className="min-w-0">
+          <h3 className="text-base font-bold text-white truncate group-hover:underline underline-offset-2">
+            {tt.name}
+          </h3>
+          {tt.competitionLabel ? (
+            <p className="text-xs mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.4)" }}>
+              {tt.competitionLabel}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="flex items-center justify-between mt-auto pt-1">
+          <span
+            className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg"
+            style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)" }}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+            </svg>
+            {t("dashboard.tournaments.members", { count: tt.memberCount })}
+          </span>
+          <span className="text-sm font-bold transition-transform group-hover:translate-x-0.5" style={{ color: WC_CYAN }}>
+            {t("dashboard.tournaments.open")} →
+          </span>
+        </div>
+      </div>
+    </Link>
   );
+}
+
+export default function DashboardHome({ tournaments }: DashboardHomeProps) {
+  const { t } = useLocale();
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto">
       <section
-        className="relative overflow-hidden min-h-[min(72vh,640px)] flex items-center"
+        className="relative overflow-hidden min-h-[min(52vh,460px)] flex items-center"
         style={{ backgroundColor: WC_NAVY }}
       >
         <Image
@@ -206,11 +108,11 @@ export default function DashboardHome({
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(to bottom, rgba(8,11,18,0.55) 0%, rgba(8,11,18,0.35) 45%, rgba(8,11,18,0.82) 100%)",
+              "linear-gradient(to bottom, rgba(8,11,18,0.55) 0%, rgba(8,11,18,0.4) 45%, rgba(8,11,18,0.85) 100%)",
           }}
         />
 
-        <div className="relative z-10 w-full px-6 sm:px-10 lg:px-14 py-16 sm:py-20 max-w-6xl mx-auto flex flex-col items-center justify-center text-center min-h-[inherit]">
+        <div className="relative z-10 w-full px-6 sm:px-10 lg:px-14 py-14 sm:py-16 max-w-6xl mx-auto flex flex-col items-center justify-center text-center min-h-[inherit]">
           <span
             className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold uppercase tracking-wide mb-5"
             style={{
@@ -222,27 +124,25 @@ export default function DashboardHome({
             🎁 {t("dashboard.hero.badge")}
           </span>
 
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-4 sm:mb-5 leading-tight max-w-2xl">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-4 leading-tight max-w-2xl">
             {t("dashboard.hero.titlePrefix")}{" "}
             <span style={{ color: WC_GOLD }}>{t("dashboard.hero.titleHighlight")}</span>
           </h1>
 
           <p
-            className="text-base sm:text-lg max-w-xl mb-8 sm:mb-10 leading-relaxed"
+            className="text-base sm:text-lg max-w-xl mb-7 leading-relaxed"
             style={{ color: "rgba(255,255,255,0.82)" }}
           >
             {t("dashboard.hero.subtitle")}
           </p>
 
-          <div className="flex flex-wrap gap-3 justify-center">
-            <Link
-              href="/turnee"
-              className="px-7 py-3.5 rounded-xl font-bold text-sm sm:text-base shadow-lg transition hover:brightness-110 active:scale-[0.98]"
-              style={{ backgroundColor: WC_CYAN, color: WC_NAVY }}
-            >
-              {t("dashboard.hero.predictCta")}
-            </Link>
-          </div>
+          <Link
+            href="/turnee"
+            className="px-7 py-3.5 rounded-xl font-bold text-sm sm:text-base shadow-lg transition hover:brightness-110 active:scale-[0.98]"
+            style={{ backgroundColor: WC_CYAN, color: WC_NAVY }}
+          >
+            {t("dashboard.hero.predictCta")}
+          </Link>
         </div>
 
         <div
@@ -253,59 +153,37 @@ export default function DashboardHome({
         />
       </section>
 
-      <div className="px-6 sm:px-10 lg:px-14 pb-16 max-w-6xl mx-auto space-y-12 mt-8">
+      <div className="px-6 sm:px-10 lg:px-14 pb-16 max-w-6xl mx-auto mt-8">
         <section>
-          <div className="flex flex-col gap-4 mb-5">
-            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">
-                  {t("dashboard.news.title")}
-                </h2>
-                <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
-                  {newsSourcesLine}
-                  {updatedLabel ?
-                    t("dashboard.news.lastUpdate", { date: updatedLabel })
-                  : ""}
-                </p>
-              </div>
-              <span
-                className="text-xs font-mono px-3 py-1.5 rounded-lg shrink-0"
-                style={{
-                  backgroundColor: "rgba(255,255,255,0.06)",
-                  color: "rgba(255,255,255,0.4)",
-                }}
-              >
-                {newsDateKey}
-              </span>
-            </div>
-            <DashboardNewsLeaguePicker activeLeagueId={leagueId} />
-          </div>
-
-          {news.length === 0 ?
-            <div
-              className="rounded-2xl border p-8 text-center text-sm"
-              style={{
-                borderColor: "rgba(255,255,255,0.1)",
-                color: "rgba(255,255,255,0.45)",
-              }}
-            >
-              <p className="mb-2">{t("dashboard.news.emptyHint")}</p>
-              <p>
-                <code className="text-[#3B82F6]">GEMINI_API_KEY</code> — {t("dashboard.news.geminiHint")}
+          <div className="flex items-end justify-between gap-3 mb-5">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">
+                {t("dashboard.tournaments.title")}
+              </h2>
+              <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
+                {t("dashboard.tournaments.subtitle")}
               </p>
             </div>
-          : (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {news.map((item, i) => (
-                <NewsCard
-                  key={`${item.url}-${i}`}
-                  item={item}
-                  index={i}
-                  fetchedAt={newsFetchedAt}
-                  featured={i === 0}
-                  dateLocale={dateLocale}
-                  todayLabel={t("common.today")}
-                />
+            <Link
+              href="/turnee"
+              className="shrink-0 text-sm font-semibold hover:underline underline-offset-2"
+              style={{ color: WC_CYAN }}
+            >
+              {t("dashboard.tournaments.seeAll")} →
+            </Link>
+          </div>
+
+          {tournaments.length === 0 ? (
+            <div
+              className="rounded-2xl border p-8 text-center text-sm"
+              style={{ borderColor: "rgba(255,255,255,0.1)", borderStyle: "dashed", color: "rgba(255,255,255,0.45)" }}
+            >
+              {t("dashboard.tournaments.empty")}
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {tournaments.map((tt) => (
+                <TournamentCard key={tt.id} tt={tt} />
               ))}
             </div>
           )}
