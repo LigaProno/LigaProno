@@ -92,7 +92,7 @@ export default function DashboardHome({ tournaments }: DashboardHomeProps) {
   return (
     <div className="flex-1 min-h-0 overflow-y-auto">
       <section
-        className="relative overflow-hidden min-h-[min(52vh,460px)] flex items-center"
+        className="relative overflow-hidden min-h-[min(40vh,360px)] flex items-center"
         style={{ backgroundColor: WC_NAVY }}
       >
         <Image
@@ -112,7 +112,7 @@ export default function DashboardHome({ tournaments }: DashboardHomeProps) {
           }}
         />
 
-        <div className="relative z-10 w-full px-6 sm:px-10 lg:px-14 py-14 sm:py-16 max-w-6xl mx-auto flex flex-col items-center justify-center text-center min-h-[inherit]">
+        <div className="relative z-10 w-full px-6 sm:px-10 lg:px-14 py-10 sm:py-12 max-w-6xl mx-auto flex flex-col items-center justify-center text-center min-h-[inherit]">
           <span
             className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold uppercase tracking-wide mb-5"
             style={{
@@ -153,7 +153,7 @@ export default function DashboardHome({ tournaments }: DashboardHomeProps) {
         />
       </section>
 
-      <div className="px-6 sm:px-10 lg:px-14 pb-16 max-w-6xl mx-auto mt-8">
+      <div className="px-6 sm:px-10 lg:px-14 pb-16 w-full mt-8">
         <section>
           <div className="flex items-end justify-between gap-3 mb-5">
             <div>
@@ -181,7 +181,7 @@ export default function DashboardHome({ tournaments }: DashboardHomeProps) {
               {t("dashboard.tournaments.empty")}
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {tournaments.map((tt) => (
                 <TournamentCard key={tt.id} tt={tt} />
               ))}
