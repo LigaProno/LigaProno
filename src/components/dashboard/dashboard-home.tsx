@@ -32,7 +32,7 @@ function TournamentCard({ tt }: { tt: HomeTournament }) {
   return (
     <Link
       href={`/turnee/${tt.id}`}
-      className="group flex flex-col rounded-2xl border overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-xl"
+      className="group flex flex-col rounded-2xl border overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-xl w-full sm:w-[380px]"
       style={{
         borderColor: prizeText ? "rgba(197,160,89,0.3)" : "rgba(255,255,255,0.1)",
         backgroundColor: "rgba(255,255,255,0.05)",
@@ -54,9 +54,9 @@ function TournamentCard({ tt }: { tt: HomeTournament }) {
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-3 p-5 flex-1">
+      <div className="flex flex-col gap-4 p-6 flex-1">
         <div className="min-w-0">
-          <h3 className="text-base font-bold text-white truncate group-hover:underline underline-offset-2">
+          <h3 className="text-lg sm:text-xl font-bold text-white truncate group-hover:underline underline-offset-2">
             {tt.name}
           </h3>
           {tt.competitionLabel ? (
@@ -153,40 +153,39 @@ export default function DashboardHome({ tournaments }: DashboardHomeProps) {
         />
       </section>
 
-      <div className="px-6 sm:px-10 lg:px-14 pb-16 w-full mt-8">
-        <section>
-          <div className="flex items-end justify-between gap-3 mb-5">
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">
-                {t("dashboard.tournaments.title")}
-              </h2>
-              <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
-                {t("dashboard.tournaments.subtitle")}
-              </p>
-            </div>
-            <Link
-              href="/turnee"
-              className="shrink-0 text-sm font-semibold hover:underline underline-offset-2"
-              style={{ color: WC_CYAN }}
-            >
-              {t("dashboard.tournaments.seeAll")} →
-            </Link>
+      <div className="px-6 sm:px-10 lg:px-14 pb-16 max-w-6xl mx-auto mt-10">
+        <section className="flex flex-col items-center">
+          <div className="text-center mb-7">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-1.5">
+              {t("dashboard.tournaments.title")}
+            </h2>
+            <p className="text-sm sm:text-base" style={{ color: "rgba(255,255,255,0.5)" }}>
+              {t("dashboard.tournaments.subtitle")}
+            </p>
           </div>
 
           {tournaments.length === 0 ? (
             <div
-              className="rounded-2xl border p-8 text-center text-sm"
+              className="rounded-2xl border p-8 text-center text-sm w-full max-w-md"
               style={{ borderColor: "rgba(255,255,255,0.1)", borderStyle: "dashed", color: "rgba(255,255,255,0.45)" }}
             >
               {t("dashboard.tournaments.empty")}
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+            <div className="flex flex-wrap justify-center gap-5 w-full">
               {tournaments.map((tt) => (
                 <TournamentCard key={tt.id} tt={tt} />
               ))}
             </div>
           )}
+
+          <Link
+            href="/turnee"
+            className="mt-8 text-sm font-semibold hover:underline underline-offset-2"
+            style={{ color: WC_CYAN }}
+          >
+            {t("dashboard.tournaments.seeAll")} →
+          </Link>
         </section>
       </div>
     </div>
