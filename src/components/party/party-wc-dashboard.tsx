@@ -7,7 +7,6 @@ import type { FootballDataMatch } from "@/lib/football-data-types";
 import {
   parseStoredCompetition,
   COMPETITION_PICKER_OPTIONS,
-  competitionShortLabel,
 } from "@/lib/competition";
 import type { MatchOddsRow } from "@/lib/betting-odds";
 import { refreshTournamentBettingOdds } from "@/app/actions/betting-odds";
@@ -76,7 +75,6 @@ export default function PartyWcDashboard({
   tournamentName,
   inviteCode,
   competition,
-  competitions = [],
   isMixed = false,
   isPublic = false,
   isCreator,
@@ -180,22 +178,9 @@ export default function PartyWcDashboard({
       );
 
     if (isMixed) {
-      const byKey = new Map<string, FootballDataMatch[]>();
-      for (const m of matches) {
-        const key = m.competitionKey?.trim();
-        if (!key) continue;
-        if (!byKey.has(key)) byKey.set(key, []);
-        byKey.get(key)!.push(m);
-      }
-      const orderedKeys = [
-        ...competitions.filter((k) => byKey.has(k)),
-        ...[...byKey.keys()].filter((k) => !competitions.includes(k)),
-      ];
-      return orderedKeys.map((key) => ({
-        id: key,
-        label: competitionShortLabel(key),
-        matches: sortMatches(byKey.get(key) ?? []),
-      }));
+      // Turneu cu meciuri din mai multe competiții: NU le mai separăm pe tab-uri
+      // per ligă — toate meciurile într-o singură listă, în ordine cronologică.
+      return [{ id: "all", label: "", matches: sortMatches(matches) }];
     }
 
     return groupMatchesByDisplayMatchday(matches).map((block) => ({
@@ -203,7 +188,7 @@ export default function PartyWcDashboard({
       label: `Etapa ${block.matchday}`,
       matches: block.matches,
     }));
-  }, [matches, isMixed, competitions]);
+  }, [matches, isMixed]);
 
   const firstUnfinishedBlockId = useMemo(() => {
     for (const block of predictionBlocks) {
@@ -225,8 +210,9 @@ export default function PartyWcDashboard({
   );
 
   const selectedBlockLabel =
-    predictionBlocks.find((b) => b.id === selectedBlockId)?.label ??
-    (isMixed ? "" : `Etapa ${selectedBlockId}`);
+    (predictionBlocks.find((b) => b.id === selectedBlockId)?.label ??
+      (isMixed ? "" : `Etapa ${selectedBlockId}`)) ||
+    (isMixed ? t("party.group.allMatches") : "");
 
   function lockReasonForMatch(m: FootballDataMatch) {
     return getMatchPredictionLockReason(m);
@@ -707,6 +693,7 @@ export default function PartyWcDashboard({
                 </button>
               ) : null}
               <PointsScoringLegend />
+              {predictionBlocks.length > 1 ? (
               <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
                 {predictionBlocks.map(({ id, label, matches: blockMatches }) => {
                   const hasPlayable = blockMatches.some((m) => isPlayableUnfinishedMatch(m));
@@ -749,6 +736,7 @@ export default function PartyWcDashboard({
                   );
                 })}
               </div>
+              ) : null}
 
               <div
                 className="rounded-2xl border p-4 sm:p-6 flex flex-col gap-6"

@@ -331,6 +331,7 @@ export const ro: Messages = {
   "party.scheduleStandings": "Program și clasament",
   "party.group.title": "Grupa {letter}",
   "party.group.noMatches": "Nu există meciuri în această grupă.",
+  "party.group.allMatches": "Toate meciurile",
   "party.group.saveAllButton": "Salvează tot",
   "party.group.savingAll": "Se salvează tot…",
   "party.group.saveAllSuccess": "Pronosticurile grupei au fost salvate.",

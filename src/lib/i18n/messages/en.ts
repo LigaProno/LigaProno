@@ -330,6 +330,7 @@ export const en: Messages = {
   "party.scheduleStandings": "Schedule & standings",
   "party.group.title": "Group {letter}",
   "party.group.noMatches": "No matches in this group.",
+  "party.group.allMatches": "All matches",
   "party.group.saveAllButton": "Save all",
   "party.group.savingAll": "Saving all…",
   "party.group.saveAllSuccess": "Group predictions saved.",

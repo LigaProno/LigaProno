@@ -301,6 +301,7 @@ export type MessageKey =
   | "party.scheduleStandings"
   | "party.group.title"
   | "party.group.noMatches"
+  | "party.group.allMatches"
   | "party.group.saveAllButton"
   | "party.group.savingAll"
   | "party.group.saveAllSuccess"
