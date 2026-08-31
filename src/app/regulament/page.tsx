@@ -9,8 +9,8 @@ import { CONTEST_PARTNERS, INSTAGRAM_URL } from "@/lib/social-links";
 export const metadata = pageTitle("Regulament concursuri");
 
 const CONTACT_EMAIL = "support.ligaprono@gmail.com";
-const LAST_UPDATED = "18 august 2026";
-const LAST_UPDATED_EN = "18 August 2026";
+const LAST_UPDATED = "27 august 2026";
+const LAST_UPDATED_EN = "27 August 2026";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -157,6 +157,13 @@ export default async function ContestRulesPage() {
                   Câștigătorii trebuie să furnizeze date de contact și de livrare corecte, la cerere.
                 </li>
                 <li>
+                  <strong className="text-white/85">Valabilitatea voucherelor/codurilor.</strong>{" "}
+                  Voucherele și codurile primite ca premiu au valabilitate limitată: cele câștigate în
+                  sezonul curent expiră la <strong className="text-white/85">31.12.2026</strong>, iar
+                  cele câștigate în sezoanele următoare expiră la finalul sezonului respectiv.
+                  Voucherele neutilizate până la data expirării își pierd valabilitatea.
+                </li>
+                <li>
                   Ne rezervăm dreptul de a descalifica participanții care nu respectă acest
                   regulament, nu îndeplinesc condiția de urmărire Instagram sau încalcă termenii
                   platformei.
@@ -257,6 +264,13 @@ export default async function ContestRulesPage() {
                   using remaining preferred prizes where possible.
                 </li>
                 <li>Winners must provide valid contact and delivery details on request.</li>
+                <li>
+                  <strong className="text-white/85">Voucher/code validity.</strong>{" "}
+                  Vouchers and codes received as prizes have a limited validity: those won in the
+                  current season expire on <strong className="text-white/85">31.12.2026</strong>, and
+                  those won in later seasons expire at the end of that season. Vouchers not used by
+                  the expiry date lose their validity.
+                </li>
                 <li>
                   We may disqualify participants who break these rules, do not meet the Instagram
                   follow condition, or violate the platform terms.
