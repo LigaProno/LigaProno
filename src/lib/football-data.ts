@@ -26,6 +26,13 @@ import {
   stageDisplayName,
   venueLabel,
 } from "@/lib/football-data-helpers";
+import {
+  applyCrestOverrideToTeam,
+  applyCrestOverridesToMatches,
+  applyCrestOverridesToStandings,
+  applyCrestOverridesToTeams,
+} from "@/lib/crest-overrides";
+import { applyKickoffOverrides } from "@/lib/kickoff-overrides";
 import type {
   FootballDataMatch,
   FootballDataTeam,
@@ -41,6 +48,10 @@ export type {
   GroupStanding,
   StandingTableRow,
 } from "@/lib/football-data-types";
+
+function finalizeMatches(matches: FootballDataMatch[]): FootballDataMatch[] {
+  return applyCrestOverridesToMatches(applyKickoffOverrides(matches));
+}
 
 const BASE_URL = "https://api.football-data.org/v4";
 
@@ -84,23 +95,6 @@ async function fdFetch<T>(
   return fetchFootballDataJson<T>(url.toString(), getFootballDataToken(), {
     fresh: options?.fresh,
     revalidate: revalidateSeconds,
-  });
-}
-
-/**
- * Suprascrieri manuale de oră de start (matchId -> utcDate ISO). Folosite când
- * furnizorul are data greșită sau meciul a fost reprogramat. Șterge intrarea
- * după ce trece meciul.
- */
-const KICKOFF_OVERRIDES: Record<number, string> = {
-  // UTA Arad – Rapid: furnizorul îl are pe 08.08, dar meciul se joacă azi 07.08 la 21:00 RO.
-  566720: "2026-08-07T18:00:00Z",
-};
-
-function applyKickoffOverrides(matches: FootballDataMatch[]): FootballDataMatch[] {
-  return matches.map((m) => {
-    const override = KICKOFF_OVERRIDES[m.id];
-    return override ? { ...m, utcDate: override } : m;
   });
 }
 
@@ -172,7 +166,7 @@ async function fetchCompetitionMatchesFromApi(
     offset += limit;
   }
 
-  const adjusted = applyKickoffOverrides(collected);
+  const adjusted = finalizeMatches(collected);
   adjusted.sort(
     (a, b) =>
       new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime(),
@@ -210,7 +204,7 @@ function serveMatchesSnapshot(
   if (!isSnapshotFresh(fetchedAt, matchesCacheTtlMs(payload))) {
     refreshMatchesInBackground(code, season, cacheKey);
   }
-  return applyKickoffOverrides(payload);
+  return finalizeMatches(payload);
 }
 
 async function loadCompetitionMatchesCached(
@@ -245,7 +239,7 @@ async function loadCompetitionMatchesCached(
           `[football-data] folosim snapshot vechi pentru ${cacheKey}:`,
           e instanceof Error ? e.message : e,
         );
-        return applyKickoffOverrides(snap.payload);
+        return finalizeMatches(snap.payload);
       }
       throw e;
     }
@@ -283,7 +277,7 @@ export async function fetchCompetitionLiveMatches(
   const seasonKey = matchesSnapshotKey(code, s);
 
   function liveFromSeason(matches: FootballDataMatch[]): FootballDataMatch[] {
-    return applyKickoffOverrides(matches).filter(
+    return finalizeMatches(matches).filter(
       (m) => m.status === "IN_PLAY" || m.status === "PAUSED",
     );
   }
@@ -296,7 +290,7 @@ export async function fetchCompetitionLiveMatches(
           { season: s, status: "IN_PLAY,PAUSED" },
           { revalidate: 45 },
         );
-        await writeFdSnapshot(liveKey, applyKickoffOverrides(data.matches ?? []));
+        await writeFdSnapshot(liveKey, finalizeMatches(data.matches ?? []));
       } catch (e) {
         console.warn(
           `[football-data] live refresh ${liveKey}:`,
@@ -312,7 +306,7 @@ export async function fetchCompetitionLiveMatches(
     const liveMem = readFdSnapshotSync<FootballDataMatch[]>(liveKey);
     if (liveMem && Array.isArray(liveMem.payload)) {
       if (!isSnapshotFresh(liveMem.fetchedAt, 45_000)) refreshLiveInBackground();
-      return applyKickoffOverrides(liveMem.payload);
+      return finalizeMatches(liveMem.payload);
     }
     refreshLiveInBackground();
     return liveFromSeason(seasonMem.payload);
@@ -325,7 +319,7 @@ export async function fetchCompetitionLiveMatches(
       const liveSnap = await readFdSnapshot<FootballDataMatch[]>(liveKey);
       if (liveSnap && Array.isArray(liveSnap.payload)) {
         if (!isSnapshotFresh(liveSnap.fetchedAt, 45_000)) refreshLiveInBackground();
-        return applyKickoffOverrides(liveSnap.payload);
+        return finalizeMatches(liveSnap.payload);
       }
       refreshLiveInBackground();
       return liveFromSeason(seasonSnap.payload);
@@ -337,7 +331,7 @@ export async function fetchCompetitionLiveMatches(
         { season: s, status: "IN_PLAY,PAUSED" },
         { revalidate: 45 },
       );
-      const matches = applyKickoffOverrides(data.matches ?? []);
+      const matches = finalizeMatches(data.matches ?? []);
       await writeFdSnapshot(liveKey, matches);
       return matches;
     } catch (e) {
@@ -347,7 +341,7 @@ export async function fetchCompetitionLiveMatches(
           `[football-data] live snapshot pentru ${liveKey}:`,
           e instanceof Error ? e.message : e,
         );
-        return applyKickoffOverrides(liveSnap.payload);
+        return finalizeMatches(liveSnap.payload);
       }
       throw e;
     }
@@ -447,12 +441,12 @@ export async function fetchPartyStandings(
 
   const mem = readFdSnapshotSync<GroupStanding[]>(cacheKey);
   if (mem && Array.isArray(mem.payload) && mem.payload.length > 0) {
-    return mem.payload;
+    return applyCrestOverridesToStandings(mem.payload);
   }
 
   const snap = await readFdSnapshot<GroupStanding[]>(cacheKey);
   if (snap && Array.isArray(snap.payload) && snap.payload.length > 0) {
-    return snap.payload;
+    return applyCrestOverridesToStandings(snap.payload);
   }
 
   const data = await fdFetch<RawStandings>(`/competitions/${c}/standings`, {
@@ -460,7 +454,7 @@ export async function fetchPartyStandings(
   });
   const result = mapStandingsPayload(data);
   await writeFdSnapshot(cacheKey, result);
-  return result;
+  return applyCrestOverridesToStandings(result);
 }
 
 const KNOCKOUT_STAGE_ORDER: string[] = [
@@ -622,7 +616,7 @@ export async function fetchCompetitionTeams(
   return coalesceInflight(`fd-${cacheKey}`, async () => {
     const mem = readFdSnapshotSync<FootballDataTeam[]>(cacheKey);
     if (mem && Array.isArray(mem.payload) && mem.payload.length > 0) {
-      return mem.payload;
+      return applyCrestOverridesToTeams(mem.payload);
     }
 
     const snap = await readFdSnapshot<FootballDataTeam[]>(cacheKey);
@@ -640,13 +634,13 @@ export async function fetchCompetitionTeams(
           }
         });
       }
-      return snap.payload;
+      return applyCrestOverridesToTeams(snap.payload);
     }
 
     try {
       const teams = await fetchTeamsFromApi(code, s);
       await writeFdSnapshot(cacheKey, teams);
-      return teams;
+      return applyCrestOverridesToTeams(teams);
     } catch (e) {
       throw e;
     }
@@ -675,7 +669,7 @@ export async function fetchTeamFinishedMatches(
   });
   const list = data.matches ?? [];
   list.sort((a, b) => new Date(b.utcDate).getTime() - new Date(a.utcDate).getTime());
-  return list;
+  return finalizeMatches(list);
 }
 
 type HeadToHeadEnvelope = {
@@ -700,5 +694,20 @@ export async function fetchMatchHeadToHead(
   });
   const list = data.matches ?? [];
   list.sort((a, b) => new Date(b.utcDate).getTime() - new Date(a.utcDate).getTime());
-  return { matches: list, aggregates: data.aggregates };
+  const aggregates = data.aggregates;
+  return {
+    matches: finalizeMatches(list),
+    aggregates:
+      aggregates == null
+        ? aggregates
+        : {
+            ...aggregates,
+            homeTeam: aggregates.homeTeam
+              ? applyCrestOverrideToTeam(aggregates.homeTeam)
+              : aggregates.homeTeam,
+            awayTeam: aggregates.awayTeam
+              ? applyCrestOverrideToTeam(aggregates.awayTeam)
+              : aggregates.awayTeam,
+          },
+  };
 }

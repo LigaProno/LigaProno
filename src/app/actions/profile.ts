@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { resolveTeamCrest } from "@/lib/crest-overrides";
 import { fetchCompetitionTeams } from "@/lib/football-data";
 import {
   DEFAULT_FAVORITE_TEAM_COMPETITION,
@@ -75,7 +76,12 @@ export async function getProfileData(): Promise<ProfileData> {
     imageUrl: user.imageUrl,
     favoriteTeamId: user.favoriteTeamId,
     favoriteTeamName: user.favoriteTeamName,
-    favoriteTeamCrest: user.favoriteTeamCrest,
+    favoriteTeamCrest:
+      resolveTeamCrest({
+        id: user.favoriteTeamId,
+        name: user.favoriteTeamName,
+        crest: user.favoriteTeamCrest,
+      }) ?? null,
     favoriteTeamCompetition: user.favoriteTeamCompetition,
     createdAt: user.createdAt.toISOString(),
   };

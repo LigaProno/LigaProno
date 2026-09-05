@@ -165,4 +165,35 @@ describe("team matching PSG / Inter", () => {
     const map = mapFixturesToFootballDataMatches(fixtures, fd, { maxDiffHours: 24 });
     assert.equal(map.get(101)?.matchId, "psg1");
   });
+
+  it("maps Superliga fixtures when Football-Data is a day off at 17:00Z", () => {
+    const fixtures = [
+      {
+        matchId: "pet-rap",
+        home: "Petrolul",
+        away: "Rapid",
+        startDateIso: "2026-08-21T17:30:00.000Z",
+        stadium: "Stadionul Ilie Oana",
+        city: "Ploiesti",
+        country: "Romania",
+      },
+    ];
+    const fd = [
+      {
+        id: 566734,
+        utcDate: "2026-08-22T17:00:00Z",
+        status: "SCHEDULED",
+        homeTeam: { id: 1, name: "FC Petrolul Ploiești", shortName: "Petrolul" },
+        awayTeam: { id: 2, name: "FC Rapid Bucureşti", shortName: "Rapid" },
+      },
+    ] as FootballDataMatch[];
+    const tooTight = mapFixturesToFootballDataMatches(fixtures, fd, {
+      maxDiffHours: 18,
+    });
+    assert.equal(tooTight.get(566734), undefined);
+    const wide = mapFixturesToFootballDataMatches(fixtures, fd, {
+      maxDiffHours: 14 * 24,
+    });
+    assert.equal(wide.get(566734)?.matchId, "pet-rap");
+  });
 });

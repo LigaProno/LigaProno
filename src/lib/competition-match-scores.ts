@@ -246,7 +246,10 @@ export async function ensureCompetitionMatchScoreOverrides(
     return { overrides: map, scraped: 0, errors };
   }
 
-  const fdToOp = mapFixturesToFootballDataMatches(fixtures, staleNeedingFetch);
+  // FD pe Superliga pune des 17:00Z pe ziua greșită (~23h față de ora reală).
+  const fdToOp = mapFixturesToFootballDataMatches(fixtures, staleNeedingFetch, {
+    maxDiffHours: 14 * 24,
+  });
   const entries = [...fdToOp.entries()];
   if (entries.length === 0) {
     errors.push(
@@ -325,9 +328,15 @@ export async function refreshStaleScoresFromOddsPortal(): Promise<{
 
     try {
       const { fetchCompetitionMatches } = await import("@/lib/football-data");
-      const matches = await fetchCompetitionMatches(
-        parsed.code,
-        parsed.season,
+      const { applyKickoffOverrides } = await import("@/lib/kickoff-overrides");
+      const {
+        applyCompetitionVenuesToMatches,
+        ensureCompetitionMatchVenues,
+      } = await import("@/lib/competition-match-venues");
+      const raw = await fetchCompetitionMatches(parsed.code, parsed.season);
+      const venueMap = await ensureCompetitionMatchVenues(competition, raw);
+      const matches = applyKickoffOverrides(
+        applyCompetitionVenuesToMatches(raw, venueMap),
       );
       const result = await ensureCompetitionMatchScoreOverrides(
         competition,

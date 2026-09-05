@@ -1,5 +1,6 @@
 import type { FootballDataMatch } from "@/lib/football-data-types";
 import { parseStoredCompetition } from "@/lib/competition";
+import { applyKickoffOverrides } from "@/lib/kickoff-overrides";
 import { prisma } from "@/lib/prisma";
 import {
   enrichMatchesWithScrapedSchedule,
@@ -296,8 +297,10 @@ export async function loadMatchesWithCompetitionVenues(
     matches,
     options,
   );
+  // Override-ul manual trebuie să câștige în fața cache-ului OddsPortal:
+  // FD pune des 17:00Z pe ziua greșită, iar overlay-ul de venue poate lipsi.
   const withVenues = sortMatchesByKickoff(
-    applyCompetitionVenuesToMatches(matches, venueMap),
+    applyKickoffOverrides(applyCompetitionVenuesToMatches(matches, venueMap)),
   );
 
   try {
