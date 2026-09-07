@@ -41,43 +41,43 @@ function TournamentCard({ tt }: { tt: HomeTournament }) {
     >
       {prizeText ? (
         <div
-          className="px-6 py-3.5 border-b"
+          className="px-4 sm:px-6 py-2.5 sm:py-3.5 border-b"
           style={{
             borderColor: "rgba(197,160,89,0.18)",
             background: "linear-gradient(90deg, rgba(197,160,89,0.14) 0%, rgba(197,160,89,0.03) 100%)",
           }}
         >
-          <p className="text-sm leading-snug truncate" style={{ color: "rgba(255,255,255,0.82)" }}>
+          <p className="text-xs sm:text-sm leading-snug truncate" style={{ color: "rgba(255,255,255,0.82)" }}>
             <span className="font-bold" style={{ color: WC_GOLD }}>🎁 {t("dashboard.tournaments.prizes")}</span>{" "}
             {prizeText}
           </p>
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-6 p-7 sm:p-9 flex-1">
+      <div className="flex flex-col gap-4 sm:gap-5 p-4 sm:p-7 flex-1">
         <div className="min-w-0">
-          <h3 className="text-2xl sm:text-3xl font-extrabold text-white truncate group-hover:underline underline-offset-2">
+          <h3 className="text-base sm:text-xl font-bold text-white truncate group-hover:underline underline-offset-2">
             {tt.name}
           </h3>
           {tt.competitionLabel ? (
-            <p className="text-sm mt-1 truncate" style={{ color: "rgba(255,255,255,0.45)" }}>
+            <p className="text-xs sm:text-sm mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.45)" }}>
               {tt.competitionLabel}
             </p>
           ) : null}
         </div>
 
-        <div className="flex items-center justify-between mt-auto pt-1">
+        <div className="flex items-center justify-between mt-auto pt-1 gap-2">
           <span
-            className="inline-flex items-center gap-2 text-sm font-medium px-3.5 py-2 rounded-xl"
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-lg"
             style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.65)" }}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
               <circle cx="9" cy="7" r="4" />
             </svg>
             {t("dashboard.tournaments.members", { count: tt.memberCount })}
           </span>
-          <span className="text-lg font-bold transition-transform group-hover:translate-x-0.5" style={{ color: WC_CYAN }}>
+          <span className="text-sm sm:text-base font-bold whitespace-nowrap transition-transform group-hover:translate-x-0.5" style={{ color: WC_CYAN }}>
             {t("dashboard.tournaments.open")} →
           </span>
         </div>
@@ -155,11 +155,11 @@ export default function DashboardHome({ tournaments }: DashboardHomeProps) {
 
       <div className="px-6 sm:px-10 lg:px-14 pb-16 max-w-6xl mx-auto mt-10">
         <section className="flex flex-col items-center">
-          <div className="text-center mb-7">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-1.5">
+          <div className="text-center mb-6 sm:mb-7">
+            <h2 className="text-xl sm:text-3xl font-bold text-white mb-1">
               {t("dashboard.tournaments.title")}
             </h2>
-            <p className="text-sm sm:text-base" style={{ color: "rgba(255,255,255,0.5)" }}>
+            <p className="text-xs sm:text-base" style={{ color: "rgba(255,255,255,0.5)" }}>
               {t("dashboard.tournaments.subtitle")}
             </p>
           </div>
