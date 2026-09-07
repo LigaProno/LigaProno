@@ -13,6 +13,9 @@ export const COMPETITION_PICKER_OPTIONS: FootballDataCompetitionPickerOption[] =
   { storageKey: "BL1_2026", code: "BL1", season: "2026", label: "Bundesliga (2026–27)", maxMatchday: 34 },
   { storageKey: "SA_2026", code: "SA", season: "2026", label: "Serie A (2026–27)", maxMatchday: 38 },
   { storageKey: "RL1_2026", code: "RL1", season: "2026", label: "SuperLiga României (2026–27)", maxMatchday: 30 },
+  // UEFA Champions League — format nou „league phase": un singur clasament, 8 etape.
+  // În această fază meciurile se comportă ca la campionate (se poate termina egal).
+  { storageKey: "CL_2026", code: "CL", season: "2026", label: "UEFA Champions League (2026–27)", maxMatchday: 8 },
 ];
 
 /** Opțiune pentru select la creare / setare competiție (fără dependențe server-only). */

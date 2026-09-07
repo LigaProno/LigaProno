@@ -7,7 +7,14 @@ import {
 } from "@/lib/match-status";
 
 export function isKnockoutStage(stage: string | undefined): boolean {
-  return !!stage && stage !== "GROUP_STAGE" && stage !== "REGULAR_SEASON";
+  // LEAGUE_STAGE = faza „league" din noul format UCL: un singur clasament, meciuri
+  // ca la campionate (se pot termina egal), fără eliminatorii.
+  return (
+    !!stage &&
+    stage !== "GROUP_STAGE" &&
+    stage !== "REGULAR_SEASON" &&
+    stage !== "LEAGUE_STAGE"
+  );
 }
 
 export type PredictionLockedReason =
