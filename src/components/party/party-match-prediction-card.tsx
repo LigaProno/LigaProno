@@ -16,7 +16,7 @@ import { isMatchSettled, matchStatusBadge } from "@/lib/match-status";
 import { computeMatchPoints } from "@/lib/wc-scoring";
 import { PotentialPoints } from "@/components/party/potential-points";
 import { MatchInsightsModal } from "@/components/party/match-insights-modal";
-import { formatTeamDisplayName } from "@/lib/team-display";
+import { formatTeamFullName } from "@/lib/team-display";
 import { isFtOutcomeConsistentWithExactScore } from "@/lib/prediction-consistency";
 import {
   WC_BORDER,
@@ -213,8 +213,8 @@ export function PartyMatchPredictionCard({
 
   const venue = venueLabel(m);
   const when = formatMatchKickoff(m.utcDate);
-  const home = formatTeamDisplayName(m.homeTeam);
-  const away = formatTeamDisplayName(m.awayTeam);
+  const home = formatTeamFullName(m.homeTeam);
+  const away = formatTeamFullName(m.awayTeam);
   const homeId = m.homeTeam.id;
   const awayId = m.awayTeam.id;
   const hl = m.homeTeam.crest;

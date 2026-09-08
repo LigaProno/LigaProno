@@ -50,3 +50,21 @@ export function formatTeamDisplayName(team: FootballDataTeam | undefined): strin
 
   return tla || "?";
 }
+
+/**
+ * Nume lizibil, complet — pentru zonele unde prescurtarea (TLA) e greu de citit,
+ * ex. cardurile de pronostic. Preferă shortName (ex. „Inter”, „Napoli”, „Rapid”),
+ * apoi numele complet, și doar la final TLA.
+ */
+export function formatTeamFullName(team: FootballDataTeam | undefined): string {
+  if (!team) return "—";
+
+  const full = team.name?.trim() ?? "";
+  const short = team.shortName?.trim() ?? "";
+  const tla = team.tla?.trim() ?? "";
+
+  const combined = `${full} ${short}`.toLowerCase();
+  if (/fcsb|steaua bucure|steaua buk/.test(combined)) return "FCSB";
+
+  return short || full || tla || "?";
+}
