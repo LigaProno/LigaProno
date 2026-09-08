@@ -107,6 +107,7 @@ export type MessageKey =
   | "tournament.page.prizeEligibilityPrefix"
   | "tournament.page.prizeEligibilityAndPartners"
   | "tournament.page.prizeEligibilityRules"
+  | "tournament.page.voucherValidity"
   | "tournament.create.title"
   | "tournament.create.subtitle"
   | "tournament.create.nameLabel"

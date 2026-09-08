@@ -11,16 +11,32 @@ export type OpMatchMarket =
   | typeof OP_MARKET_HT_FT
   | typeof OP_MARKET_CORRECT_SCORE;
 
+/**
+ * Feed-urile de piețe nu mai sunt servite de pe pagina publică, ci prin proxy-ul
+ * către `backend.oddsportal.com` (accesul direct la backend răspunde cu 403).
+ */
+export const OP_BACKEND_PROXY_PREFIX = "/proxy";
+
+/**
+ * Hash implicit folosit de aplicația OddsPortal când pagina nu îi furnizează
+ * unul propriu. Ne scutește de `xhashf`, care nu mai apare în HTML-ul SSR.
+ */
+export const OP_DEFAULT_MATCH_XHASH = "yj0e1";
+
 export function buildMatchEventPath(
   matchId: string,
   betType: number,
   scope: number,
-  xhash: string,
+  xhash: string = OP_DEFAULT_MATCH_XHASH,
   versionId = 1,
   sportId = 1,
 ): string {
-  const hash = decodeURIComponent(xhash);
-  return `/match-event/${versionId}-${sportId}-${matchId}-${betType}-${scope}-${hash}.dat`;
+  const hash = decodeURIComponent(xhash.replace(/^\//, "")) || OP_DEFAULT_MATCH_XHASH;
+  return (
+    `${OP_BACKEND_PROXY_PREFIX}/match-event/` +
+    `${versionId}-${sportId}-${matchId}-${betType}-${scope}-${hash}.dat` +
+    `?geo=en&lang=en`
+  );
 }
 
 export function buildOutrightPath(

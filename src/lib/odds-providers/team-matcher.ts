@@ -69,6 +69,9 @@ function parseFdMatchMs(m: FootballDataMatch): number | null {
 
 /** Tokeni geografici ambigui — nu sunt suficienți singuri pentru match. */
 const WEAK_GEO_TOKENS = new Set([
+  // Real Madrid, Atlético și Rayo ar ajunge altfel să se potrivească între ele,
+  // inclusiv cu orientarea gazde/oaspeți inversată.
+  "madrid",
   "bucuresti",
   "bucharest",
   "bukarest",

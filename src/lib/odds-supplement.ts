@@ -84,6 +84,7 @@ async function fillMissingUpcomingMatchOdds(
     merged = mergeBettingPayloads(
       sanitizeBettingPayload(matchPayload),
       merged,
+      { lockedMatchIds: ctx.lockedMatchIds },
     );
     const afterMissing = matchesMissingOdds(merged, missing).length;
     filledCount += beforeMissing - afterMissing;
@@ -127,6 +128,7 @@ export async function supplementOddsWithGemini(
     merged = mergeBettingPayloads(
       sanitizeBettingPayload(teamPayload),
       merged,
+      { lockedMatchIds: ctx.lockedMatchIds },
     );
     supplementedTeams = countTeamsWithQualifyOdds(merged) > 0;
   }

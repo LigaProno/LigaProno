@@ -39,3 +39,16 @@ export function formatPrizesDisplay(prizes: TournamentPrize[]): string {
   if (unique.length === 1) return unique[0];
   return texts.join(", ");
 }
+
+/** Card cadou / voucher / gift card — valabilitate 7 zile după primire. */
+export function prizesIncludeVoucher(prizes: TournamentPrize[]): boolean {
+  return prizes.some((p) => {
+    const t = p.prize.trim().toLowerCase();
+    return (
+      t.includes("voucher") ||
+      t.includes("card cadou") ||
+      t.includes("gift card") ||
+      t.includes("giftcard")
+    );
+  });
+}

@@ -44,6 +44,7 @@ import { LiveFixtureBanner } from "@/components/party/live-fixture-banner";
 import type { LiveFixture } from "@/lib/live-fixture-types";
 import { CopyPredictionsModal, type CopyTargetTournament } from "@/components/party/copy-predictions-modal";
 import { FixtureStatsCard, type FixtureStats } from "@/components/party/fixture-stats-card";
+import { PublicTournamentPrizeNotice } from "@/components/turnee/public-tournament-prize-notice";
 
 export type LeaderboardRow = {
   rank: number;
@@ -77,6 +78,8 @@ export default function PartyWcDashboard({
   competition,
   isMixed = false,
   isPublic = false,
+  hasPublicPrizes = false,
+  hasVoucherPrizes = false,
   isCreator,
   currentUserId,
   matches,
@@ -102,6 +105,8 @@ export default function PartyWcDashboard({
   competitions?: string[];
   isMixed?: boolean;
   isPublic?: boolean;
+  hasPublicPrizes?: boolean;
+  hasVoucherPrizes?: boolean;
   isCreator: boolean;
   currentUserId: string;
   matches: FootballDataMatch[];
@@ -324,12 +329,20 @@ export default function PartyWcDashboard({
           </p>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">{tournamentName}</h1>
           {isPublic ?
-            <Link
-              href="/regulament"
-              className="inline-block mt-1.5 text-xs font-medium text-white/45 underline decoration-white/20 underline-offset-2 transition-colors hover:text-white"
-            >
-              {t("tournament.page.prizeEligibilityRules")}
-            </Link>
+            <div className="mt-1.5 flex flex-col gap-1.5 max-w-xl">
+              <Link
+                href="/regulament"
+                className="inline-block text-xs font-medium text-white/45 underline decoration-white/20 underline-offset-2 transition-colors hover:text-white"
+              >
+                {t("tournament.page.prizeEligibilityRules")}
+              </Link>
+              {hasPublicPrizes ? (
+                <PublicTournamentPrizeNotice
+                  showVoucherValidity={hasVoucherPrizes}
+                  hideRulesLink
+                />
+              ) : null}
+            </div>
           : null}
           {!isPublic ?
             <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>

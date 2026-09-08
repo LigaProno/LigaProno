@@ -71,14 +71,16 @@ function collectOutcomeOdds(
   return vals;
 }
 
+/**
+ * Eticheta unei linii de scor corect („2:1”). OddsPortal listează piața întreagă,
+ * inclusiv scoruri cu două cifre (10:0), deci nu tăiem grila la 4 goluri — orice
+ * linie ignorată aici ar însemna că punctăm un scor ghicit pe o cotă inventată.
+ */
 function parseScoreLabel(label: string | null | undefined): string | null {
   if (!label) return null;
-  const m = label.trim().match(/^(\d)\s*[-:]\s*(\d)$/);
+  const m = label.trim().match(/^(\d{1,2})\s*[-:]\s*(\d{1,2})$/);
   if (!m) return null;
-  const home = Number(m[1]);
-  const away = Number(m[2]);
-  if (home > 4 || away > 4) return null;
-  return `${home}-${away}`;
+  return `${Number(m[1])}-${Number(m[2])}`;
 }
 
 export function parse1x2FromFeed(
@@ -99,16 +101,13 @@ export function parseCorrectScoreFromFeed(data: unknown): Record<string, number>
   const out: Record<string, number> = {};
 
   for (const [marketKey, entry] of Object.entries(back)) {
-    let key: string | null = null;
-    if (marketKey.startsWith("E-8-2-0-0-")) {
+    // Eticheta e sursa de adevăr: sufixul cheii („…-0-0-100”) e ambiguu de îndată
+    // ce un scor are două cifre, așa că îl folosim doar când eticheta lipsește.
+    let key = parseScoreLabel(entry?.mixedParameterName ?? null);
+    if (!key && marketKey.startsWith("E-8-2-0-0-")) {
       const suffix = marketKey.split("-").pop() ?? "";
-      if (suffix.length === 2 && /^\d\d$/.test(suffix)) {
-        const home = Number(suffix[0]);
-        const away = Number(suffix[1]);
-        if (home <= 4 && away <= 4) key = `${home}-${away}`;
-      }
+      if (/^\d\d$/.test(suffix)) key = `${Number(suffix[0])}-${Number(suffix[1])}`;
     }
-    if (!key) key = parseScoreLabel(entry?.mixedParameterName ?? null);
     if (!key) continue;
 
     const oddsMap = entry?.odds ?? {};

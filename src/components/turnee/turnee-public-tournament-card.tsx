@@ -4,7 +4,7 @@ import LeaveTournamentButton from "@/components/turnee/leave-tournament-button";
 import { PublicTournamentPrizeNotice } from "@/components/turnee/public-tournament-prize-notice";
 import { TurneePrizesStrip } from "@/components/turnee/turnee-prizes-strip";
 import { TurneeMetaChip, TurneePanel } from "@/components/turnee/turnee-ui";
-import { parsePrizes } from "@/lib/tournament-prizes";
+import { parsePrizes, prizesIncludeVoucher } from "@/lib/tournament-prizes";
 
 type TurneePublicTournamentCardProps = {
   id: string;
@@ -44,7 +44,7 @@ export function TurneePublicTournamentCard({
           <h3 className="text-base font-bold text-white truncate">{name}</h3>
           {hasPrizes ? (
             <div className="mt-2">
-              <PublicTournamentPrizeNotice />
+              <PublicTournamentPrizeNotice showVoucherValidity={prizesIncludeVoucher(prizes)} />
             </div>
           ) : null}
         </div>

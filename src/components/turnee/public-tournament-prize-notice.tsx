@@ -17,32 +17,50 @@ function IgLink({ href, children }: { href: string; children: string }) {
   );
 }
 
-export function PublicTournamentPrizeNotice() {
+export function PublicTournamentPrizeNotice({
+  showVoucherValidity = false,
+  hideRulesLink = false,
+}: {
+  showVoucherValidity?: boolean;
+  hideRulesLink?: boolean;
+}) {
   const { t } = useLocale();
 
   return (
-    <p className="text-xs leading-relaxed text-white/45">
-      {t("tournament.page.prizeEligibilityPrefix")}{" "}
-      <IgLink href={INSTAGRAM_URL}>Liga Prono</IgLink>
-      {CONTEST_PARTNERS.length > 0 ? (
-        <>
-          {" "}
-          {t("tournament.page.prizeEligibilityAndPartners")}{" "}
-          {CONTEST_PARTNERS.map((partner, index) => (
-            <span key={partner.name}>
-              {index > 0 ? ", " : null}
-              <IgLink href={partner.instagramUrl}>{partner.name}</IgLink>
-            </span>
-          ))}
-        </>
+    <div className="flex flex-col gap-1.5">
+      {showVoucherValidity ? (
+        <p className="text-xs leading-relaxed text-white/55">
+          {t("tournament.page.voucherValidity")}
+        </p>
       ) : null}
-      .{" "}
-      <Link
-        href="/regulament"
-        className="font-medium text-white/70 underline decoration-white/25 underline-offset-2 transition-colors hover:text-white"
-      >
-        {t("tournament.page.prizeEligibilityRules")}
-      </Link>
-    </p>
+      <p className="text-xs leading-relaxed text-white/45">
+        {t("tournament.page.prizeEligibilityPrefix")}{" "}
+        <IgLink href={INSTAGRAM_URL}>Liga Prono</IgLink>
+        {CONTEST_PARTNERS.length > 0 ? (
+          <>
+            {" "}
+            {t("tournament.page.prizeEligibilityAndPartners")}{" "}
+            {CONTEST_PARTNERS.map((partner, index) => (
+              <span key={partner.name}>
+                {index > 0 ? ", " : null}
+                <IgLink href={partner.instagramUrl}>{partner.name}</IgLink>
+              </span>
+            ))}
+          </>
+        ) : null}
+        .
+        {hideRulesLink ? null : (
+          <>
+            {" "}
+            <Link
+              href="/regulament"
+              className="font-medium text-white/70 underline decoration-white/25 underline-offset-2 transition-colors hover:text-white"
+            >
+              {t("tournament.page.prizeEligibilityRules")}
+            </Link>
+          </>
+        )}
+      </p>
+    </div>
   );
 }

@@ -114,9 +114,11 @@ export const ro: Messages = {
   "tournament.page.publicNoneOngoing": "Niciun turneu public în desfășurare acum.",
   "tournament.page.publicNoneFinished": "Niciun turneu public încheiat încă.",
   "tournament.page.prizeEligibilityPrefix":
-    "Ești eligibil pentru premii doar dacă urmărești pe Instagram, înainte de startul etapei,",
-  "tournament.page.prizeEligibilityAndPartners": "și partenerii",
+    "Premiile se acordă doar dacă, la începutul etapei, ai la follow pe Instagram",
+  "tournament.page.prizeEligibilityAndPartners": "și",
   "tournament.page.prizeEligibilityRules": "Regulament concursuri",
+  "tournament.page.voucherValidity":
+    "Voucherele sunt valabile 1 săptămână după ce intri în posesia lor.",
   "tournament.create.title": "Creează turneu",
   "tournament.create.subtitle": "Pornește un party nou și invită prietenii",
   "tournament.create.nameLabel": "Nume turneu",

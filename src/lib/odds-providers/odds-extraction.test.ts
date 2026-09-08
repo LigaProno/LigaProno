@@ -1,15 +1,24 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  hasCompleteMatchOdds,
   hasUsableMatchOdds,
+  impliedMargin,
+  isEstimatedCorrectScore,
   isPlausible1x2,
   isPlausibleCorrectScore,
   sanitizeBettingPayload,
   type BettingOddsPayload,
 } from "../betting-odds";
-import { estimateDerivedMarketsFromFt1x2 } from "./estimate-from-1x2";
-import { parseListingFt1x2FromHtml } from "./oddsportal/parse-listing";
+import {
+  parseListingFt1x2FromHtml,
+  parseListingOddsMapFromHtml,
+} from "./oddsportal/parse-listing";
 import { mapFixturesToFootballDataMatches } from "./team-matcher";
+import { buildMatchEventPath } from "./oddsportal/markets";
+import { parseCorrectScoreFromFeed } from "./oddsportal/parse-odds";
+import { lockedOddsMatchIds } from "../odds-horizon";
+import { mergeBettingPayloads } from "../betting-odds";
 import type { FootballDataMatch } from "../football-data-types";
 
 describe("parseListingFt1x2FromHtml", () => {
@@ -44,21 +53,189 @@ describe("parseListingFt1x2FromHtml", () => {
   });
 });
 
-describe("estimateDerivedMarketsFromFt1x2", () => {
-  it("builds a realistic CS table from 1X2, never 1.01", () => {
-    const derived = estimateDerivedMarketsFromFt1x2({
-      HOME: 1.7,
-      DRAW: 4.0,
-      AWAY: 4.2,
+describe("parseListingOddsMapFromHtml", () => {
+  /** Forma reală a payload-ului Next.js: cheia e encodeEventId, ordinea 1|X|2. */
+  const html = `<script>self.__next_f.push([1,"...\\"initialOddsMap\\":{
+    \\"KWAKPPdt\\":{\\"event\\":10933121,\\"odds\\":[],\\"cnt\\":0},
+    \\"YkekHDBT\\":{\\"event\\":10933197,\\"odds\\":[
+      {\\"active\\":true,\\"maxOdds\\":2.42,\\"avgOdds\\":2.33,\\"bettingTypeId\\":1,\\"scopeId\\":2,\\"outcomeId\\":\\"adkudxv464x0xsf5ej\\"},
+      {\\"active\\":true,\\"maxOdds\\":3.3,\\"avgOdds\\":3.21,\\"bettingTypeId\\":1,\\"scopeId\\":2,\\"outcomeId\\":\\"adkudxv498x0x0\\"},
+      {\\"active\\":true,\\"maxOdds\\":3.25,\\"avgOdds\\":3.08,\\"bettingTypeId\\":1,\\"scopeId\\":2,\\"outcomeId\\":\\"adkudxv464x0xsf5el\\"}
+    ]},
+    \\"ULtLBiZj\\":{\\"event\\":10933199,\\"odds\\":[
+      {\\"active\\":true,\\"maxOdds\\":2.1,\\"avgOdds\\":2.05,\\"bettingTypeId\\":2,\\"scopeId\\":2,\\"outcomeId\\":\\"other464x\\"},
+      {\\"active\\":true,\\"maxOdds\\":1.8,\\"avgOdds\\":1.75,\\"bettingTypeId\\":2,\\"scopeId\\":2,\\"outcomeId\\":\\"other498x\\"}
+    ]}
+  },\\"rest\\":1"])</script>`;
+
+  it("reads average 1X2 odds keyed by encodeEventId", () => {
+    const map = parseListingOddsMapFromHtml(html);
+    assert.deepEqual(map.get("YkekHDBT"), { HOME: 2.33, DRAW: 3.21, AWAY: 3.08 });
+  });
+
+  it("skips events without odds and markets that are not full-time 1X2", () => {
+    const map = parseListingOddsMapFromHtml(html);
+    assert.equal(map.has("KWAKPPdt"), false);
+    assert.equal(map.has("ULtLBiZj"), false);
+  });
+
+  it("returns an empty map when the page ships no odds payload", () => {
+    assert.equal(parseListingOddsMapFromHtml("<html><body>nimic</body></html>").size, 0);
+  });
+});
+
+describe("buildMatchEventPath", () => {
+  it("targets the backend proxy and falls back to the built-in hash", () => {
+    const path = buildMatchEventPath("YkekHDBT", 8, 2);
+    assert.equal(
+      path,
+      "/proxy/match-event/1-1-YkekHDBT-8-2-yj0e1.dat?geo=en&lang=en",
+    );
+  });
+
+  it("uses the page hash when one is available, url-decoded", () => {
+    const path = buildMatchEventPath("YkekHDBT", 1, 3, "%79%6a%66%62%30");
+    assert.ok(path.includes("-1-3-yjfb0.dat"));
+  });
+});
+
+describe("parseCorrectScoreFromFeed", () => {
+  /** Forma reală a feed-ului: cote per casă, ca array-uri. */
+  const feed = {
+    d: {
+      oddsdata: {
+        back: {
+          "E-8-2-0-0-32": {
+            mixedParameterName: "3:2",
+            odds: { "27": [23], "438": [28], "516": [27], "623": [23], "817": [26] },
+          },
+          "E-8-2-0-0-10": {
+            mixedParameterName: "1:0",
+            odds: { "27": [7], "438": [7.2], "516": [6.8] },
+          },
+          "E-8-2-0-0-21": {
+            mixedParameterName: "2:1",
+            odds: { "27": [9], "438": [9.5], "516": [10] },
+          },
+          "E-8-2-0-0-04": {
+            mixedParameterName: "0:4",
+            odds: { "27": [160], "438": [170], "516": [165] },
+          },
+          "E-8-2-0-0-70": { mixedParameterName: "7:0", odds: { "27": [151] } },
+          "E-8-2-0-0-100": { mixedParameterName: "10:0", odds: { "27": [176] } },
+        },
+      },
+    },
+  };
+
+  it("takes the median across bookmakers for each line", () => {
+    const cs = parseCorrectScoreFromFeed(feed);
+    assert.equal(cs["3-2"], 26);
+    assert.equal(cs["1-0"], 7);
+  });
+
+  it("keeps lines outside the 0-4 grid, including two-digit scores", () => {
+    const cs = parseCorrectScoreFromFeed(feed);
+    assert.equal(cs["7-0"], 151);
+    assert.equal(cs["10-0"], 176);
+  });
+
+  it("is not mistaken for one of our old estimates", () => {
+    const cs = parseCorrectScoreFromFeed(feed);
+    assert.ok(isPlausibleCorrectScore(cs));
+    assert.equal(isEstimatedCorrectScore(cs), false);
+  });
+});
+
+/** Rând moștenit din vechiul model Poisson: grilă 0-4 plină, marjă sub 1. */
+function legacyEstimatedCorrectScore(): Record<string, number> {
+  const table: Record<string, number> = {};
+  for (let h = 0; h <= 4; h++) {
+    for (let a = 0; a <= 4; a++) table[`${h}-${a}`] = 25 + (h + a) * 12;
+  }
+  return table;
+}
+
+describe("isEstimatedCorrectScore", () => {
+  it("flags a stored table whose margin is impossibly low", () => {
+    const table = legacyEstimatedCorrectScore();
+    assert.ok(impliedMargin(table) < 1);
+    assert.equal(isEstimatedCorrectScore(table), true);
+  });
+
+  it("keeps such a match on the list of those needing real odds", () => {
+    const row = {
+      ft1x2: { HOME: 1.65, DRAW: 3.63, AWAY: 5.09 },
+      ht1x2: { HOME: 2.73, DRAW: 2.44, AWAY: 6.71 },
+      correctScore: legacyEstimatedCorrectScore(),
+    };
+    assert.equal(hasCompleteMatchOdds(row), false);
+  });
+});
+
+describe("înghețarea cotelor la kick-off", () => {
+  const oddsRow = {
+    ft1x2: { HOME: 1.65, DRAW: 3.63, AWAY: 5.09 },
+    ht1x2: { HOME: 2.73, DRAW: 2.44, AWAY: 6.71 },
+    correctScore: { "1-0": 7.67, "2-1": 13.02, "3-2": 66.32 },
+  };
+  const stored: BettingOddsPayload = {
+    schemaVersion: 1,
+    matches: { "1": oddsRow, "2": oddsRow },
+    teams: {},
+  };
+  const matches = [
+    { id: 1, utcDate: "2026-09-05T16:00:00Z", status: "FINISHED" },
+    { id: 2, utcDate: "2026-09-20T16:00:00Z", status: "TIMED" },
+  ] as FootballDataMatch[];
+  const now = Date.parse("2026-09-08T10:00:00Z");
+
+  it("locks matches that already kicked off, leaves upcoming ones open", () => {
+    const locked = lockedOddsMatchIds(matches, stored, now);
+    assert.deepEqual([...locked], ["1"]);
+  });
+
+  it("keeps stored odds for locked matches even when a refresh brings new ones", () => {
+    const incoming: BettingOddsPayload = {
+      schemaVersion: 1,
+      matches: {
+        "1": { ...oddsRow, ft1x2: { HOME: 1.9, DRAW: 3.4, AWAY: 4.1 } },
+        "2": { ...oddsRow, ft1x2: { HOME: 1.9, DRAW: 3.4, AWAY: 4.1 } },
+      },
+      teams: {},
+    };
+    const merged = mergeBettingPayloads(incoming, stored, {
+      lockedMatchIds: lockedOddsMatchIds(matches, stored, now),
     });
-    assert.ok(derived);
-    assert.ok(isPlausibleCorrectScore(derived!.correctScore));
-    const vals = Object.values(derived!.correctScore);
-    assert.ok(vals.length >= 25);
-    assert.ok(vals.every((v) => v >= 1.4));
-    assert.ok(derived!.correctScore["1-0"]! < derived!.correctScore["0-3"]!);
-    assert.ok(isPlausible1x2(derived!.ht1x2));
-    assert.ok(Object.keys(derived!.htFt ?? {}).length === 9);
+    assert.deepEqual(merged.matches["1"]?.ft1x2, oddsRow.ft1x2);
+    assert.deepEqual(merged.matches["2"]?.ft1x2, { HOME: 1.9, DRAW: 3.4, AWAY: 4.1 });
+  });
+
+  it("does not lock a postponed match, since it will be replayed", () => {
+    const postponed = [
+      { id: 1, utcDate: "2026-09-05T16:00:00Z", status: "POSTPONED" },
+    ] as FootballDataMatch[];
+    assert.equal(lockedOddsMatchIds(postponed, stored, now).size, 0);
+  });
+
+  it("still fills a market the locked match was missing", () => {
+    const withoutCs: BettingOddsPayload = {
+      schemaVersion: 1,
+      matches: { "1": { ...oddsRow, correctScore: {} } },
+      teams: {},
+    };
+    const incoming: BettingOddsPayload = {
+      schemaVersion: 1,
+      matches: {
+        "1": { ...oddsRow, ft1x2: { HOME: 1.9, DRAW: 3.4, AWAY: 4.1 } },
+      },
+      teams: {},
+    };
+    const merged = mergeBettingPayloads(incoming, withoutCs, {
+      lockedMatchIds: lockedOddsMatchIds(matches, withoutCs, now),
+    });
+    assert.deepEqual(merged.matches["1"]?.ft1x2, oddsRow.ft1x2);
+    assert.deepEqual(merged.matches["1"]?.correctScore, oddsRow.correctScore);
   });
 });
 

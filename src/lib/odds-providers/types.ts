@@ -12,6 +12,11 @@ export type OddsFetchContext = {
    * de obicei cele cu 1X2 dar fără tabel de scor corect.
    */
   matchIdsNeedingOddsRefresh?: number[];
+  /**
+   * Meciuri deja începute, ale căror cote sunt înghețate. Nicio sursă nu are
+   * voie să le rescrie — punctajul acordat trebuie să rămână stabil.
+   */
+  lockedMatchIds?: ReadonlySet<string>;
 };
 
 export type OddsFetchResult = {

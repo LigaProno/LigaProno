@@ -114,9 +114,11 @@ export const en: Messages = {
   "tournament.page.publicNoneOngoing": "No public tournaments running right now.",
   "tournament.page.publicNoneFinished": "No public tournaments finished yet.",
   "tournament.page.prizeEligibilityPrefix":
-    "You are only eligible for prizes if you follow on Instagram, before the matchday starts,",
-  "tournament.page.prizeEligibilityAndPartners": "and the partners",
+    "Prizes are awarded only if, at the start of the matchday, you follow on Instagram",
+  "tournament.page.prizeEligibilityAndPartners": "and",
   "tournament.page.prizeEligibilityRules": "Contest rules",
+  "tournament.page.voucherValidity":
+    "Vouchers are valid for 1 week after you receive them.",
   "tournament.create.title": "Create tournament",
   "tournament.create.subtitle": "Start a new party and invite friends",
   "tournament.create.nameLabel": "Tournament name",

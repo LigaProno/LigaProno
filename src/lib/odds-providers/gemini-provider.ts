@@ -10,10 +10,17 @@ export class GeminiOddsProvider implements OddsProvider {
   readonly name = "gemini";
 
   async fetchOdds(ctx: OddsFetchContext): Promise<OddsFetchResult> {
-    const targets = matchesNeedingOddsFill(ctx.matches, null);
+    // Meciurile începute au cote înghețate — nu le mai cerem, ca Gemini să nu
+    // genereze de fiecare dată alte valori pentru puncte deja acordate.
+    const locked = ctx.lockedMatchIds;
+    const open = (ms: typeof ctx.matches) =>
+      locked ? ms.filter((m) => !locked.has(String(m.id))) : ms;
+
+    const targets = open(matchesNeedingOddsFill(ctx.matches, null));
+    const fallbackTargets = open(ctx.matches);
     const { payload: rawPayload, model } = await fetchBettingOddsViaGemini(
       ctx.competitionLabel,
-      targets.length > 0 ? targets : ctx.matches,
+      targets.length > 0 ? targets : fallbackTargets,
       ctx.teams,
     );
     const payload: BettingOddsPayload = {

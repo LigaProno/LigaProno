@@ -90,6 +90,82 @@ export function parseListingFt1x2FromHtml(html: string): ListingMatchOdds[] {
   return out;
 }
 
+/** Extrage obiectul JSON care începe la `from`, respectând ghilimelele. */
+function sliceBalancedObject(s: string, from: number): string | null {
+  const start = s.indexOf("{", from);
+  if (start < 0) return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i]!;
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (c === "\\") escaped = true;
+      else if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') inString = true;
+    else if (c === "{") depth++;
+    else if (c === "}" && --depth === 0) return s.slice(start, i + 1);
+  }
+  return null;
+}
+
+type OddsMapEntry = {
+  odds?: Array<{
+    active?: boolean;
+    avgOdds?: unknown;
+    bettingTypeId?: unknown;
+    scopeId?: unknown;
+    outcomeId?: unknown;
+  }>;
+};
+
+/** Egalul are mereu marcajul `498x` în outcomeId — verificare că ordinea e 1|X|2. */
+function isDrawOutcome(outcomeId: unknown): boolean {
+  return typeof outcomeId === "string" && outcomeId.includes("498x");
+}
+
+/**
+ * Cote 1X2 din `initialOddsMap`, payload-ul JSON al paginii de turneu.
+ * OddsPortal nu mai randează tabelul pe server, dar trimite acest obiect în
+ * fluxul Next.js: cheia e `encodeEventId`, iar `odds` vine în ordinea
+ * coloanelor `1|X|2` cu media caselor în `avgOdds`.
+ */
+export function parseListingOddsMapFromHtml(html: string): Map<string, ListingFt1x2> {
+  const out = new Map<string, ListingFt1x2>();
+  const decoded = unescapeJsString(html);
+
+  const at = decoded.indexOf('"initialOddsMap"');
+  if (at < 0) return out;
+  const raw = sliceBalancedObject(decoded, at + '"initialOddsMap"'.length);
+  if (!raw) return out;
+
+  let map: Record<string, OddsMapEntry>;
+  try {
+    map = JSON.parse(raw) as Record<string, OddsMapEntry>;
+  } catch {
+    return out;
+  }
+
+  for (const [matchId, entry] of Object.entries(map)) {
+    const rows = (entry?.odds ?? []).filter(
+      (o) => Number(o?.bettingTypeId) === 1 && Number(o?.scopeId) === 2,
+    );
+    if (rows.length !== 3) continue;
+    if (!isDrawOutcome(rows[1]?.outcomeId)) continue;
+
+    const [home, draw, away] = rows.map((o) =>
+      parseDecimalOdd(typeof o?.avgOdds === "number" ? String(o.avgOdds) : ""),
+    );
+    if (home == null || draw == null || away == null) continue;
+    out.set(matchId, { HOME: home, DRAW: draw, AWAY: away });
+  }
+
+  return out;
+}
+
 /**
  * Fixture-uri din JSON-ul escapat al paginii Next.js.
  * Ordinea actuală: home-name, away-name, … encodeEventId, … url, … timestamp.
@@ -130,11 +206,12 @@ export function parseNextEventFixturesFromHtml(html: string): OpScheduleFixture[
 export function mergeListingOddsOntoFixtures(
   fixtures: OpScheduleFixture[],
   listing: ListingMatchOdds[],
+  oddsMap?: ReadonlyMap<string, ListingFt1x2>,
 ): OpScheduleFixture[] {
   const byId = new Map(listing.map((r) => [r.matchId, r]));
   return fixtures.map((fx) => {
-    const row = byId.get(fx.matchId);
-    if (!row?.ft1x2) return fx;
-    return { ...fx, ft1x2: row.ft1x2 };
+    const ft1x2 = byId.get(fx.matchId)?.ft1x2 ?? oddsMap?.get(fx.matchId);
+    if (!ft1x2) return fx;
+    return { ...fx, ft1x2 };
   });
 }

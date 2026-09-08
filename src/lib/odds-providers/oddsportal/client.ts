@@ -6,6 +6,7 @@ import {
 import {
   buildMatchEventPath,
   buildOutrightPath,
+  OP_DEFAULT_MATCH_XHASH,
   OP_MARKET_CORRECT_SCORE,
   OP_MARKET_FT_1X2,
   OP_MARKET_HT_1X2,
@@ -408,41 +409,66 @@ export async function fetchEventResult(
   return parseEventResultFromHtml(html);
 }
 
+/** Identifică un meci pentru feed-urile de piețe; `xhash` e opțional. */
+export type OpFeedTarget = {
+  matchId: string;
+  xhash?: string;
+  versionId?: number;
+  sportId?: number;
+};
+
 export async function fetchMatchMarketFeed(
-  meta: OpEventMeta,
+  target: OpFeedTarget,
   betType: number,
   scope: number,
   referer: string,
 ): Promise<unknown> {
   const path = buildMatchEventPath(
-    meta.matchId,
+    target.matchId,
     betType,
     scope,
-    meta.xhashf,
-    meta.versionId,
-    meta.sportId,
+    target.xhash ?? OP_DEFAULT_MATCH_XHASH,
+    target.versionId ?? 1,
+    target.sportId ?? 1,
   );
-  const url = `${ODDSPORTAL_BASE}${path}?_=${Date.now()}`;
   await delay(getRequestDelayMs());
-  return fetchAndDecryptJson(url, referer);
+  return fetchAndDecryptJson(`${ODDSPORTAL_BASE}${path}`, referer);
 }
 
 export async function fetchFtHtCsFeeds(
-  meta: OpEventMeta,
+  target: OpFeedTarget,
   referer: string,
 ): Promise<{ ft: unknown; ht: unknown; cs: unknown; htFt: unknown }> {
   const [ft, ht, cs, htFt] = await Promise.all([
-    fetchMatchMarketFeed(meta, OP_MARKET_FT_1X2.betType, OP_MARKET_FT_1X2.scope, referer),
-    fetchMatchMarketFeed(meta, OP_MARKET_HT_1X2.betType, OP_MARKET_HT_1X2.scope, referer),
+    fetchMatchMarketFeed(target, OP_MARKET_FT_1X2.betType, OP_MARKET_FT_1X2.scope, referer),
+    fetchMatchMarketFeed(target, OP_MARKET_HT_1X2.betType, OP_MARKET_HT_1X2.scope, referer),
     fetchMatchMarketFeed(
-      meta,
+      target,
       OP_MARKET_CORRECT_SCORE.betType,
       OP_MARKET_CORRECT_SCORE.scope,
       referer,
     ),
-    fetchMatchMarketFeed(meta, OP_MARKET_HT_FT.betType, OP_MARKET_HT_FT.scope, referer),
+    fetchMatchMarketFeed(target, OP_MARKET_HT_FT.betType, OP_MARKET_HT_FT.scope, referer),
   ]);
   return { ft, ht, cs, htFt };
+}
+
+/** Piețele derivate (pauză, scor corect, pauză/final) pentru un meci. */
+export async function fetchDerivedMarketFeeds(
+  target: OpFeedTarget,
+  referer: string,
+): Promise<{ ht: unknown; cs: unknown; htFt: unknown }> {
+  const [ht, cs, htFt] = await Promise.all([
+    fetchMatchMarketFeed(target, OP_MARKET_HT_1X2.betType, OP_MARKET_HT_1X2.scope, referer),
+    fetchMatchMarketFeed(
+      target,
+      OP_MARKET_CORRECT_SCORE.betType,
+      OP_MARKET_CORRECT_SCORE.scope,
+      referer,
+    ),
+    fetchMatchMarketFeed(target, OP_MARKET_HT_FT.betType, OP_MARKET_HT_FT.scope, referer),
+  ]);
+  return { ht, cs, htFt };
 }
 
 export async function fetchOutrightWinnerFeed(
@@ -468,11 +494,52 @@ export async function fetchTournamentFixtures(
   return parseTournamentFixturesFromHtml(html);
 }
 
-/** HTML listing (fresh) — cote 1X2 + fixture-uri, fără pagina de meci. */
+/** True dacă listing-ul chiar conține payload-ul de cote, nu doar shell-ul paginii. */
+function listingHasOdds(html: string): boolean {
+  return html.includes("initialOddsMap") && html.includes("avgOdds");
+}
+
+const LISTING_ATTEMPTS = 3;
+
+/**
+ * HTML listing (fresh) — cote 1X2 + fixture-uri, fără pagina de meci.
+ *
+ * OddsPortal răspunde intermitent cu 503 sau cu un shell gol (200, dar fără
+ * payload de cote). Reîncercăm; dacă tot nu vine nimic util, returnăm ultimul
+ * răspuns, ca refresh-ul să păstreze cotele existente în loc să cadă pe Gemini.
+ */
 export async function fetchTournamentListingHtml(
   config: OddsPortalCompetitionConfig,
 ): Promise<string> {
-  return fetchOddsPortalHtml(config.tournamentPageUrl, undefined, { fresh: true });
+  let lastHtml: string | null = null;
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt < LISTING_ATTEMPTS; attempt++) {
+    if (attempt > 0) await delay(getRequestDelayMs() * 4 * attempt);
+    try {
+      const html = await fetchOddsPortalHtml(config.tournamentPageUrl, undefined, {
+        fresh: true,
+      });
+      if (listingHasOdds(html)) return html;
+      lastHtml = html;
+      console.warn(
+        `[odds] Listing ${config.tournamentSlug} fără payload de cote ` +
+          `(încercarea ${attempt + 1}/${LISTING_ATTEMPTS}).`,
+      );
+    } catch (e) {
+      lastError = e;
+      console.warn(
+        `[odds] Listing ${config.tournamentSlug} eșuat ` +
+          `(încercarea ${attempt + 1}/${LISTING_ATTEMPTS}): ` +
+          `${e instanceof Error ? e.message : e}`,
+      );
+    }
+  }
+
+  if (lastHtml != null) return lastHtml;
+  throw lastError instanceof Error ?
+      lastError
+    : new Error(`OddsPortal: listing indisponibil pentru ${config.tournamentSlug}`);
 }
 
 /** Fixture-uri de pe pagina de rezultate (meciuri terminate, pot lipsi de pe overview). */

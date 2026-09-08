@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { canManagePublicTournaments, isAdminEmail } from "@/lib/admin";
@@ -11,6 +12,7 @@ import { I18nError } from "@/lib/i18n/errors";
 import type { TournamentPrize } from "@/lib/tournament-prizes";
 import { formatTeamDisplayName } from "@/lib/team-display";
 import { fetchMatchesForCompetitionKeys } from "@/lib/tournament-matches";
+import { sendNewPublicTournamentEmails } from "@/lib/email/send-jobs";
 
 async function assertPublicTournamentManager() {
   const user = await requireDbUser();
@@ -27,6 +29,17 @@ async function enrollAllUsers(tournamentId: string) {
   const allUsers = await prisma.user.findMany({ select: { id: true } });
   await prisma.tournamentMember.createMany({
     data: allUsers.map((u) => ({ tournamentId, userId: u.id, prizePreference: [] })),
+  });
+}
+
+function scheduleNewPublicTournamentEmails(tournamentId: string) {
+  after(async () => {
+    try {
+      const result = await sendNewPublicTournamentEmails(tournamentId);
+      console.info("[email] new public tournament dispatch", tournamentId, result);
+    } catch (error) {
+      console.error("[email] new public tournament failed", tournamentId, error);
+    }
   });
 }
 
@@ -76,6 +89,7 @@ export async function createPublicTournament(
   });
 
   await enrollAllUsers(tournament.id);
+  scheduleNewPublicTournamentEmails(tournament.id);
 
   revalidatePath("/moderator");
   revalidatePath("/admin");
@@ -193,6 +207,7 @@ export async function createMixedPublicTournament(
   });
 
   await enrollAllUsers(tournament.id);
+  scheduleNewPublicTournamentEmails(tournament.id);
 
   revalidatePath("/moderator");
   revalidatePath("/admin");

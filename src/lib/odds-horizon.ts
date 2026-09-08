@@ -1,4 +1,8 @@
-import { hasCompleteMatchOdds, type BettingOddsPayload } from "@/lib/betting-odds";
+import {
+  hasCompleteMatchOdds,
+  hasUsableMatchOdds,
+  type BettingOddsPayload,
+} from "@/lib/betting-odds";
 import type { FootballDataMatch } from "@/lib/football-data-types";
 
 /** Include meciuri începute de curând (live) fără cote complete. */
@@ -38,6 +42,35 @@ export function matchesInOddsHorizon(
       m.status !== "AWARDED" &&
       isMatchInOddsHorizon(m, nowMs),
   );
+}
+
+/** True dacă meciul a început deja (sau e terminat) la momentul dat. */
+function isKickoffPassed(m: FootballDataMatch, nowMs: number): boolean {
+  const kick = Date.parse(m.utcDate);
+  return Number.isFinite(kick) && kick <= nowMs;
+}
+
+/**
+ * Meciuri ale căror cote nu mai au voie să se schimbe: au început deja și au
+ * cote reale în snapshot. Punctajul trebuie să rămână cel calculat cu cotele
+ * de la fluierul de start, altfel clasamentul se rescrie la fiecare refresh.
+ *
+ * Meciurile amânate rămân deschise — se rejoacă la altă dată, cu altă piață.
+ */
+export function lockedOddsMatchIds(
+  matches: FootballDataMatch[],
+  payload: BettingOddsPayload | null,
+  nowMs = Date.now(),
+): Set<string> {
+  const locked = new Set<string>();
+  if (!payload) return locked;
+  for (const m of matches) {
+    if (m.status === "CANCELLED" || m.status === "POSTPONED") continue;
+    if (!isKickoffPassed(m, nowMs)) continue;
+    if (!hasUsableMatchOdds(payload.matches[String(m.id)])) continue;
+    locked.add(String(m.id));
+  }
+  return locked;
 }
 
 /**

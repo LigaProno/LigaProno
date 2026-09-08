@@ -97,6 +97,17 @@ export const TEAM_NAME_ALIASES: Record<string, string> = {
   internazionale: "inter",
   "inter milan": "inter",
   "ac milan": "ac milan",
+  // La Liga: „madrid" e token slab (trei cluburi), deci fiecare trebuie să ajungă
+  // la aceeași formă canonică de ambele părți, altfel nu se mai potrivesc deloc.
+  "athletic club": "athletic bilbao",
+  "ath bilbao": "athletic bilbao",
+  athletic: "athletic bilbao",
+  "atl madrid": "atletico madrid",
+  "atletico madrid": "atletico madrid",
+  "atletico de madrid": "atletico madrid",
+  "real madrid": "real madrid",
+  "rayo vallecano de madrid": "rayo vallecano",
+  "rayo vallecano": "rayo vallecano",
   "hellas verona": "verona",
   "como 1907": "como",
   "ac monza": "monza",

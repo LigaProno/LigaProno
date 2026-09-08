@@ -5,7 +5,12 @@ import { fetchCompetitionMatches } from "@/lib/football-data";
 import type { FootballDataMatch } from "@/lib/football-data-types";
 import { canSendTestEmail, isEmailTestMode, sendEmail } from "@/lib/email/mailer";
 import { renderDailyDigestEmail } from "@/lib/email/templates/daily-digest";
-import { renderPredictionReminderEmail } from "@/lib/email/templates/prediction-reminder";
+import { renderNewPublicTournamentEmail } from "@/lib/email/templates/new-tournament";
+import {
+  reminderWhenShort,
+  renderPredictionReminderEmail,
+  type ReminderDaysAhead,
+} from "@/lib/email/templates/prediction-reminder";
 import { renderStageRankingEmail } from "@/lib/email/templates/stage-ranking";
 import {
   addDaysToDateKey,
@@ -16,6 +21,8 @@ import {
   matchDateKeyBucharest,
 } from "@/lib/email/time";
 import { prisma } from "@/lib/prisma";
+import { tournamentCompetitionLabel } from "@/lib/tournament-competition";
+import { parsePrizes, placeLabel } from "@/lib/tournament-prizes";
 import {
   filterMatchesForTournament,
   formatPredShort,
@@ -34,6 +41,17 @@ export type EmailJobResult = {
   skipped: number;
   errors: string[];
 };
+
+function emptyEmailResult(): EmailJobResult {
+  return { attempted: 0, sent: 0, skipped: 0, errors: [] };
+}
+
+function mergeEmailResult(into: EmailJobResult, partial: EmailJobResult): void {
+  into.attempted += partial.attempted;
+  into.sent += partial.sent;
+  into.skipped += partial.skipped;
+  into.errors.push(...partial.errors);
+}
 
 async function tryClaimDispatch(kind: string, key: string): Promise<boolean> {
   try {
@@ -172,7 +190,12 @@ type ActiveTournament = {
   startMatchday: number | null;
   endMatchday: number | null;
   closedAt: Date | null;
-  members: { userId: string; user: { id: string; email: string; firstName: string | null; lastName: string | null } }[];
+  members: {
+    userId: string;
+    cachedTotal: number;
+    joinedAt: Date;
+    user: { id: string; email: string; firstName: string | null; lastName: string | null };
+  }[];
 };
 
 function competitionKeysForEmailTournament(
@@ -213,6 +236,8 @@ async function loadActiveTournaments(): Promise<ActiveTournament[]> {
       members: {
         select: {
           userId: true,
+          cachedTotal: true,
+          joinedAt: true,
           user: {
             select: { id: true, email: true, firstName: true, lastName: true },
           },
@@ -228,11 +253,26 @@ async function loadActiveTournaments(): Promise<ActiveTournament[]> {
   );
 }
 
-/** Reminder D−2 + D−1: meciuri fără predicție peste 2 zile, respectiv mâine (Bucharest). */
+function memberRanks(
+  members: { userId: string; cachedTotal: number; joinedAt: Date }[],
+): Map<string, { rank: number; total: number; count: number }> {
+  const sorted = [...members].sort((a, b) => {
+    if (b.cachedTotal !== a.cachedTotal) return b.cachedTotal - a.cachedTotal;
+    return a.joinedAt.getTime() - b.joinedAt.getTime();
+  });
+  const map = new Map<string, { rank: number; total: number; count: number }>();
+  const count = sorted.length;
+  sorted.forEach((m, i) => {
+    map.set(m.userId, { rank: i + 1, total: m.cachedTotal, count });
+  });
+  return map;
+}
+
+/** Reminder azi + D−1 + D−2: un singur mail/zi cu meciurile fără predicție. */
 export async function sendPredictionReminders(
   now: Date = new Date(),
 ): Promise<EmailJobResult> {
-  const result: EmailJobResult = { attempted: 0, sent: 0, skipped: 0, errors: [] };
+  const result = emptyEmailResult();
   const todayKey = formatDateKeyBucharest(now);
   const base = appBaseUrl();
 
@@ -250,17 +290,18 @@ export async function sendPredictionReminders(
     fixture: string;
     kickoff: string;
     matchId: number;
+    daysAhead: ReminderDaysAhead;
+    dateLabel: string;
   };
 
-  // D−2 întâi, apoi D−1 — dedupe separat pe ziua țintă.
-  for (const daysAhead of [2, 1] as const) {
+  const pendingByUser = new Map<
+    string,
+    { email: string; firstName: string | null; items: Pending[] }
+  >();
+
+  for (const daysAhead of [0, 1, 2] as const) {
     const targetKey = addDaysToDateKey(todayKey, daysAhead);
     const dateLabel = formatBucharestDateLabel(targetKey);
-
-    const pendingByUser = new Map<
-      string,
-      { email: string; firstName: string | null; items: Pending[] }
-    >();
 
     for (const tournament of tournaments) {
       const inWindow = matchesForEmailTournament(tournament, matchesByCompetition);
@@ -293,6 +334,7 @@ export async function sendPredictionReminders(
       }
 
       for (const member of tournament.members) {
+        if (!member.user.email?.includes("@")) continue;
         for (const match of upcoming) {
           const pred = predMap.get(`${member.userId}:${match.id}`);
           if (hasAnyMatchPrediction(pred)) continue;
@@ -302,54 +344,63 @@ export async function sendPredictionReminders(
             firstName: member.user.firstName,
             items: [],
           };
+          if (entry.items.some((i) => i.matchId === match.id && i.tournamentId === tournament.id)) {
+            continue;
+          }
           entry.items.push({
             tournamentId: tournament.id,
             tournamentName: tournament.name,
             fixture: fixtureFullName(match),
             kickoff: formatKickoffBucharest(match.utcDate),
             matchId: match.id,
+            daysAhead,
+            dateLabel,
           });
           pendingByUser.set(member.userId, entry);
         }
       }
     }
+  }
 
-    for (const [userId, data] of pendingByUser) {
-      if (data.items.length === 0) continue;
-      const primaryTournamentId = data.items[0]!.tournamentId;
-      const rendered = renderPredictionReminderEmail({
-        firstName: data.firstName,
-        dateLabel,
-        daysAhead,
-        matches: data.items.map((i) => ({
-          tournamentName: i.tournamentName,
-          fixture: i.fixture,
-          kickoff: i.kickoff,
-        })),
-        ctaHref: `${base}/turnee/${primaryTournamentId}`,
-      });
+  console.info("[email] reminders pending users", pendingByUser.size, "date", todayKey);
 
-      await claimAndSend({
-        kind: "reminder",
-        dedupeKey: `${userId}:d${daysAhead}:${targetKey}`,
-        to: data.email,
-        subject: rendered.subject,
-        html: rendered.html,
-        text: rendered.text,
-        result,
-      });
-    }
+  for (const [userId, data] of pendingByUser) {
+    if (data.items.length === 0) continue;
+    data.items.sort((a, b) => a.daysAhead - b.daysAhead || a.kickoff.localeCompare(b.kickoff));
+    const minDays = Math.min(...data.items.map((i) => i.daysAhead)) as ReminderDaysAhead;
+    const mixedDays = new Set(data.items.map((i) => i.daysAhead)).size > 1;
+    const primaryTournamentId = data.items[0]!.tournamentId;
+    const rendered = renderPredictionReminderEmail({
+      firstName: data.firstName,
+      dateLabel: data.items[0]!.dateLabel,
+      daysAhead: minDays,
+      matches: data.items.map((i) => ({
+        tournamentName: i.tournamentName,
+        fixture: i.fixture,
+        kickoff: i.kickoff,
+        whenLabel: mixedDays ? reminderWhenShort(i.daysAhead) : undefined,
+      })),
+      ctaHref: `${base}/turnee/${primaryTournamentId}`,
+    });
+
+    await claimAndSend({
+      kind: "reminder",
+      dedupeKey: `${userId}:${todayKey}`,
+      to: data.email,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+      result,
+    });
   }
 
   return result;
 }
 
-/** Rezumat pentru ziua anterioară (Bucharest). */
+/** Rezumat pentru zilele recente cu meciuri terminate (D−1, cu retry D−2). */
 export async function sendDailyDigests(now: Date = new Date()): Promise<EmailJobResult> {
-  const result: EmailJobResult = { attempted: 0, sent: 0, skipped: 0, errors: [] };
+  const result = emptyEmailResult();
   const todayKey = formatDateKeyBucharest(now);
-  const yesterdayKey = addDaysToDateKey(todayKey, -1);
-  const dateLabel = formatBucharestDateLabel(yesterdayKey);
   const base = appBaseUrl();
 
   // Include și turneele recent închise — scorurile din ziua D−1 tot contează.
@@ -366,6 +417,8 @@ export async function sendDailyDigests(now: Date = new Date()): Promise<EmailJob
       members: {
         select: {
           userId: true,
+          cachedTotal: true,
+          joinedAt: true,
           user: {
             select: { id: true, email: true, firstName: true, lastName: true },
           },
@@ -396,104 +449,146 @@ export async function sendDailyDigests(now: Date = new Date()): Promise<EmailJob
     points: number;
   };
 
-  const digestByUser = new Map<
-    string,
-    { email: string; firstName: string | null; items: DigestItem[]; total: number }
-  >();
+  for (const daysAgo of [1, 2] as const) {
+    const dayKey = addDaysToDateKey(todayKey, -daysAgo);
+    const dateLabel = formatBucharestDateLabel(dayKey);
 
-  for (const tournament of active) {
-    const inWindow = matchesForEmailTournament(tournament, matchesByCompetition);
-    const yesterdayFinished = inWindow.filter((m) => {
-      if (matchDateKeyBucharest(m.utcDate) !== yesterdayKey) return false;
-      return m.status === "FINISHED" || m.status === "AWARDED";
-    });
-    if (yesterdayFinished.length === 0) continue;
-
-    const preds = await prisma.wcMatchPrediction.findMany({
-      where: {
-        tournamentId: tournament.id,
-        matchId: { in: yesterdayFinished.map((m) => m.id) },
-      },
-    });
-    const predByUserMatch = new Map<string, MatchPredictionInput>();
-    for (const p of preds) {
-      predByUserMatch.set(`${p.userId}:${p.matchId}`, p);
-    }
-
-    const keys = competitionKeysForEmailTournament(tournament);
-    const oddsLookup = (matchId: number) => {
-      for (const key of keys) {
-        const maps = oddsByCompetition.get(key);
-        const row = maps?.matchById.get(matchId);
-        if (row) return row;
+    const digestByUser = new Map<
+      string,
+      {
+        email: string;
+        firstName: string | null;
+        items: DigestItem[];
+        total: number;
+        dayPointsByTournament: Map<string, number>;
       }
-      return null;
-    };
+    >();
 
-    for (const member of tournament.members) {
-      for (const match of yesterdayFinished) {
-        const pred = predByUserMatch.get(`${member.userId}:${match.id}`);
-        const oddsRow = oddsLookup(match.id);
-        const points = pred
-          ? computeMatchPoints(pred, match, oddsRow).total
-          : 0;
-        const predDisp = getMatchPredDisplay(pred);
-        const actual = matchResultHtFt(match);
-        const predictionLabel = pred
-          ? [predDisp.ht !== "—" ? `HT ${predDisp.ht}` : null, predDisp.score !== "—" ? predDisp.score : predDisp.ft !== "—" ? `FT ${predDisp.ft}` : null]
-              .filter(Boolean)
-              .join(" · ") || formatPredShort(pred)
-          : "—";
-        const resultLabel = [actual.ht ? `HT ${actual.ht}` : null, actual.ft ? `FT ${actual.ft}` : null]
-          .filter(Boolean)
-          .join(" · ") || "—";
+    const ranksByTournament = new Map<
+      string,
+      Map<string, { rank: number; total: number; count: number }>
+    >();
 
-        const entry = digestByUser.get(member.userId) ?? {
-          email: member.user.email,
-          firstName: member.user.firstName,
-          items: [],
-          total: 0,
-        };
-        entry.items.push({
+    for (const tournament of active) {
+      const inWindow = matchesForEmailTournament(tournament, matchesByCompetition);
+      const dayFinished = inWindow.filter((m) => {
+        if (matchDateKeyBucharest(m.utcDate) !== dayKey) return false;
+        return m.status === "FINISHED" || m.status === "AWARDED";
+      });
+      if (dayFinished.length === 0) continue;
+
+      ranksByTournament.set(tournament.id, memberRanks(tournament.members));
+
+      const preds = await prisma.wcMatchPrediction.findMany({
+        where: {
           tournamentId: tournament.id,
-          tournamentName: tournament.name,
-          fixture: fixtureFullName(match),
-          prediction: predictionLabel,
-          result: resultLabel,
-          points,
-        });
-        entry.total += points;
-        digestByUser.set(member.userId, entry);
+          matchId: { in: dayFinished.map((m) => m.id) },
+        },
+      });
+      const predByUserMatch = new Map<string, MatchPredictionInput>();
+      for (const p of preds) {
+        predByUserMatch.set(`${p.userId}:${p.matchId}`, p);
+      }
+
+      const keys = competitionKeysForEmailTournament(tournament);
+      const oddsLookup = (matchId: number) => {
+        for (const key of keys) {
+          const maps = oddsByCompetition.get(key);
+          const row = maps?.matchById.get(matchId);
+          if (row) return row;
+        }
+        return null;
+      };
+
+      for (const member of tournament.members) {
+        if (!member.user.email?.includes("@")) continue;
+        for (const match of dayFinished) {
+          const pred = predByUserMatch.get(`${member.userId}:${match.id}`);
+          const oddsRow = oddsLookup(match.id);
+          const points = pred
+            ? computeMatchPoints(pred, match, oddsRow).total
+            : 0;
+          const predDisp = getMatchPredDisplay(pred);
+          const actual = matchResultHtFt(match);
+          const predictionLabel = pred
+            ? [predDisp.ht !== "—" ? `HT ${predDisp.ht}` : null, predDisp.score !== "—" ? predDisp.score : predDisp.ft !== "—" ? `FT ${predDisp.ft}` : null]
+                .filter(Boolean)
+                .join(" · ") || formatPredShort(pred)
+            : "—";
+          const resultLabel = [actual.ht ? `HT ${actual.ht}` : null, actual.ft ? `FT ${actual.ft}` : null]
+            .filter(Boolean)
+            .join(" · ") || "—";
+
+          const entry = digestByUser.get(member.userId) ?? {
+            email: member.user.email,
+            firstName: member.user.firstName,
+            items: [],
+            total: 0,
+            dayPointsByTournament: new Map<string, number>(),
+          };
+          entry.items.push({
+            tournamentId: tournament.id,
+            tournamentName: tournament.name,
+            fixture: fixtureFullName(match),
+            prediction: predictionLabel,
+            result: resultLabel,
+            points,
+          });
+          entry.total += points;
+          entry.dayPointsByTournament.set(
+            tournament.id,
+            (entry.dayPointsByTournament.get(tournament.id) ?? 0) + points,
+          );
+          digestByUser.set(member.userId, entry);
+        }
       }
     }
-  }
 
-  for (const [userId, data] of digestByUser) {
-    if (data.items.length === 0) continue;
-    const primaryTournamentId = data.items[0]!.tournamentId;
-    const rendered = renderDailyDigestEmail({
-      firstName: data.firstName,
-      dateLabel,
-      totalPoints: Math.round(data.total * 100) / 100,
-      matches: data.items.map((i) => ({
-        tournamentName: i.tournamentName,
-        fixture: i.fixture,
-        prediction: i.prediction,
-        result: i.result,
-        points: formatPoints(i.points),
-      })),
-      ctaHref: `${base}/turnee/${primaryTournamentId}`,
-    });
+    console.info("[email] digest users", digestByUser.size, "day", dayKey);
 
-    await claimAndSend({
-      kind: "digest",
-      dedupeKey: `${userId}:${yesterdayKey}`,
-      to: data.email,
-      subject: rendered.subject,
-      html: rendered.html,
-      text: rendered.text,
-      result,
-    });
+    for (const [userId, data] of digestByUser) {
+      if (data.items.length === 0) continue;
+      const primaryTournamentId = data.items[0]!.tournamentId;
+      const seen = new Set<string>();
+      const tournamentsStatus = [];
+      for (const item of data.items) {
+        if (seen.has(item.tournamentId)) continue;
+        seen.add(item.tournamentId);
+        const rank = ranksByTournament.get(item.tournamentId)?.get(userId);
+        tournamentsStatus.push({
+          tournamentName: item.tournamentName,
+          rank: rank?.rank ?? 0,
+          memberCount: rank?.count ?? 0,
+          totalPoints: rank?.total ?? 0,
+          dayPoints: Math.round((data.dayPointsByTournament.get(item.tournamentId) ?? 0) * 100) / 100,
+        });
+      }
+
+      const rendered = renderDailyDigestEmail({
+        firstName: data.firstName,
+        dateLabel,
+        totalPoints: Math.round(data.total * 100) / 100,
+        tournaments: tournamentsStatus,
+        matches: data.items.map((i) => ({
+          tournamentName: i.tournamentName,
+          fixture: i.fixture,
+          prediction: i.prediction,
+          result: i.result,
+          points: formatPoints(i.points),
+        })),
+        ctaHref: `${base}/turnee/${primaryTournamentId}`,
+      });
+
+      await claimAndSend({
+        kind: "digest",
+        dedupeKey: `${userId}:${dayKey}`,
+        to: data.email,
+        subject: rendered.subject,
+        html: rendered.html,
+        text: rendered.text,
+        result,
+      });
+    }
   }
 
   return result;
@@ -692,11 +787,141 @@ export async function sendFinalRankingEmails(
   return merged;
 }
 
+function tournamentDetailLine(t: {
+  selectedMatchIds: number[];
+  startMatchday: number | null;
+  endMatchday: number | null;
+}): string | null {
+  if ((t.selectedMatchIds?.length ?? 0) > 0) {
+    const n = t.selectedMatchIds.length;
+    return n === 1 ? "1 meci selectat" : `${n} meciuri selectate`;
+  }
+  if (t.startMatchday != null && t.endMatchday != null) {
+    if (t.startMatchday === t.endMatchday) return `Etapa ${t.startMatchday}`;
+    return `Etapele ${t.startMatchday}–${t.endMatchday}`;
+  }
+  return null;
+}
+
+/** Anunț turneu public nou — toți membrii (la creare = toți utilizatorii). */
+export async function sendNewPublicTournamentEmails(
+  tournamentId: string,
+): Promise<EmailJobResult> {
+  const result = emptyEmailResult();
+  const tournament = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+    select: {
+      id: true,
+      name: true,
+      isPublic: true,
+      closedAt: true,
+      competition: true,
+      competitions: true,
+      selectedMatchIds: true,
+      startMatchday: true,
+      endMatchday: true,
+      prizes: true,
+      members: {
+        select: {
+          userId: true,
+          user: {
+            select: { email: true, firstName: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!tournament || !tournament.isPublic || tournament.closedAt != null) {
+    return result;
+  }
+
+  const base = appBaseUrl();
+  const ctaHref = `${base}/turnee/${tournament.id}`;
+  const competitionLabel = tournamentCompetitionLabel(tournament);
+  const detailLine = tournamentDetailLine(tournament);
+  const prizes = parsePrizes(tournament.prizes).map((p) => ({
+    place: placeLabel(p.place),
+    prize: p.prize,
+  }));
+
+  console.info(
+    "[email] new public tournament",
+    tournament.name,
+    "recipients",
+    tournament.members.length,
+  );
+
+  for (const member of tournament.members) {
+    const email = member.user.email?.trim();
+    if (!email || !email.includes("@")) {
+      result.skipped++;
+      continue;
+    }
+
+    const rendered = renderNewPublicTournamentEmail({
+      firstName: member.user.firstName,
+      tournamentName: tournament.name,
+      competitionLabel,
+      detailLine,
+      prizes,
+      ctaHref,
+    });
+
+    await claimAndSend({
+      kind: "new_public",
+      dedupeKey: `${tournament.id}:${member.userId}`,
+      to: email,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+      result,
+    });
+  }
+
+  return result;
+}
+
+/** Reia anunțurile pentru turnee publice create în ultimele 7 zile (membri rămași). */
+export async function retryNewPublicTournamentEmails(
+  now: Date = new Date(),
+): Promise<EmailJobResult> {
+  const merged = emptyEmailResult();
+  const since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const rows = await prisma.tournament.findMany({
+    where: { isPublic: true, createdAt: { gte: since } },
+    select: { id: true, closedAt: true },
+  });
+
+  for (const t of rows) {
+    if (t.closedAt != null) continue;
+    mergeEmailResult(merged, await sendNewPublicTournamentEmails(t.id));
+  }
+  return merged;
+}
+
+/** Job-urile de dimineață: digest + reminder + clasament etapă + retry turnee noi. */
+export async function runScheduledEmailJobs(
+  now: Date = new Date(),
+): Promise<{
+  digest: EmailJobResult;
+  reminder: EmailJobResult;
+  stageRank: EmailJobResult;
+  newPublic: EmailJobResult;
+}> {
+  const digest = await sendDailyDigests(now);
+  const reminder = await sendPredictionReminders(now);
+  const stageRank = await sendStageRankingEmails(now);
+  const newPublic = await retryNewPublicTournamentEmails(now);
+  return { digest, reminder, stageRank, newPublic };
+}
+
 /** Sample-uri pentru test admin — fără dedupe pe user real. */
 export async function sendTestEmails(to: string): Promise<{
   reminder: Awaited<ReturnType<typeof sendEmail>>;
   digest: Awaited<ReturnType<typeof sendEmail>>;
   ranking: Awaited<ReturnType<typeof sendEmail>>;
+  newTournament: Awaited<ReturnType<typeof sendEmail>>;
 }> {
   const base = appBaseUrl();
   const reminder = renderPredictionReminderEmail({
@@ -721,6 +946,15 @@ export async function sendTestEmails(to: string): Promise<{
     firstName: "Teodor",
     dateLabel: formatBucharestDateLabel(addDaysToDateKey(formatDateKeyBucharest(), -1)),
     totalPoints: 7.5,
+    tournaments: [
+      {
+        tournamentName: "Liga Demo",
+        rank: 3,
+        memberCount: 42,
+        totalPoints: 48,
+        dayPoints: 7.5,
+      },
+    ],
     matches: [
       {
         tournamentName: "Liga Demo",
@@ -754,17 +988,34 @@ export async function sendTestEmails(to: string): Promise<{
     ],
     ctaHref: `${base}/turnee`,
   });
+  const newTournament = renderNewPublicTournamentEmail({
+    firstName: "Teodor",
+    tournamentName: "Liga Demo",
+    competitionLabel: "SuperLiga României (2026–27)",
+    detailLine: "Etapele 8–12",
+    prizes: [
+      { place: "Locul 1", prize: "Tricou de fotbal" },
+      { place: "Locul 2", prize: "Card cadou 100 RON" },
+    ],
+    ctaHref: `${base}/turnee`,
+  });
 
   // Trimite direct la `to`, ocolind EMAIL_TEST_TO rewrite pentru testul explicit.
   const prevTestTo = process.env.EMAIL_TEST_TO;
   delete process.env.EMAIL_TEST_TO;
   try {
-    const [r1, r2, r3] = await Promise.all([
+    const [r1, r2, r3, r4] = await Promise.all([
       sendEmail({ to, subject: reminder.subject, html: reminder.html, text: reminder.text }),
       sendEmail({ to, subject: digest.subject, html: digest.html, text: digest.text }),
       sendEmail({ to, subject: ranking.subject, html: ranking.html, text: ranking.text }),
+      sendEmail({
+        to,
+        subject: newTournament.subject,
+        html: newTournament.html,
+        text: newTournament.text,
+      }),
     ]);
-    return { reminder: r1, digest: r2, ranking: r3 };
+    return { reminder: r1, digest: r2, ranking: r3, newTournament: r4 };
   } finally {
     if (prevTestTo != null) process.env.EMAIL_TEST_TO = prevTestTo;
   }

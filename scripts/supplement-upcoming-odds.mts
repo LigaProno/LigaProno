@@ -13,6 +13,7 @@ import {
 import { parseStoredCompetition } from "../src/lib/competition.ts";
 import { isKnockoutStage } from "../src/lib/knockout-predictions.ts";
 import { supplementOddsWithGemini } from "../src/lib/odds-supplement.ts";
+import { lockedOddsMatchIds } from "../src/lib/odds-horizon.ts";
 
 const prisma = new PrismaClient();
 const competition = process.argv[2]?.trim() || "WC_2026";
@@ -43,6 +44,7 @@ const ctx = {
   season: parsed.season,
   matches,
   teams,
+  lockedMatchIds: lockedOddsMatchIds(matches, payload),
 };
 
 console.log("Completare cote via Gemini...");

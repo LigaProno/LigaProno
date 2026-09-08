@@ -39,8 +39,8 @@ import {
 import { PrizePreferencePanel } from "@/components/turnee/prize-preference-panel";
 import { PrizePreferencePrompt } from "@/components/turnee/prize-preference-prompt";
 import { PrizeAllocationView } from "@/components/turnee/prize-allocation-view";
-import { PublicTournamentPrizeNotice } from "@/components/turnee/public-tournament-prize-notice";
 import { AdminActivityPanel } from "@/components/turnee/admin-activity-panel";
+import { parsePrizes, prizesIncludeVoucher } from "@/lib/tournament-prizes";
 
 function displayName(first?: string | null, last?: string | null): string {
   const s = `${first ?? ""} ${last ?? ""}`.trim();
@@ -85,6 +85,9 @@ export default async function PartyTournamentPage({
   // Creator sau admin/moderator poate gestiona cotele
   const isCreator = tournament.creatorId === user.id || canMonitor;
   const tournamentMembers = tournament.members;
+  const parsedPrizes = parsePrizes(tournament.prizes);
+  const hasPublicPrizes = tournament.isPublic && parsedPrizes.length > 0;
+  const hasVoucherPrizes = hasPublicPrizes && prizesIncludeVoucher(parsedPrizes);
 
   const competitionKeys = resolveTournamentCompetitionKeys(tournament);
   const hasCompetition = competitionKeys.length > 0;
@@ -501,7 +504,6 @@ export default async function PartyTournamentPage({
             <span className="text-base" aria-hidden>🎁</span>
             <h2 className="text-base font-bold text-white">{t("party.prizePref.title")}</h2>
           </div>
-          {tournament.isPublic ? <PublicTournamentPrizeNotice /> : null}
           <PrizePreferencePanel
             tournamentId={tournament.id}
             pool={tournament.prizePool}
@@ -531,6 +533,8 @@ export default async function PartyTournamentPage({
         competitions={competitionKeys}
         isMixed={isMixedTournament(tournament)}
         isPublic={tournament.isPublic}
+        hasPublicPrizes={hasPublicPrizes}
+        hasVoucherPrizes={hasVoucherPrizes}
         isCreator={isCreator}
         currentUserId={user.id}
         matches={matches}

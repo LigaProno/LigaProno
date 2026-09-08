@@ -47,7 +47,7 @@ export default function EmailTestButton() {
       <div>
         <h3 className="text-sm font-semibold text-white">Email — test</h3>
         <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>
-          Trimite sample-urile reminder, rezumat zilnic și clasament (From: noreply@ligaprono.ro).
+          Trimite sample-urile reminder, rezumat zilnic, clasament și turneu nou (From: noreply@ligaprono.ro).
         </p>
       </div>
       <button

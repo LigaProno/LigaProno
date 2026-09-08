@@ -16,6 +16,7 @@ import { isKnockoutStage } from "@/lib/knockout-predictions";
 import { bestLegacyTournamentOddsPayload } from "@/lib/competition-odds";
 import {
   getOddsProvider,
+  hasOddsPortalCoverage,
   isOddsFallbackGeminiEnabled,
   isOddsSupplementGeminiEnabled,
   resolveOddsProviderName,
@@ -23,8 +24,7 @@ import {
 import { geminiOddsProvider } from "@/lib/odds-providers/gemini-provider";
 import { supplementOddsWithGemini } from "@/lib/odds-supplement";
 import { isGeminiApiKeyConfigured } from "@/lib/gemini-odds-fetch";
-import { matchesNeedingOddsFill } from "@/lib/odds-horizon";
-import { fillEstimatedMatchMarketsInPayload } from "@/lib/odds-providers/estimate-from-1x2";
+import { lockedOddsMatchIds, matchesNeedingOddsFill } from "@/lib/odds-horizon";
 import { prisma } from "@/lib/prisma";
 
 export type RefreshCompetitionOddsResult =
@@ -83,6 +83,9 @@ export async function refreshOddsForCompetition(
       existingPayload,
     ).map((m) => m.id);
 
+    /** Meciuri începute: cotele lor rămân cele de la kick-off. */
+    const lockedMatchIds = lockedOddsMatchIds(matches, existingPayload);
+
     const upcomingCount = matches.filter(
       (m) => m.status !== "FINISHED" && m.status !== "CANCELLED",
     ).length;
@@ -93,7 +96,8 @@ export async function refreshOddsForCompetition(
     console.info(
       `[odds] ${competitionKey}: ${matches.length} meciuri total, ` +
       `${upcomingCount} upcoming, ${existingOddsCount} cu cote existente, ` +
-      `${matchIdsNeedingOddsRefresh.length} necesită refresh explicit`,
+      `${matchIdsNeedingOddsRefresh.length} necesită refresh explicit, ` +
+      `${lockedMatchIds.size} înghețate după kick-off`,
     );
 
     const ctx = {
@@ -103,6 +107,7 @@ export async function refreshOddsForCompetition(
       matches,
       teams,
       matchIdsNeedingOddsRefresh,
+      lockedMatchIds,
     };
 
     const primary = getOddsProvider();
@@ -116,9 +121,12 @@ export async function refreshOddsForCompetition(
       oddsSource = result.provider;
     } catch (primaryErr) {
       const msg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
+      // Pe competițiile pe care OddsPortal le acoperă nu inventăm cote cu Gemini:
+      // un eșec temporar lasă în loc snapshot-ul existent, cu cote reale.
       const canFallback =
         isOddsFallbackGeminiEnabled() &&
-        resolveOddsProviderName() === "oddsportal";
+        resolveOddsProviderName() === "oddsportal" &&
+        !hasOddsPortalCoverage(parsed.code, parsed.season);
 
       if (!canFallback) {
         throw primaryErr;
@@ -136,10 +144,9 @@ export async function refreshOddsForCompetition(
     let payload: BettingOddsPayload = sanitizeBettingPayload(rawPayload);
 
     if (existingPayload) {
-      payload = mergeBettingPayloads(payload, existingPayload);
+      payload = mergeBettingPayloads(payload, existingPayload, { lockedMatchIds });
     }
 
-    payload = fillEstimatedMatchMarketsInPayload(payload);
     payload = fillEstimatedQualifyOdds(payload);
     const koMatchIds = matches
       .filter((m) => isKnockoutStage(m.stage))
@@ -200,7 +207,6 @@ export async function refreshOddsForCompetition(
         const supplement = await supplementOddsWithGemini(payload, ctx);
         if (supplement.supplementedTeams || supplement.supplementedMatchCount > 0) {
           payload = sanitizeBettingPayload(supplement.payload);
-          payload = fillEstimatedMatchMarketsInPayload(payload);
           payload = fillEstimatedQualifyOdds(payload);
           payload = fillEstimatedToAdvanceOdds(payload, koMatchIds);
           oddsSource =

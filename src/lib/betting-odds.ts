@@ -226,6 +226,33 @@ export function hasCorrectScoreOdds(row: MatchOddsRow | null | undefined): boole
   return isPlausibleCorrectScore(row.correctScore);
 }
 
+/**
+ * Suma probabilităților implicite. Într-o piață reală depășește 1 — diferența e
+ * marja casei. Sub 1 ar însemna profit garantat pentru parior, deci imposibil.
+ */
+export function impliedMargin(table: Record<string, number> | null | undefined): number {
+  if (!table) return 0;
+  let sum = 0;
+  for (const v of Object.values(table)) {
+    if (Number.isFinite(v) && v >= 1) sum += 1 / v;
+  }
+  return sum;
+}
+
+/**
+ * True dacă tabelul de scor corect vine din modelul nostru, nu de pe piață.
+ * Estimarea din 1X2 acoperă toată grila 0-4 și iese cu o marjă sub 1, ceea ce
+ * nicio casă nu oferă. Astfel de rânduri se re-cer, ca jucătorii să vadă cote
+ * reale. Cerem și grila plină, ca un tabel real dar parțial să nu fie confundat.
+ */
+export function isEstimatedCorrectScore(
+  table: Record<string, number> | null | undefined,
+): boolean {
+  if (!isPlausibleCorrectScore(table)) return false;
+  if (Object.keys(table!).length < 20) return false;
+  return impliedMargin(table) < 1.05;
+}
+
 /** True dacă rândul pare să vină dintr-o sursă reală (nu doar fallback ×1 / 1.01). */
 export function hasUsableMatchOdds(row: MatchOddsRow | null | undefined): boolean {
   if (!row) return false;
@@ -235,12 +262,13 @@ export function hasUsableMatchOdds(row: MatchOddsRow | null | undefined): boolea
 }
 
 /**
- * True dacă meciul are atât 1X2 util, cât și tabel de scor corect.
- * Folosit ca să re-cerem cotele de pe OddsPortal când CS lipsește.
+ * True dacă meciul are 1X2 util și un tabel de scor corect venit de pe piață.
+ * Folosit ca să re-cerem cotele de pe OddsPortal când CS lipsește sau e estimat.
  */
 export function hasCompleteMatchOdds(row: MatchOddsRow | null | undefined): boolean {
   if (!row || !hasUsableMatchOdds(row)) return false;
-  return hasCorrectScoreOdds(row);
+  if (!hasCorrectScoreOdds(row)) return false;
+  return !isEstimatedCorrectScore(row.correctScore);
 }
 
 /** Păstrează doar meciurile cu cote reale (exclude placeholder-ele ×1). */
@@ -305,13 +333,43 @@ export function mergeMatchOddsRowPreferRicher(
 }
 
 /**
+ * Rând de meci început: cotele deja salvate nu se mai clintesc, altfel punctajul
+ * se rescrie după fluierul final. Piețele care lipsesc se pot totuși completa —
+ * un meci prins fără scor corect ar rămâne altfel punctat pe cotă 1 la infinit.
+ */
+export function mergeLockedMatchOddsRow(
+  existing: MatchOddsRow,
+  incoming: MatchOddsRow | undefined,
+): MatchOddsRow {
+  if (!incoming) return existing;
+  const keepCs =
+    isPlausibleCorrectScore(existing.correctScore) &&
+    !isEstimatedCorrectScore(existing.correctScore);
+  return {
+    ft1x2: isPlausible1x2(existing.ft1x2) ? existing.ft1x2 : incoming.ft1x2,
+    ht1x2: isPlausible1x2(existing.ht1x2) ? existing.ht1x2 : incoming.ht1x2,
+    htFt:
+      existing.htFt && Object.keys(existing.htFt).length >= 6 ?
+        existing.htFt
+      : incoming.htFt,
+    correctScore: keepCs ? existing.correctScore : incoming.correctScore,
+    toAdvance: existing.toAdvance ?? incoming.toAdvance,
+  };
+}
+
+/**
  * Combină două snapshot-uri: valorile din `preferred` au prioritate când sunt utilizabile,
  * iar scorul corect se ia din sursa cu mai multe linii (evită să ștergem CS la refresh 1X2-only).
+ *
+ * `lockedMatchIds` marchează meciurile începute: pentru ele se păstrează cotele
+ * din `fallback` și se completează doar piețele lipsă.
  */
 export function mergeBettingPayloads(
   preferred: BettingOddsPayload,
   fallback: BettingOddsPayload,
+  options?: { lockedMatchIds?: ReadonlySet<string> },
 ): BettingOddsPayload {
+  const locked = options?.lockedMatchIds;
   const matchIds = new Set([
     ...Object.keys(preferred.matches),
     ...Object.keys(fallback.matches),
@@ -320,6 +378,10 @@ export function mergeBettingPayloads(
   for (const id of matchIds) {
     const p = preferred.matches[id];
     const f = fallback.matches[id];
+    if (locked?.has(id) && f) {
+      matches[id] = mergeLockedMatchOddsRow(f, p);
+      continue;
+    }
     const merged = mergeMatchOddsRowPreferRicher(p, f);
     if (merged) matches[id] = merged;
   }
