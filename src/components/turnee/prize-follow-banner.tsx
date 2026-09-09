@@ -27,7 +27,7 @@ export function PrizeFollowBanner() {
 
   return (
     <div
-      className="rounded-2xl border-2 p-5 sm:p-7 flex flex-col sm:flex-row items-start gap-4 sm:gap-5"
+      className="rounded-2xl border-2 p-5 sm:p-7 flex flex-col gap-2"
       style={{
         borderColor: "#D4AF37",
         background:
@@ -35,9 +35,6 @@ export function PrizeFollowBanner() {
         boxShadow: "0 0 0 1px rgba(212,175,55,0.25), 0 10px 40px rgba(212,175,55,0.15)",
       }}
     >
-      <span className="text-5xl sm:text-6xl shrink-0 leading-none" aria-hidden>
-        📸
-      </span>
       <div className="flex flex-col gap-2 min-w-0">
         <h3
           className="text-lg sm:text-2xl font-extrabold uppercase tracking-wide"

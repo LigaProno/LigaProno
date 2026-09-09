@@ -166,7 +166,7 @@ export const en: Messages = {
     "You already refreshed odds manually today. Try again tomorrow.",
   "party.competitionLabel": "Competition",
   "party.predictionSaved": "Prediction saved.",
-  "party.predictionSavedFollow": "Prediction saved! ⚠️ For prizes, follow {names} on Instagram before the matchday starts.",
+  "party.predictionSavedFollow": "Prediction saved! For prizes, follow {names} on Instagram before the matchday starts.",
   "party.matchesUpdated": "Matches updated ({count} scheduled).",
   "party.noCompetitionMember":
     "The tournament creator must set the competition at creation.",
@@ -191,7 +191,7 @@ export const en: Messages = {
   "party.tab.prizes": "Prizes leaderboard",
   "party.tab.fixtures": "Fixture standings",
   "party.fixtures.matchdayShort": "Matchday",
-  "party.followBanner.title": "Heads up — for prizes!",
+  "party.followBanner.title": "Heads up, for prizes!",
   "party.followBanner.followOn": "To win the prizes, follow on Instagram",
   "party.followBanner.and": "and",
   "party.followBanner.beforeStart": "before the matchday starts",
