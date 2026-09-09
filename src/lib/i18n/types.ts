@@ -148,6 +148,7 @@ export type MessageKey =
   | "party.oddsOncePerDayHint"
   | "party.competitionLabel"
   | "party.predictionSaved"
+  | "party.predictionSavedFollow"
   | "party.matchesUpdated"
   | "party.noCompetitionMember"
   | "party.savePrediction"

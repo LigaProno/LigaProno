@@ -27,24 +27,25 @@ export function PrizeFollowBanner() {
 
   return (
     <div
-      className="rounded-2xl border p-4 sm:p-5 flex items-start gap-3 sm:gap-4"
+      className="rounded-2xl border-2 p-5 sm:p-7 flex flex-col sm:flex-row items-start gap-4 sm:gap-5"
       style={{
-        borderColor: "rgba(212,175,55,0.5)",
+        borderColor: "#D4AF37",
         background:
-          "linear-gradient(135deg, rgba(212,175,55,0.18) 0%, rgba(212,175,55,0.05) 55%, rgba(212,175,55,0.02) 100%)",
+          "linear-gradient(135deg, rgba(212,175,55,0.32) 0%, rgba(212,175,55,0.14) 55%, rgba(212,175,55,0.06) 100%)",
+        boxShadow: "0 0 0 1px rgba(212,175,55,0.25), 0 10px 40px rgba(212,175,55,0.15)",
       }}
     >
-      <span className="text-3xl sm:text-4xl shrink-0 leading-none" aria-hidden>
+      <span className="text-5xl sm:text-6xl shrink-0 leading-none" aria-hidden>
         📸
       </span>
-      <div className="flex flex-col gap-1.5 min-w-0">
+      <div className="flex flex-col gap-2 min-w-0">
         <h3
-          className="text-base sm:text-lg font-extrabold uppercase tracking-wide"
-          style={{ color: "#E8C878" }}
+          className="text-lg sm:text-2xl font-extrabold uppercase tracking-wide"
+          style={{ color: "#F0D585" }}
         >
           {t("party.followBanner.title")}
         </h3>
-        <p className="text-base sm:text-xl font-bold leading-snug text-white">
+        <p className="text-xl sm:text-3xl font-extrabold leading-tight text-white">
           {t("party.followBanner.followOn")}{" "}
           <IgLink href={INSTAGRAM_URL}>Liga Prono</IgLink>
           {CONTEST_PARTNERS.map((partner) => (
@@ -53,9 +54,15 @@ export function PrizeFollowBanner() {
               {t("party.followBanner.and")} <IgLink href={partner.instagramUrl}>{partner.name}</IgLink>
             </span>
           ))}{" "}
-          <span style={{ color: "#E8C878" }}>{t("party.followBanner.beforeStart")}</span>.
+          <span
+            className="inline-block px-1.5 rounded"
+            style={{ color: "#0A0B1E", backgroundColor: "#F0D585" }}
+          >
+            {t("party.followBanner.beforeStart")}
+          </span>
+          !
         </p>
-        <p className="text-xs sm:text-sm leading-relaxed text-white/60">
+        <p className="text-sm sm:text-base leading-relaxed text-white/70">
           {t("party.followBanner.orNoPrize")}
         </p>
       </div>

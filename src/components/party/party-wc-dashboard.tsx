@@ -45,6 +45,7 @@ import type { LiveFixture } from "@/lib/live-fixture-types";
 import { CopyPredictionsModal, type CopyTargetTournament } from "@/components/party/copy-predictions-modal";
 import { FixtureStatsCard, type FixtureStats } from "@/components/party/fixture-stats-card";
 import { PrizeFollowBanner } from "@/components/turnee/prize-follow-banner";
+import { CONTEST_PARTNERS } from "@/lib/social-links";
 import { PublicTournamentPrizeNotice } from "@/components/turnee/public-tournament-prize-notice";
 
 export type LeaderboardRow = {
@@ -154,6 +155,18 @@ export default function PartyWcDashboard({
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  // La turneele publice cu premii, reamintim la fiecare salvare că e nevoie de
+  // follow pe Instagram (Liga Prono + parteneri, ex. Kitman).
+  const followNames = useMemo(() => {
+    const names = ["Liga Prono", ...CONTEST_PARTNERS.map((p) => p.name)];
+    if (names.length <= 1) return names[0] ?? "Liga Prono";
+    return `${names.slice(0, -1).join(", ")} ${t("party.followBanner.and")} ${names[names.length - 1]}`;
+  }, [t]);
+  const savedMessage = () =>
+    isPublic && hasPublicPrizes
+      ? t("party.predictionSavedFollow", { names: followNames })
+      : t("party.predictionSaved");
   const matchDraftGettersRef = useRef(
     new Map<number, () => MatchPredictionSaveInput>(),
   );
@@ -240,7 +253,7 @@ export default function PartyWcDashboard({
         registerMatchDraft={registerMatchDraft}
         unregisterMatchDraft={unregisterMatchDraft}
         onSaved={() => {
-          setMsg(t("party.predictionSaved"));
+          setMsg(savedMessage());
           setErr(null);
           router.refresh();
         }}
@@ -280,7 +293,11 @@ export default function PartyWcDashboard({
         if (skippedConflict) {
           setErr(t("errors.scoreFtMismatch"));
         } else {
-          setMsg(t("party.group.saveAllSuccess"));
+          setMsg(
+            isPublic && hasPublicPrizes
+              ? t("party.predictionSavedFollow", { names: followNames })
+              : t("party.group.saveAllSuccess"),
+          );
         }
         router.refresh();
       } catch (e) {

@@ -166,6 +166,7 @@ export const en: Messages = {
     "You already refreshed odds manually today. Try again tomorrow.",
   "party.competitionLabel": "Competition",
   "party.predictionSaved": "Prediction saved.",
+  "party.predictionSavedFollow": "Prediction saved! ⚠️ For prizes, follow {names} on Instagram before the matchday starts.",
   "party.matchesUpdated": "Matches updated ({count} scheduled).",
   "party.noCompetitionMember":
     "The tournament creator must set the competition at creation.",

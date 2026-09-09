@@ -167,6 +167,7 @@ export const ro: Messages = {
     "Ai actualizat cotele manual astăzi. Poți reîncerca mâine.",
   "party.competitionLabel": "Competiție",
   "party.predictionSaved": "Pronostic salvat.",
+  "party.predictionSavedFollow": "Pronostic salvat! ⚠️ Pentru premii, dă follow pe Instagram la {names} înainte de startul etapei.",
   "party.matchesUpdated": "Meciuri actualizate ({count} în program).",
   "party.noCompetitionMember":
     "Creatorul turneului trebuie să seteze competiția la creare.",
