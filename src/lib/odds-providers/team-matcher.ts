@@ -86,6 +86,9 @@ const WEAK_GEO_TOKENS = new Set([
   "sfantu",
 ]);
 
+/** Cât de aproape trebuie să fie orele de start ca să le considerăm același meci. */
+const SAME_KICKOFF_TOLERANCE_MS = 5 * 60_000;
+
 function significantTokens(normalized: string): string[] {
   return normalized.split(" ").filter((w) => w && !TEAM_NAME_STOPWORDS.has(w));
 }
@@ -153,11 +156,24 @@ function scoreFixtureAgainstMatch(
   const homeAway = fixtureSideMatchesFdTeam(fixture.home, fdMatch.awayTeam);
   const awayHome = fixtureSideMatchesFdTeam(fixture.away, fdMatch.homeTeam);
 
+  const fdMs = parseFdMatchMs(fdMatch);
+  const opMs = parseIsoMs(fixture.startDateIso);
+  const sameKickoff =
+    fdMs != null && opMs != null && Math.abs(fdMs - opMs) <= SAME_KICKOFF_TOLERANCE_MS;
+
   const orientedOk = homeHome && awayAway;
   const swappedOk = homeAway && awayHome;
-  if (!orientedOk && !swappedOk) return null;
+  // OddsPortal servește uneori numele traduse (pagina de rezultate din Champions
+  // League vine cu „Real Madryt" în loc de Real Madrid), deci recunoaștem doar o
+  // parte din meci. Ora de start identică la minut, plus atribuirea unu-la-unu de
+  // mai jos, fac potrivirea sigură; o punctăm sub cea pe ambele echipe.
+  const oneSidedOk = sameKickoff && (homeHome || awayAway);
+  if (!orientedOk && !swappedOk && !oneSidedOk) return null;
 
-  let score = orientedOk ? 100 : 40;
+  let score =
+    orientedOk ? 100
+    : swappedOk ? 40
+    : 20;
 
   // Bonus pentru egalitate exactă pe nume normalizate.
   for (const [side, team] of [
@@ -170,8 +186,6 @@ function scoreFixtureAgainstMatch(
   }
 
   const maxDiffHours = opts?.maxDiffHours === undefined ? 18 : opts.maxDiffHours;
-  const fdMs = parseFdMatchMs(fdMatch);
-  const opMs = parseIsoMs(fixture.startDateIso);
   if (fdMs != null && opMs != null) {
     const diffH = Math.abs(fdMs - opMs) / 3_600_000;
     if (maxDiffHours != null && diffH > maxDiffHours) return null;

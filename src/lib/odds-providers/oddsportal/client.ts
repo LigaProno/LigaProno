@@ -58,6 +58,9 @@ export async function fetchOddsPortalHtml(
     headers: {
       "User-Agent": process.env.ODDSPORTAL_USER_AGENT?.trim() || DEFAULT_USER_AGENT,
       Accept: "text/html,application/xhtml+xml",
+      // Fără asta, CDN-ul ne poate servi varianta localizată a paginii, cu numele
+      // echipelor traduse („Atl. Madryt”), pe care maparea nu le mai recunoaște.
+      "Accept-Language": "en-US,en;q=0.9",
       Referer: referer ?? ODDSPORTAL_BASE,
     },
     ...(options?.fresh ?
@@ -499,57 +502,89 @@ function listingHasOdds(html: string): boolean {
   return html.includes("initialOddsMap") && html.includes("avgOdds");
 }
 
+/**
+ * True dacă payload-ul e cel englezesc. CDN-ul returnează uneori varianta
+ * localizată a paginii, cu numele echipelor traduse („Atl. Madryt”, „RB Lipsk”),
+ * pe care team-matcher-ul nu le recunoaște — meciurile ar rămâne tăcut fără cote.
+ * Se vede după prefixul de limbă din link-urile H2H: `/pl/football/h2h/...`.
+ */
+function listingIsEnglish(html: string): boolean {
+  return !/oddsportal\.com\/[a-z]{2}\/football\/h2h/.test(html);
+}
+
 const LISTING_ATTEMPTS = 3;
 
+/** 2 = exact ce vrem, 1 = utilizabil cu rezerve, 0 = inutilizabil. */
+type HtmlQuality = 0 | 1 | 2;
+
 /**
- * HTML listing (fresh) — cote 1X2 + fixture-uri, fără pagina de meci.
+ * HTML OddsPortal cu reîncercare până când răspunsul e cel bun.
  *
- * OddsPortal răspunde intermitent cu 503 sau cu un shell gol (200, dar fără
- * payload de cote). Reîncercăm; dacă tot nu vine nimic util, returnăm ultimul
- * răspuns, ca refresh-ul să păstreze cotele existente în loc să cadă pe Gemini.
+ * CDN-ul returnează intermitent un shell gol (200, fără payload de cote) sau
+ * varianta localizată a paginii. Ambele ar trece tăcut mai departe și ar lăsa
+ * meciuri fără cote, așa că le respingem și încercăm din nou; la final păstrăm
+ * cel mai bun răspuns primit, ca refresh-ul să nu rămână complet fără date.
  */
-export async function fetchTournamentListingHtml(
-  config: OddsPortalCompetitionConfig,
+async function fetchBestOddsPortalHtml(
+  url: string,
+  referer: string | undefined,
+  rate: (html: string) => HtmlQuality,
+  label: string,
 ): Promise<string> {
-  let lastHtml: string | null = null;
+  let best: { html: string; quality: HtmlQuality } | null = null;
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt < LISTING_ATTEMPTS; attempt++) {
     if (attempt > 0) await delay(getRequestDelayMs() * 4 * attempt);
     try {
-      const html = await fetchOddsPortalHtml(config.tournamentPageUrl, undefined, {
-        fresh: true,
-      });
-      if (listingHasOdds(html)) return html;
-      lastHtml = html;
+      const html = await fetchOddsPortalHtml(url, referer, { fresh: true });
+      const quality = rate(html);
+      if (quality === 2) return html;
+      if (!best || quality > best.quality) best = { html, quality };
       console.warn(
-        `[odds] Listing ${config.tournamentSlug} fără payload de cote ` +
-          `(încercarea ${attempt + 1}/${LISTING_ATTEMPTS}).`,
+        `[odds] ${label} respins (calitate ${quality}/2, ` +
+          `încercarea ${attempt + 1}/${LISTING_ATTEMPTS}).`,
       );
     } catch (e) {
       lastError = e;
       console.warn(
-        `[odds] Listing ${config.tournamentSlug} eșuat ` +
-          `(încercarea ${attempt + 1}/${LISTING_ATTEMPTS}): ` +
+        `[odds] ${label} eșuat (încercarea ${attempt + 1}/${LISTING_ATTEMPTS}): ` +
           `${e instanceof Error ? e.message : e}`,
       );
     }
   }
 
-  if (lastHtml != null) return lastHtml;
+  if (best) return best.html;
   throw lastError instanceof Error ?
       lastError
-    : new Error(`OddsPortal: listing indisponibil pentru ${config.tournamentSlug}`);
+    : new Error(`OddsPortal: ${label} indisponibil`);
+}
+
+/**
+ * HTML listing (fresh) — cote 1X2 + fixture-uri, fără pagina de meci.
+ * Varianta localizată are cote valide, doar numele traduse, deci e acceptabilă
+ * ca ultimă soluție; una fără payload de cote nu e.
+ */
+export async function fetchTournamentListingHtml(
+  config: OddsPortalCompetitionConfig,
+): Promise<string> {
+  return fetchBestOddsPortalHtml(
+    config.tournamentPageUrl,
+    undefined,
+    (html) => (listingHasOdds(html) ? (listingIsEnglish(html) ? 2 : 1) : 0),
+    `Listing ${config.tournamentSlug}`,
+  );
 }
 
 /** Fixture-uri de pe pagina de rezultate (meciuri terminate, pot lipsi de pe overview). */
 export async function fetchTournamentResultFixtures(
   config: OddsPortalCompetitionConfig,
 ): Promise<OpScheduleFixture[]> {
-  const html = await fetchOddsPortalHtml(
+  const html = await fetchBestOddsPortalHtml(
     buildTournamentResultsUrl(config),
     config.tournamentPageUrl,
-    { fresh: true },
+    (html) => (listingIsEnglish(html) ? 2 : 1),
+    `Rezultate ${config.tournamentSlug}`,
   );
   return parseTournamentFixturesFromHtml(html);
 }
