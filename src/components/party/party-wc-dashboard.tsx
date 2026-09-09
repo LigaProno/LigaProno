@@ -44,6 +44,7 @@ import { LiveFixtureBanner } from "@/components/party/live-fixture-banner";
 import type { LiveFixture } from "@/lib/live-fixture-types";
 import { CopyPredictionsModal, type CopyTargetTournament } from "@/components/party/copy-predictions-modal";
 import { FixtureStatsCard, type FixtureStats } from "@/components/party/fixture-stats-card";
+import { PrizeFollowBanner } from "@/components/turnee/prize-follow-banner";
 import { PublicTournamentPrizeNotice } from "@/components/turnee/public-tournament-prize-notice";
 
 export type LeaderboardRow = {
@@ -412,6 +413,8 @@ export default function PartyWcDashboard({
           </div>
         : null}
       </header>
+
+      {isPublic && hasPublicPrizes ? <PrizeFollowBanner /> : null}
 
       {isCreator && competitionActive && (
         <div
