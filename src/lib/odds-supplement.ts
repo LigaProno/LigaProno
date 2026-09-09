@@ -2,18 +2,12 @@ import type { FootballDataMatch } from "@/lib/football-data-types";
 import {
   countTeamsWithQualifyOdds,
   fillEstimatedQualifyOdds,
-  hasCompleteMatchOdds,
   mergeBettingPayloads,
   sanitizeBettingPayload,
   type BettingOddsPayload,
 } from "@/lib/betting-odds";
-import {
-  fetchMatchOddsViaGemini,
-  fetchTeamOddsViaGemini,
-  isGeminiApiKeyConfigured,
-} from "@/lib/gemini-odds-fetch";
+import { fetchTeamOddsViaGemini, isGeminiApiKeyConfigured } from "@/lib/gemini-odds-fetch";
 import type { OddsFetchContext } from "@/lib/odds-providers/types";
-import { matchesNeedingOddsFill } from "@/lib/odds-horizon";
 import { matchesForMatchday, resolveCurrentMatchday } from "@/lib/wc-pred-display";
 import { competitionHasGroupStage } from "@/lib/competition";
 
@@ -54,46 +48,6 @@ function teamsMissingQualifyOdds(
   return teams.some((t) => payload.teams[String(t.id)]?.toQualifyFromGroup == null);
 }
 
-function matchesMissingOdds(
-  payload: BettingOddsPayload,
-  matches: FootballDataMatch[],
-): FootballDataMatch[] {
-  return matches.filter((m) => !hasCompleteMatchOdds(payload.matches[String(m.id)]));
-}
-
-/** Completează cotele lipsă pe fereastra de ~3 săptămâni (nu tot sezonul). */
-async function fillMissingUpcomingMatchOdds(
-  payload: BettingOddsPayload,
-  ctx: OddsFetchContext,
-  competitionLabel: string,
-): Promise<{ payload: BettingOddsPayload; filledCount: number }> {
-  let merged = payload;
-  let filledCount = 0;
-  const target = matchesNeedingOddsFill(ctx.matches, merged);
-
-  for (let pass = 0; pass < 2; pass++) {
-    const missing = matchesMissingOdds(merged, target);
-    if (missing.length === 0) break;
-
-    const { payload: matchPayload } = await fetchMatchOddsViaGemini(
-      competitionLabel,
-      missing,
-      { timeoutMs: 180_000 },
-    );
-    const beforeMissing = missing.length;
-    merged = mergeBettingPayloads(
-      sanitizeBettingPayload(matchPayload),
-      merged,
-      { lockedMatchIds: ctx.lockedMatchIds },
-    );
-    const afterMissing = matchesMissingOdds(merged, missing).length;
-    filledCount += beforeMissing - afterMissing;
-    if (beforeMissing === afterMissing) break;
-  }
-
-  return { payload: merged, filledCount };
-}
-
 export type OddsSupplementResult = {
   payload: BettingOddsPayload;
   supplementedTeams: boolean;
@@ -101,8 +55,14 @@ export type OddsSupplementResult = {
 };
 
 /**
- * Completează golurile lăsate de OddsPortal: calificări din grupe (indisponibile acolo)
- * și meciuri nemapate / fără feed valid.
+ * Completează singurul gol pe care OddsPortal chiar îl are: cotele de calificare
+ * din grupă, piață pe care nu o publică.
+ *
+ * Piețele de meci (1X2, pauză, scor corect) NU se completează aici. Le luăm doar
+ * de pe OddsPortal — dacă lipsesc, meciul rămâne fără cote, ceea ce se vede și se
+ * poate remedia. Altfel am pune în loc cote inventate, imposibil de distins de
+ * cele reale (marja lor arată la fel de plauzibil), care rămân apoi înțepenite în
+ * snapshot pentru că trec drept „complete".
  */
 export async function supplementOddsWithGemini(
   payload: BettingOddsPayload,
@@ -137,18 +97,6 @@ export async function supplementOddsWithGemini(
     merged = fillEstimatedQualifyOdds(merged);
     supplementedTeams = true;
   }
-
-  if (!competitionHasGroupStage(ctx.code)) {
-    return { payload: merged, supplementedTeams, supplementedMatchCount };
-  }
-
-  const { payload: withMatches, filledCount } = await fillMissingUpcomingMatchOdds(
-    merged,
-    ctx,
-    ctx.competitionLabel,
-  );
-  merged = withMatches;
-  supplementedMatchCount = filledCount;
 
   return { payload: merged, supplementedTeams, supplementedMatchCount };
 }
