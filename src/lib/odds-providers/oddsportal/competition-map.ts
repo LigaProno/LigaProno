@@ -30,6 +30,10 @@ const ODDSPORTAL_BY_CODE: Record<string, OddsPortalCompetitionConfig> = {
   BL1: config("/football/germany/bundesliga/", "bundesliga", 113669, "KY7LrA6d"),
   SA: config("/football/italy/serie-a/", "serie-a", 114199, "WdNk9YwP"),
   RL1: config("/football/romania/superliga/", "superliga", 113405, "WlHrWlWA"),
+  // Champions League (faza „league"). numericId/uuid sunt folosite doar la
+  // outrights (câștigător turneu), pe care NU le punctăm în faza league și
+  // eșecul lor e prins în try/catch — cotele per-meci merg pe URL-ul turneului.
+  CL: config("/football/europe/champions-league/", "champions-league", 12385, "ChampLg26"),
 };
 
 /** Mapare cod competiție Football-Data → config OddsPortal. */
