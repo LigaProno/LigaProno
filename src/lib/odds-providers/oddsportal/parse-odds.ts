@@ -100,6 +100,19 @@ export function parseCorrectScoreFromFeed(data: unknown): Record<string, number>
   const back = (data as OddsFeedRoot)?.d?.oddsdata?.back ?? {};
   const out: Record<string, number> = {};
 
+  // TEMP DEBUG — de șters după ce reparăm scorul exact CL.
+  const allKeys = Object.keys(back);
+  const e8Keys = allKeys.filter((k) => k.startsWith("E-8"));
+  const sampleKey = e8Keys[0] ?? allKeys[0];
+  const sample = sampleKey ? back[sampleKey] : undefined;
+  console.log(
+    `[CS-DEBUG] backKeys=${allKeys.length} e8=${e8Keys.length} ` +
+      `e8sample=${JSON.stringify(e8Keys.slice(0, 12))} ` +
+      `sampleKey=${JSON.stringify(sampleKey)} ` +
+      `sampleMixedName=${JSON.stringify(sample?.mixedParameterName ?? null)} ` +
+      `sampleOddsKeys=${JSON.stringify(Object.keys(sample?.odds ?? {}).slice(0, 3))}`,
+  );
+
   for (const [marketKey, entry] of Object.entries(back)) {
     // Eticheta e sursa de adevăr: sufixul cheii („…-0-0-100”) e ambiguu de îndată
     // ce un scor are două cifre, așa că îl folosim doar când eticheta lipsește.
@@ -118,6 +131,13 @@ export function parseCorrectScoreFromFeed(data: unknown): Record<string, number>
     const m = median(vals);
     if (m != null) out[key] = m;
   }
+
+  // TEMP DEBUG — de șters după ce reparăm scorul exact CL.
+  console.log(
+    `[CS-DEBUG] parsedEntries=${Object.keys(out).length} sample=${JSON.stringify(
+      Object.fromEntries(Object.entries(out).slice(0, 4)),
+    )}`,
+  );
 
   return out;
 }
