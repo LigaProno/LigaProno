@@ -420,6 +420,14 @@ export type OpFeedTarget = {
   sportId?: number;
 };
 
+/** Câte încercări primește feed-ul de piețe al unui meci. */
+const FEED_ATTEMPTS = 3;
+
+/**
+ * Feed-ul unei piețe. Reîncercăm: un 503 trecător ar lăsa altfel meciul fără
+ * piața respectivă până la rularea următoare, iar dacă între timp începe, acolo
+ * am rămâne cu un gol în punctaj.
+ */
 export async function fetchMatchMarketFeed(
   target: OpFeedTarget,
   betType: number,
@@ -434,8 +442,18 @@ export async function fetchMatchMarketFeed(
     target.versionId ?? 1,
     target.sportId ?? 1,
   );
-  await delay(getRequestDelayMs());
-  return fetchAndDecryptJson(`${ODDSPORTAL_BASE}${path}`, referer);
+
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < FEED_ATTEMPTS; attempt++) {
+    await delay(getRequestDelayMs() * (attempt > 0 ? 3 * attempt : 1));
+    try {
+      return await fetchAndDecryptJson(`${ODDSPORTAL_BASE}${path}`, referer);
+    } catch (e) {
+      lastError = e;
+    }
+  }
+  throw lastError instanceof Error ? lastError
+    : new Error(`OddsPortal: feed indisponibil pentru ${target.matchId}`);
 }
 
 export async function fetchFtHtCsFeeds(

@@ -245,6 +245,9 @@ export class OddsPortalProvider implements OddsProvider {
     }
 
     let realMarketCount = 0;
+    /** Meciuri cerute, dar rămase fără scor corect real — golul de raportat. */
+    const missingCorrectScore: string[] = [];
+    const requestedIds = new Set(feedTargets.map(([fdMatchId]) => fdMatchId));
     const fallback1x2 = { HOME: 1, DRAW: 1, AWAY: 1 } as MatchOddsRow["ft1x2"];
 
     for (const [fdMatchId, fx] of mapped) {
@@ -263,6 +266,7 @@ export class OddsPortalProvider implements OddsProvider {
         correctScore: d?.correctScore ?? {},
       };
       if (isPlausibleCorrectScore(d?.correctScore)) realMarketCount++;
+      else if (requestedIds.has(fdMatchId)) missingCorrectScore.push(fx.matchId);
     }
 
     console.info(
@@ -270,6 +274,17 @@ export class OddsPortalProvider implements OddsProvider {
         `${feedTargets.length}/${mapped.length} meciuri, ` +
         `${realMarketCount} cu scor corect obținut`,
     );
+
+    // Fără cote inventate în locul lor, un gol aici înseamnă meciuri punctate pe
+    // cotă implicită. Îl semnalăm tare, ca să nu-l descoperim din reclamații.
+    if (missingCorrectScore.length > 0) {
+      console.warn(
+        `[odds] ${ctx.competitionLabel}: ${missingCorrectScore.length} meciuri cerute au ` +
+          `rămas fără scor corect real (${missingCorrectScore.slice(0, 8).join(", ")}` +
+          `${missingCorrectScore.length > 8 ? ", …" : ""}). ` +
+          `Se reiau la rularea următoare, inclusiv după kick-off de pe pagina de rezultate.`,
+      );
+    }
 
     const teams: Record<string, TeamOddsRow> = {};
     for (const t of ctx.teams) {
