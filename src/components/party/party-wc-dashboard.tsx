@@ -167,6 +167,16 @@ export default function PartyWcDashboard({
     isPublic && hasPublicPrizes
       ? t("party.predictionSavedFollow", { names: followNames })
       : t("party.predictionSaved");
+
+  // Toast-ul se ascunde singur după câteva secunde.
+  useEffect(() => {
+    if (!msg && !err) return;
+    const id = setTimeout(() => {
+      setMsg(null);
+      setErr(null);
+    }, 5000);
+    return () => clearTimeout(id);
+  }, [msg, err]);
   const matchDraftGettersRef = useRef(
     new Map<number, () => MatchPredictionSaveInput>(),
   );
@@ -506,9 +516,22 @@ export default function PartyWcDashboard({
       {competitionActive && (
         <>
           {(msg || err) && (
-            <p className={`text-sm ${err ? "text-red-400" : "text-emerald-400"}`}>
-              {err ?? msg}
-            </p>
+            <div
+              className="fixed inset-x-0 bottom-4 z-[120] flex justify-center px-4 pointer-events-none"
+              role="status"
+              aria-live="polite"
+            >
+              <div
+                className="pointer-events-auto max-w-md w-full sm:w-auto rounded-xl border px-4 py-3 text-sm font-semibold shadow-2xl text-center"
+                style={
+                  err
+                    ? { backgroundColor: "#3B1015", borderColor: "rgba(248,113,113,0.5)", color: "#FCA5A5" }
+                    : { backgroundColor: "#0D1F14", borderColor: "rgba(52,211,153,0.5)", color: "#A7F3D0" }
+                }
+              >
+                {err ?? msg}
+              </div>
+            </div>
           )}
 
           <div className="flex gap-2 flex-wrap border-b pb-2" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
