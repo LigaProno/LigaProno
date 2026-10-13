@@ -1,4 +1,4 @@
-const STEP_NUMBERS = ["01", "02", "03"] as const;
+import { TurneeHowItWorks } from "@/components/turnee/turnee-how-it-works";
 
 export function TurneePageHeader({
   title,
@@ -23,19 +23,7 @@ export function TurneePageHeader({
           </p>
         </div>
 
-        <ol className="grid gap-3 sm:grid-cols-3">
-          {STEP_NUMBERS.map((n, i) => (
-            <li key={n} className="turnee-step">
-              <span className="turnee-step-num">{n}</span>
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-white">{stepLabels[i]?.title}</p>
-                <p className="mt-1 text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.42)" }}>
-                  {stepLabels[i]?.desc}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ol>
+        <TurneeHowItWorks stepLabels={stepLabels} />
       </div>
     </header>
   );

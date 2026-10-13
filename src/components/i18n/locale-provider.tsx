@@ -13,6 +13,7 @@ import { setLocale as setLocaleAction } from "@/app/actions/locale";
 import {
   createTranslator,
   dateLocaleFor,
+  DEFAULT_LOCALE,
   type Locale,
   type MessageKey,
 } from "@/lib/i18n";
@@ -26,6 +27,24 @@ type LocaleContextValue = {
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
+const fallbackLocale: LocaleContextValue = {
+  locale: DEFAULT_LOCALE,
+  t: createTranslator(DEFAULT_LOCALE),
+  dateLocale: dateLocaleFor(DEFAULT_LOCALE),
+  setLocale: async (next) => {
+    await setLocaleAction(next);
+  },
+};
+
+/** `useRouter()` aruncă dacă App Router nu e montat încă. Contextul de limbă trebuie să existe oricum. */
+function useOptionalRouter() {
+  try {
+    return useRouter();
+  } catch {
+    return null;
+  }
+}
+
 export function LocaleProvider({
   initialLocale,
   children,
@@ -33,7 +52,7 @@ export function LocaleProvider({
   initialLocale: Locale;
   children: ReactNode;
 }) {
-  const router = useRouter();
+  const router = useOptionalRouter();
   const [locale, setLocaleState] = useState(initialLocale);
 
   const t = useMemo(() => createTranslator(locale), [locale]);
@@ -44,7 +63,7 @@ export function LocaleProvider({
       if (next === locale) return;
       setLocaleState(next);
       await setLocaleAction(next);
-      router.refresh();
+      router?.refresh();
     },
     [locale, router],
   );
@@ -60,9 +79,5 @@ export function LocaleProvider({
 }
 
 export function useLocale(): LocaleContextValue {
-  const ctx = useContext(LocaleContext);
-  if (!ctx) {
-    throw new Error("useLocale must be used within LocaleProvider");
-  }
-  return ctx;
+  return useContext(LocaleContext) ?? fallbackLocale;
 }

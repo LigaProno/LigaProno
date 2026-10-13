@@ -582,6 +582,12 @@ button:disabled { cursor: not-allowed; }
   .glass-flow-panel {
     transition: none;
   }
+  .turnee-demo-caret {
+    animation: none;
+  }
+  .turnee-demo-cursor {
+    transition: none;
+  }
 }
 
 /* ── Clerk overrides (user profile only) ─────────────────────────────── */
@@ -745,6 +751,38 @@ button:disabled { cursor: not-allowed; }
   padding-top: 0.125rem;
   shrink: 0;
   flex-shrink: 0;
+}
+
+button.turnee-step {
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
+}
+
+button.turnee-step:hover {
+  border-color: rgba(197, 160, 89, 0.32);
+}
+
+button.turnee-step.is-active {
+  border-color: rgba(197, 160, 89, 0.5);
+  background: rgba(197, 160, 89, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(197, 160, 89, 0.16);
+}
+
+.turnee-demo-caret {
+  animation: turneeCaret 1s steps(1) infinite;
+}
+
+.turnee-demo-cursor {
+  transition: left 0.45s cubic-bezier(0.22, 0.8, 0.28, 1), top 0.45s cubic-bezier(0.22, 0.8, 0.28, 1), transform 0.12s;
+}
+
+@keyframes turneeCaret {
+  0%, 45% { opacity: 1; }
+  50%, 100% { opacity: 0; }
 }
 
 .turnee-panel {
