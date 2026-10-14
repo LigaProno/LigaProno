@@ -6,8 +6,14 @@ import { createTranslator } from "@/lib/i18n";
 import { getLocaleFromCookies } from "@/lib/i18n/server";
 import { pageTitle } from "@/lib/site-metadata";
 import { prisma } from "@/lib/prisma";
-import { getVisiblePublicTournaments } from "@/lib/public-tournaments";
+import {
+  FINISHED_PUBLIC_PREVIEW_COUNT,
+  finishedPublicListOrder,
+  getVisiblePublicTournaments,
+  toFinishedPublicCard,
+} from "@/lib/public-tournaments";
 import TournamentActionsWidget from "@/components/turnee/tournament-actions-widget";
+import { FinishedPublicTournamentList } from "@/components/turnee/finished-public-tournament-list";
 import { TurneePageHeader } from "@/components/turnee/turnee-page-header";
 import { TurneeMyTournamentCard } from "@/components/turnee/turnee-my-tournament-card";
 import { TurneePublicTournamentCard } from "@/components/turnee/turnee-public-tournament-card";
@@ -21,7 +27,9 @@ export default async function TurneePage() {
   const t = createTranslator(locale);
   const { userId: clerkId } = await auth();
 
-  const [user, publicTournaments] = await Promise.all([
+  const finishedWhere = { isPublic: true, closedAt: { not: null } } as const;
+
+  const [user, ongoingRaw, finishedCount, finishedPreview] = await Promise.all([
     clerkId
       ? prisma.user.findUnique({
           where: { clerkId },
@@ -41,9 +49,16 @@ export default async function TurneePage() {
         })
       : Promise.resolve(null),
     prisma.tournament.findMany({
-      where: { isPublic: true },
+      where: { isPublic: true, closedAt: null },
       include: { _count: { select: { members: true } } },
       orderBy: { createdAt: "asc" },
+    }),
+    prisma.tournament.count({ where: finishedWhere }),
+    prisma.tournament.findMany({
+      where: finishedWhere,
+      include: { _count: { select: { members: true } } },
+      orderBy: finishedPublicListOrder,
+      take: FINISHED_PUBLIC_PREVIEW_COUNT,
     }),
   ]);
 
@@ -52,13 +67,11 @@ export default async function TurneePage() {
   const joinedIds = new Set(tournaments.map((tournament) => tournament.id));
   const privateTournaments = tournaments.filter((tournament) => !tournament.isPublic);
 
-  const visiblePublicTournaments = getVisiblePublicTournaments(publicTournaments);
+  const ongoingPublic = getVisiblePublicTournaments(ongoingRaw);
+  const finishedCards = finishedPreview.map((tournament) => toFinishedPublicCard(tournament, joinedIds));
+  const publicCount = ongoingPublic.length + finishedCount;
 
-  // Un turneu e „încheiat" când cronul l-a închis (closedAt setat la finalul etapelor).
-  const ongoingPublic = visiblePublicTournaments.filter((pt) => pt.closedAt == null);
-  const finishedPublic = visiblePublicTournaments.filter((pt) => pt.closedAt != null);
-
-  function renderPublicList(list: typeof visiblePublicTournaments, emptyText: string) {
+  function renderPublicList(list: typeof ongoingPublic, emptyText: string) {
     if (list.length === 0) {
       return (
         <div
@@ -123,12 +136,12 @@ export default async function TurneePage() {
         </aside>
 
         <section className="order-2 lg:order-none lg:col-start-1 lg:row-start-2 min-w-0 flex flex-col gap-8">
-          {visiblePublicTournaments.length > 0 ?
+          {publicCount > 0 ?
             <div>
               <TurneeSectionTitle
                 title={t("tournament.page.publicTitle")}
                 badge={t("tournament.page.publicBadge")}
-                count={visiblePublicTournaments.length}
+                count={publicCount}
                 extra={
                   <Link
                     href="/regulament"
@@ -140,11 +153,19 @@ export default async function TurneePage() {
               />
               <TurneePublicTabs
                 ongoingCount={ongoingPublic.length}
-                finishedCount={finishedPublic.length}
+                finishedCount={finishedCount}
                 ongoingLabel={t("tournament.page.publicOngoing")}
                 finishedLabel={t("tournament.page.publicFinished")}
                 ongoing={renderPublicList(ongoingPublic, t("tournament.page.publicNoneOngoing"))}
-                finished={renderPublicList(finishedPublic, t("tournament.page.publicNoneFinished"))}
+                finished={
+                  <FinishedPublicTournamentList
+                    initial={finishedCards}
+                    total={finishedCount}
+                    emptyText={t("tournament.page.publicNoneFinished")}
+                    openLabel={t("tournament.page.open")}
+                    finishedLabel={t("tournament.page.finishedBadge")}
+                  />
+                }
               />
             </div>
           : null}

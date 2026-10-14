@@ -117,6 +117,8 @@ export type MessageKey =
   | "tournament.page.finishedBadge"
   | "tournament.page.publicNoneOngoing"
   | "tournament.page.publicNoneFinished"
+  | "tournament.page.showMoreFinished"
+  | "tournament.page.showLessFinished"
   | "tournament.page.prizeEligibilityPrefix"
   | "tournament.page.prizeEligibilityAndPartners"
   | "tournament.page.prizeEligibilityRules"

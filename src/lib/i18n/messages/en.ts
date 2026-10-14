@@ -126,6 +126,8 @@ export const en: Messages = {
   "tournament.page.finishedBadge": "Finished",
   "tournament.page.publicNoneOngoing": "No public tournaments running right now.",
   "tournament.page.publicNoneFinished": "No public tournaments finished yet.",
+  "tournament.page.showMoreFinished": "Show more ({count})",
+  "tournament.page.showLessFinished": "Show less",
   "tournament.page.prizeEligibilityPrefix":
     "Prizes are awarded only if, at the start of the matchday, you follow on Instagram",
   "tournament.page.prizeEligibilityAndPartners": "and",

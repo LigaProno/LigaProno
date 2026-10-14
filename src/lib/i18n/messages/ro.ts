@@ -126,6 +126,8 @@ export const ro: Messages = {
   "tournament.page.finishedBadge": "Încheiat",
   "tournament.page.publicNoneOngoing": "Niciun turneu public în desfășurare acum.",
   "tournament.page.publicNoneFinished": "Niciun turneu public încheiat încă.",
+  "tournament.page.showMoreFinished": "Vezi mai multe ({count})",
+  "tournament.page.showLessFinished": "Arată mai puțin",
   "tournament.page.prizeEligibilityPrefix":
     "Premiile se acordă doar dacă, la începutul etapei, ai la follow pe Instagram",
   "tournament.page.prizeEligibilityAndPartners": "și",
